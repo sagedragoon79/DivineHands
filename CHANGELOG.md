@@ -28,6 +28,7 @@ Initial scaffold — the god-power core, ready to grow modules onto.
 - Build pipeline auto-stages the DLL to the game `Mods\` folder.
 
 ### Fixed
+- **Harmony patching no longer aborts on load.** The proportional-zoom prefix named its by-ref argument `amount` (from the decompile), but the shipped DLL names that parameter `zoomAdj`; Harmony matches prefix args by name, so `PatchAll` threw "Parameter not found" and **every** Divine Hands patch failed (input guard, build-anywhere, deselect guard, zoom). Switched to Harmony's positional `__0`, which is name-agnostic.
 - **Reveal Map repeat-toggle** — it worked the first on/off cycle then went inert; now it forces a fresh fog snapshot on every activation (and never skips a re-activation), so toggling works indefinitely.
 - **Item-injection click-through** — clicking an item in the panel no longer deselects the building / closes the panel. A Harmony prefix on the building deselect handler (`Input_SelectGameObject.OnLMBPressed`) skips it whenever the cursor is over the Divine Hands window.
 - **Item-injection eligibility (3-tier)** — the picker now greys out (and blocks adding) items the selected building can't take: **storage buildings** (granary/storehouse/depot/stockyard/root cellar/treasury/market/trading post) use their own accepted-items allow-list; **production buildings** (Preservist, Bakery, …) allow only the items they *consume* (`manufactureDefinitions[].sourceItems`) — produced goods go to storage instead; anything that's **neither** denies injection entirely (never fake-allow).

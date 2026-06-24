@@ -65,12 +65,16 @@ namespace DivineHands.Patches
             }
         }
 
-        // Prefix runs before vanilla AdjustZoom; we rescale 'amount' in place and let the original run
-        // (so the vanilla 0.05f damping + SetDesiredZoom still apply). Returns void => never skips vanilla.
-        private static void Prefix(CameraManager __instance, ref float amount)
+        // Prefix runs before vanilla AdjustZoom; we rescale the zoom delta in place and let the original
+        // run (so the vanilla 0.05f damping + SetDesiredZoom still apply). Returns void => never skips
+        // vanilla. NOTE: the by-ref delta is injected POSITIONALLY as __0 — the shipped DLL names this
+        // parameter "zoomAdj" (the decompile showed "amount"), and Harmony matches prefix params by NAME,
+        // so a named "amount" param throws "Parameter not found" and aborts PatchAll for the whole mod.
+        // __0 is name-agnostic.
+        private static void Prefix(CameraManager __instance, ref float __0)
         {
             if (__instance == null) return;
-            if (Mathf.Approximately(amount, 0f)) return;
+            if (Mathf.Approximately(__0, 0f)) return;
             if (!Config.MasterEnable.Value || !Config.ProportionalZoom.Value) return;
 
             Resolve();
@@ -88,11 +92,11 @@ namespace DivineHands.Patches
                 float fine = Mathf.Clamp(Config.ZoomStepScale.Value, 0.02f, 1f);
                 float multiplier = Mathf.Max(Mathf.Lerp(fine, 1f, 1f - currentZoom), 0.02f);
 
-                amount *= multiplier;
+                __0 *= multiplier;
             }
             catch (Exception ex)
             {
-                // Fail safe: leave 'amount' as-is (vanilla behavior).
+                // Fail safe: leave the delta as-is (vanilla behavior).
                 if (Config.DebugLog.Value)
                     MelonLogger.Warning($"[DivineHands] CameraZoomPatch prefix error (passing through): {ex.Message}");
             }
