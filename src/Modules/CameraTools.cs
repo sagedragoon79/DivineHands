@@ -277,13 +277,15 @@ namespace DivineHands.Modules
         private static float _fcFieldOfView;
         private static CameraClearFlags _fcClearFlags;
         private static bool _fcCamManagerEnabled;
-        private static CursorLockMode _fcCursorLock;
-        private static bool _fcCursorVisible;
         private static bool _fcHaveCameraComponent;
 
         // live fly state (mouse-look accumulators, seeded from current rotation on enable)
         private static float _fcYaw;
         private static float _fcPitch;
+
+        // True while the right mouse button is held (look + fly engaged, cursor locked). When false the
+        // cursor is free and clickable so the Free Cam toggle is always reachable — never a cursor trap.
+        private static bool _fcLooking;
 
         private static void SyncFreeCam()
         {
@@ -311,8 +313,6 @@ namespace DivineHands.Modules
                 _fcPosition          = tr.position;
                 _fcRotation          = tr.rotation;
                 _fcCamManagerEnabled = cam.enabled;
-                _fcCursorLock        = Cursor.lockState;
-                _fcCursorVisible     = Cursor.visible;
                 _fcHaveCameraComponent = unityCam != null;
                 if (unityCam != null)
                 {
@@ -326,12 +326,17 @@ namespace DivineHands.Modules
                 _fcPitch = e.x;
                 if (_fcPitch > 180f) _fcPitch -= 360f;     // normalise to [-180,180] for clamping
 
-                // ---- take control: stop FF's controller, free the cursor for mouse-look ----
+                // ---- take control: stop FF's controller; LEAVE THE CURSOR FREE ----
+                // We do NOT lock/hide the cursor on enable. Doing so (as the first version did) traps
+                // the user: with CursorLockMode.Locked the pointer is confined to the FF window and
+                // hidden, so they can't click the toggle off or even reach another monitor (alt-tab was
+                // the only escape). Instead the cursor stays free and clickable; mouse-look + fly engage
+                // ONLY while the RIGHT MOUSE button is held (see DriveFreeCam), so the toggle is always
+                // reachable and releasing the button always frees the cursor.
                 cam.enabled = false;                        // halts CameraManager LateUpdate drive
                 if (unityCam != null)
                     unityCam.clearFlags = CameraClearFlags.Skybox; // avoid smear off the map edge
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible   = false;
+                _fcLooking = false;
 
                 _freeCamApplied = true;
             }
@@ -354,6 +359,31 @@ namespace DivineHands.Modules
             try
             {
                 var tr = cam.transform;
+
+                // Look + fly engage ONLY while the right mouse button is held. Otherwise the cursor
+                // stays free and clickable (so the toggle is always reachable) and WASD does nothing.
+                bool look = Input.GetMouseButton(1);
+                if (look != _fcLooking)
+                {
+                    _fcLooking = look;
+                    if (look)
+                    {
+                        // Engage: lock+hide so the pointer can't drift off-window while turning, and
+                        // re-seed yaw/pitch from the live rotation (camera may have moved meanwhile).
+                        Cursor.lockState = CursorLockMode.Locked;
+                        Cursor.visible   = false;
+                        Vector3 e0 = tr.eulerAngles;
+                        _fcYaw = e0.y;
+                        _fcPitch = e0.x > 180f ? e0.x - 360f : e0.x;
+                    }
+                    else
+                    {
+                        // Release: free the cursor immediately so the panel/KC toggle is clickable.
+                        Cursor.lockState = CursorLockMode.None;
+                        Cursor.visible   = true;
+                    }
+                }
+                if (!look) return; // idle — cursor free, no fly, toggle reachable
 
                 // --- mouse-look (pitch clamped like FF's FreeLookCamera [60062]) ---
                 float sens = Mathf.Max(0.01f, Config.FreeCamSensitivity.Value);
@@ -405,9 +435,11 @@ namespace DivineHands.Modules
                         unityCam.clearFlags  = _fcClearFlags;
                     }
 
-                    // 2) restore cursor.
-                    Cursor.lockState = _fcCursorLock;
-                    Cursor.visible   = _fcCursorVisible;
+                    // 2) ALWAYS free the cursor on exit (never restore a locked state — that's the
+                    //    soft-lock we're guarding against). FF manages its own cursor in RTS mode.
+                    _fcLooking = false;
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible   = true;
 
                     // 3) re-enable FF's RTS controller LAST. Its LateUpdate re-syncs proxyCamera from
                     //    the (now restored) transform, so RTS control resumes exactly where we left it.
@@ -429,6 +461,7 @@ namespace DivineHands.Modules
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible   = true;
             }
+            _fcLooking = false;
             _freeCamApplied = false;
         }
     }

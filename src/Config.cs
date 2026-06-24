@@ -237,10 +237,11 @@ namespace DivineHands
             FreeCam = _root.CreateEntry(
                 "FreeCam", false,
                 display_name: "Free Cam",
-                description: "Detach the camera from RTS control and fly it manually: WASD to move, " +
-                             "Space/Left-Ctrl for up/down, hold Shift for fast, move the mouse to look. " +
-                             "Turning it OFF restores the normal camera and full RTS control exactly where " +
-                             "you left off. Default: off.");
+                description: "Detach the camera and fly it manually. HOLD THE RIGHT MOUSE BUTTON to " +
+                             "look + move: mouse aims, WASD moves, Space/Left-Ctrl up/down, Shift = fast. " +
+                             "Release the right button and the cursor is free and clickable (so you can " +
+                             "always turn this back off). Turning it OFF restores the normal camera and " +
+                             "full RTS control exactly where you left off. Default: off.");
 
             FreeCamMoveSpeed = _root.CreateEntry(
                 "FreeCamMoveSpeed", 40f,

@@ -83,9 +83,10 @@ namespace DivineHands.Core
                 Config.GodView.Value =
                     GUILayout.Toggle(Config.GodView.Value, "  God View (relax camera limits)");
                 Config.FreeCam.Value =
-                    GUILayout.Toggle(Config.FreeCam.Value, "  Free Cam (WASD fly — untoggle to restore)");
+                    GUILayout.Toggle(Config.FreeCam.Value, "  Free Cam (hold RIGHT-MOUSE to look + fly)");
                 if (Config.FreeCam.Value)
-                    GUILayout.Label("WASD move · Space/Ctrl up/down · Shift fast · mouse look", HintStyle);
+                    GUILayout.Label("HOLD right-mouse: aim + WASD · Space/Ctrl up/down · Shift fast. " +
+                                    "Release = cursor free.", HintStyle);
 
                 GUILayout.Space(6f);
                 DrawTerrainSection();

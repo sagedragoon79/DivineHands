@@ -21,6 +21,7 @@ Initial scaffold — the god-power core, ready to grow modules onto.
 - Build pipeline auto-stages the DLL to the game `Mods\` folder.
 
 ### Fixed
+- **Free Cam no longer traps the cursor.** It used to lock + hide the cursor on enable, which confined the pointer to the FF window with no way to click the toggle off (alt-tab was the only escape). Now the cursor stays free and clickable; mouse-look + fly engage only **while you hold the right mouse button**, and releasing it frees the cursor instantly. Every exit path force-frees the cursor.
 - Panel no longer triggers the game's drag-select marquee while being dragged — a Harmony postfix on `GameManager.pointerIsOverUI` reports the cursor as over-UI while it's over the IMGUI window.
 - Corrected the Reveal Map contract: revealing **does** bake explored state into the save (`FOWSystem.Save` serializes the fog buffer), so saving while revealed persists it. Snapshot/restore reverts the toggle; turn it off before saving for clean fog.
 

@@ -169,9 +169,9 @@ namespace DivineHands
                         visibleWhen: () => Config.GodView.Value && Config.ProportionalZoom.Value));
             Reg(GroupGodTools, Config.FreeCam,
                 NewMeta("Free Cam",
-                        "Detach the camera from RTS control and fly it manually: WASD move, Space/Left-Ctrl " +
-                        "up/down, hold Shift for fast, mouse to look. Turning it OFF restores the normal " +
-                        "camera and full RTS control exactly where you left off. Default: OFF.",
+                        "Detach + fly the camera. HOLD RIGHT-MOUSE to look + move (WASD, Space/Left-Ctrl " +
+                        "up/down, Shift fast). Release it and the cursor is free/clickable so you can " +
+                        "always toggle off. Turning OFF restores the normal camera exactly. Default: OFF.",
                         order: 130));
             Reg(GroupGodTools, Config.FreeCamMoveSpeed,
                 NewMeta("Free Cam Move Speed",
