@@ -31,20 +31,25 @@ namespace DivineHands
 
         // ===== God Tools =====
 
-        /// <summary>Reveal the entire map (clears fog of war). Live toggle —
-        /// drives FOWSystem.instance.revealCompletely while in-game.</summary>
-        public static MelonPreferences_Entry<bool>   RevealMap      { get; private set; } = null!;
+        /// <summary>ENABLE/AVAILABLE switch for Reveal Map. When true, the Reveal Map control appears
+        /// in the in-game panel and its (no) sliders reveal in KC. It does NOT activate the effect —
+        /// the live ON/OFF is a runtime flag (<see cref="Modules.GodTools.RevealActive"/>) toggled in
+        /// the panel and reset to false on every map load.</summary>
+        public static MelonPreferences_Entry<bool>   EnableRevealMap   { get; private set; } = null!;
 
-        /// <summary>Build Anywhere: bypass placement/pathing validity for NORMAL buildings so they
-        /// can be placed on otherwise-invalid ground (steep slope, no path to town, overlaps). Bridge
-        /// placements are deliberately NOT affected — they defer to vanilla + Keep Clarity's Bridge
-        /// Anywhere. Off => pure vanilla.</summary>
-        public static MelonPreferences_Entry<bool>   BuildAnywhere  { get; private set; } = null!;
+        /// <summary>ENABLE/AVAILABLE switch for Build Anywhere. When true, the Build Anywhere control
+        /// appears in the in-game panel. The live ON/OFF is a runtime flag
+        /// (<see cref="Patches.BuildAnywherePatches.Active"/>), reset to false on every map load.
+        /// When active it bypasses placement/pathing validity for NORMAL buildings (steep slope, no
+        /// path to town, overlaps). Bridges are NOT affected — they defer to vanilla + KC Bridge Anywhere.</summary>
+        public static MelonPreferences_Entry<bool>   EnableBuildAnywhere  { get; private set; } = null!;
 
-        /// <summary>God View: relax the RTS camera constraints (zoom far out, flatten/overhead pitch,
-        /// raise shadow draw distance) to survey the whole map. Live toggle — captures the map's
-        /// current constraint values on enable and restores them exactly on disable.</summary>
-        public static MelonPreferences_Entry<bool>   GodView        { get; private set; } = null!;
+        /// <summary>ENABLE/AVAILABLE switch for God View. When true, the God View control appears in
+        /// the in-game panel and its sliders reveal in KC. The live ON/OFF is a runtime flag
+        /// (<see cref="Modules.CameraTools.GodViewActive"/>), reset to false on every map load. When
+        /// active it relaxes the RTS camera constraints (zoom far out, flatten/overhead pitch, raise
+        /// shadow draw distance), capturing the map's current values on enable and restoring on disable.</summary>
+        public static MelonPreferences_Entry<bool>   EnableGodView        { get; private set; } = null!;
 
         /// <summary>Proportional God-View zoom: while God View is on, make mouse-scroll zoom steps finer
         /// as you zoom in close (the wide god-view range otherwise makes each notch coarse near the
@@ -56,10 +61,18 @@ namespace DivineHands
         /// steps near the ground; far-out zoom stays near vanilla. Used only with God View + Proportional Zoom.</summary>
         public static MelonPreferences_Entry<float>  ZoomStepScale  { get; private set; } = null!;
 
-        /// <summary>Free Cam: detach the camera from RTS control and fly it manually (WASD horizontal,
-        /// Space/LeftCtrl up/down, Shift fast, mouse-look). Live toggle — captures camera transform +
-        /// controller state on enable and restores full RTS control on disable.</summary>
-        public static MelonPreferences_Entry<bool>   FreeCam        { get; private set; } = null!;
+        /// <summary>ENABLE/AVAILABLE switch for Free Cam. When true, the Free Cam control appears in
+        /// the in-game panel and its sliders/hotkey reveal in KC. The live ON/OFF is a runtime flag
+        /// (<see cref="Modules.CameraTools.FreeCamActive"/>), reset to false on every map load and
+        /// toggled by the panel control OR the <see cref="FreeCamHotkey"/> chord (default Ctrl+F).
+        /// When active it detaches the camera from RTS control and flies it manually (WASD horizontal,
+        /// Space/LeftCtrl up/down, Shift fast, mouse-look).</summary>
+        public static MelonPreferences_Entry<bool>   EnableFreeCam        { get; private set; } = null!;
+
+        /// <summary>Hotkey chord that toggles Free Cam on/off in-game (parsed by <see cref="Hotkey"/>).
+        /// Default Ctrl+F. The keyboard works even while the cursor is locked for mouse-look, so this is
+        /// always the escape out of Free Cam — no soft-lock.</summary>
+        public static MelonPreferences_Entry<string> FreeCamHotkey        { get; private set; } = null!;
 
         /// <summary>Free Cam horizontal/vertical fly speed in world metres per second.</summary>
         public static MelonPreferences_Entry<float>  FreeCamMoveSpeed { get; private set; } = null!;
@@ -197,28 +210,31 @@ namespace DivineHands
                 display_name: "Debug Logging",
                 description: "Verbose diagnostic output to MelonLoader.log. Default: off.");
 
-            RevealMap = _root.CreateEntry(
-                "RevealMap", false,
+            EnableRevealMap = _root.CreateEntry(
+                "EnableRevealMap", false,
                 display_name: "Reveal Map",
-                description: "Clear the entire fog of war (FOWSystem.revealCompletely). Toggling OFF " +
-                             "best-effort restores the fog you had explored before. Caveat: FF bakes " +
-                             "explored state into the SAVE — if you save while revealed, the whole map " +
-                             "stays explored. Turn it off before saving for clean fog. Default: off.");
+                description: "Make Reveal Map AVAILABLE in the in-game panel. Enabling here does NOT clear " +
+                             "fog — you activate it in-game from the Divine Hands panel (God Tools). " +
+                             "Reveal clears the entire fog of war; toggling it off best-effort restores the " +
+                             "fog you'd explored. Caveat: FF bakes explored state into the SAVE — if you save " +
+                             "while revealed, the whole map stays explored. Default: off.");
 
-            BuildAnywhere = _root.CreateEntry(
-                "BuildAnywhere", false,
+            EnableBuildAnywhere = _root.CreateEntry(
+                "EnableBuildAnywhere", false,
                 display_name: "Build Anywhere",
-                description: "Lets you place NORMAL buildings on ground vanilla would reject (steep " +
-                             "slopes, no path to town, water/road overlap). Bridges are NOT affected — " +
-                             "they defer to vanilla and Keep Clarity's Bridge Anywhere. Turning this OFF " +
-                             "restores exact vanilla placement rules. Default: off.");
+                description: "Make Build Anywhere AVAILABLE in the in-game panel. Enabling here does NOT " +
+                             "change placement — you activate it in-game from the Divine Hands panel. " +
+                             "When active it lets you place NORMAL buildings on ground vanilla would reject " +
+                             "(steep slopes, no path to town, water/road overlap). Bridges are NOT affected — " +
+                             "they defer to vanilla and Keep Clarity's Bridge Anywhere. Default: off.");
 
-            GodView = _root.CreateEntry(
-                "GodView", false,
+            EnableGodView = _root.CreateEntry(
+                "EnableGodView", false,
                 display_name: "God View",
-                description: "Relax the RTS camera limits so you can zoom far out, tilt to a flat/overhead " +
-                             "angle, and survey the whole map. Captures the map's current camera limits when " +
-                             "turned ON and restores them exactly when turned OFF. Default: off.");
+                description: "Make God View AVAILABLE in the in-game panel. Enabling here does NOT move the " +
+                             "camera — you activate it in-game from the Divine Hands panel. When active it " +
+                             "relaxes the RTS camera limits so you can zoom far out, tilt to a flat/overhead " +
+                             "angle, and survey the whole map, restoring exactly when turned off. Default: off.");
 
             ProportionalZoom = _root.CreateEntry(
                 "ProportionalZoom", true,
@@ -234,14 +250,19 @@ namespace DivineHands
                              "step (0.4 ≈ 40% = ~2.5x finer near the ground). Lower = finer. Far-out zoom is " +
                              "unaffected. Range 0.02–1.0. Default: 0.4.");
 
-            FreeCam = _root.CreateEntry(
-                "FreeCam", false,
+            EnableFreeCam = _root.CreateEntry(
+                "EnableFreeCam", false,
                 display_name: "Free Cam",
-                description: "Detach the camera and fly it manually. HOLD THE RIGHT MOUSE BUTTON to " +
-                             "look + move: mouse aims, WASD moves, Space/Left-Ctrl up/down, Shift = fast. " +
-                             "Release the right button and the cursor is free and clickable (so you can " +
-                             "always turn this back off). Turning it OFF restores the normal camera and " +
-                             "full RTS control exactly where you left off. Default: off.");
+                description: "Make Free Cam AVAILABLE in the in-game panel. Enabling here does NOT detach " +
+                             "the camera — you activate it in-game. Press Ctrl+F (configurable) to enter/exit, " +
+                             "or use the panel toggle. WASD move, Space/Ctrl up/down, Shift fast, mouse look. " +
+                             "Exiting restores the normal camera and full RTS control exactly. Default: off.");
+
+            FreeCamHotkey = _root.CreateEntry(
+                "FreeCamHotkey", "Ctrl+F",
+                display_name: "Free Cam Hotkey",
+                description: "Key/chord that toggles Free Cam on/off in-game. A Unity KeyCode name or a chord " +
+                             "with Ctrl/Alt/Shift — e.g. Ctrl+F, F8, Alt+C. Default: Ctrl+F.");
 
             FreeCamMoveSpeed = _root.CreateEntry(
                 "FreeCamMoveSpeed", 40f,
@@ -287,11 +308,11 @@ namespace DivineHands
                              "metres (default 5 m), so a 3 grid ≈ 15 m. Default: 3.");
 
             TerrainApplyKey = _root.CreateEntry(
-                "TerrainApplyKey", "Mouse2",
+                "TerrainApplyKey", "Ctrl+Mouse1",
                 display_name: "Apply Key",
-                description: "Key/button that applies the brush at the cursor. A Unity KeyCode name — e.g. " +
-                             "Mouse2 (middle button), Mouse0 (left), F, or a chord like Ctrl+Mouse2. " +
-                             "Default: Mouse2 (middle mouse).");
+                description: "Key/button that applies the brush at the cursor. A Unity KeyCode name or a chord " +
+                             "— e.g. Ctrl+Mouse1 (Ctrl + right-click), Mouse2 (middle), Mouse0 (left), F. " +
+                             "Default: Ctrl+Mouse1 (Ctrl + right-click — prevents accidental application).");
 
             TerrainUndoKey = _root.CreateEntry(
                 "TerrainUndoKey", "Ctrl+Z",
@@ -317,7 +338,7 @@ namespace DivineHands
                 display_name: "Spawn Sub-type",
                 description: "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf. " +
                              "Mineral: 0 Gold/1 Iron/2 Coal/3 Stone/4 Clay/5 Sand. " +
-                             "Resource: 0 Forageable/1 Tree/2 Rock/3 Giant Rock. Villager ignores this.");
+                             "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. Villager ignores this.");
 
             SpawnCount = _root.CreateEntry(
                 "SpawnCount", 1,
@@ -352,10 +373,11 @@ namespace DivineHands
                              "den prefab can't be resolved. Leave default unless dens fail to spawn.");
 
             SpawnApplyKey = _root.CreateEntry(
-                "SpawnApplyKey", "Mouse2",
+                "SpawnApplyKey", "Ctrl+Mouse1",
                 display_name: "Spawn Apply Key",
                 description: "Key/button that spawns the selected family at the cursor. A Unity KeyCode name " +
-                             "(Mouse2 = middle, Mouse0 = left) or a chord. Default: Mouse2.");
+                             "(Mouse2 = middle, Mouse0 = left, Mouse1 = right) or a chord like Ctrl+Mouse1. " +
+                             "Default: Ctrl+Mouse1 (Ctrl + right-click — prevents accidental spawning).");
 
             SpawnForageableGuids = _root.CreateEntry(
                 "SpawnForageableGuids",
@@ -386,8 +408,8 @@ namespace DivineHands
 
             SpawnGiantRockGuids = _root.CreateEntry(
                 "SpawnGiantRockGuids", "51310685-9865-4e53-b294-f57dd0d086dc",
-                display_name: "Giant Rock GUIDs",
-                description: "Delimited prefab GUIDs for the Giant Rock type.");
+                display_name: "Boulder GUIDs",
+                description: "Delimited prefab GUIDs for the Boulder type.");
 
             // ===== Item Injection (selected building) =====
 

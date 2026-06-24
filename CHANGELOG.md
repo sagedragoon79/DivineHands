@@ -6,6 +6,13 @@ All notable changes to Divine Hands are documented here.
 
 Initial scaffold — the god-power core, ready to grow modules onto.
 
+### Changed
+- **Config now *enables*, the in-game panel *activates*.** Each God Tool has an `Enable…` switch in the Keep Clarity settings that only makes it **available** (and reveals its sliders) — it no longer fires the effect. The power then appears in the in-game panel, where you actually turn it on; disabled powers are hidden from the panel entirely. Live state is runtime-only and **resets OFF on every map load**, so you never load straight into an active god-power (no more being thrown into Free Cam from the settings screen).
+- **Free Cam is now a `Ctrl+F` toggle** (configurable), not hold-right-mouse. Press to enter (cursor locks for mouse-look, WASD/Space/Ctrl fly, Shift fast), press again to exit — the keyboard hotkey is always a safe escape.
+- **Apply key is now `Ctrl`+right-click** for both terrain and spawner (was middle-click) to prevent accidental application.
+- Terrain grid label shows meters — e.g. `Grid: 3 × 3 cells (15 × 15 m)`.
+- Mineral deposits and Boulder spawn **one at a time** (count is ignored for those); "Giant Rock" renamed **Boulder**; spawn count resets to 1 when you switch spawn type.
+
 ### Added
 - **DivineCore** — MelonMod entry, scene lifecycle, and a single in-game panel (`DivinePanel`) toggled by a **configurable hotkey** (default `Ctrl+G`).
 - **Keep Clarity integration** — all settings register reflectively with KC's settings panel (soft-dep); runs standalone if KC is absent.

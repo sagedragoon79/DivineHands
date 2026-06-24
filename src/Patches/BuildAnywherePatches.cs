@@ -4,8 +4,9 @@ namespace DivineHands.Patches
 {
     /// <summary>
     /// Build Anywhere — lets you confirm a NORMAL building on ground vanilla would reject
-    /// (steep slope, no path to town, water/road overlap, etc.) when <see cref="Config.BuildAnywhere"/>
-    /// is on. Re-implemented natively (no WickerToolbox dependency) as three Harmony prefixes on the
+    /// (steep slope, no path to town, water/road overlap, etc.) when made available in config
+    /// (<see cref="Config.EnableBuildAnywhere"/>) AND activated in the panel (<see cref="Active"/>).
+    /// Re-implemented natively (no WickerToolbox dependency) as three Harmony prefixes on the
     /// verified placement/pathing gates:
     ///
     ///   1. <c>Placeable.IsPlacementValid</c>             (decompile L348583, public virtual bool)
@@ -34,10 +35,17 @@ namespace DivineHands.Patches
     /// </summary>
     internal static class BuildAnywherePatches
     {
-        /// <summary>Single gate: the feature applies only when the mod master switch AND BuildAnywhere are on.</summary>
-        private static bool Active =>
+        /// <summary>Runtime live ON/OFF for Build Anywhere — toggled in the in-game panel, NOT a saved
+        /// pref. Reset to false on every map load / scene exit (by Plugin), so the power always starts
+        /// off when entering a map even if its Enable pref is on.</summary>
+        public static bool Active;
+
+        /// <summary>Single gate: the feature applies only when the master switch AND the Enable pref
+        /// (config: make-available) AND the runtime <see cref="Active"/> flag (panel: activate) are on.</summary>
+        private static bool Engaged =>
             Config.MasterEnable != null && Config.MasterEnable.Value &&
-            Config.BuildAnywhere != null && Config.BuildAnywhere.Value;
+            Config.EnableBuildAnywhere != null && Config.EnableBuildAnywhere.Value &&
+            Active;
 
         /// <summary>
         /// True when the placeable currently being positioned is a bridge — in which case we must
@@ -69,7 +77,7 @@ namespace DivineHands.Patches
             {
                 try
                 {
-                    if (!Active) return true;                       // feature off => vanilla
+                    if (!Engaged) return true;                       // feature off => vanilla
                     if (__instance is PlaceableBridge) return true; // bridge => defer to vanilla + KC
 
                     __result = true;                                // force this placement valid
@@ -90,7 +98,7 @@ namespace DivineHands.Patches
             {
                 try
                 {
-                    if (!Active) return true;                   // feature off => vanilla
+                    if (!Engaged) return true;                   // feature off => vanilla
                     if (ActivePlaceableIsBridge()) return true; // bridge => defer to vanilla + KC
 
                     __result = true;                            // pretend a path to town exists
@@ -112,7 +120,7 @@ namespace DivineHands.Patches
             {
                 try
                 {
-                    if (!Active) return true; // feature off => vanilla
+                    if (!Engaged) return true; // feature off => vanilla
 
                     __result = true;          // wagon can always reach an isolated WagonShop
                     return false;

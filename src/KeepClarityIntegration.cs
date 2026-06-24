@@ -135,59 +135,68 @@ namespace DivineHands
                         order: 13, indent: 20));
 
             // ===== God Tools =====
-            Reg(GroupGodTools, Config.RevealMap,
+            // These Enable toggles make each power AVAILABLE in the in-game panel; you ACTIVATE it
+            // there (its live ON/OFF is a runtime flag reset on every map load — never a saved pref).
+            Reg(GroupGodTools, Config.EnableRevealMap,
                 NewMeta("Reveal Map",
-                        "Clear the entire fog of war. Toggling OFF best-effort restores the fog you had " +
-                        "explored before. Caveat: FF serializes explored state into the save — if you " +
-                        "save while revealed, the whole map stays explored. Turn it off before saving " +
-                        "for clean fog. Default: OFF.",
+                        "Makes Reveal Map available in the in-game Divine Hands panel — you activate it " +
+                        "there, not here. When activated it clears the entire fog of war; toggling it off " +
+                        "best-effort restores the fog you'd explored. Caveat: FF serializes explored state " +
+                        "into the save — if you save while revealed, the whole map stays explored. Default: OFF.",
                         order: 100));
-            Reg(GroupGodTools, Config.BuildAnywhere,
+            Reg(GroupGodTools, Config.EnableBuildAnywhere,
                 NewMeta("Build Anywhere",
-                        "Place NORMAL buildings on ground vanilla rejects — steep slopes, no path to " +
-                        "town, water/road overlap. Bridges are intentionally left alone so they keep " +
-                        "deferring to vanilla and Keep Clarity's Bridge Anywhere. Turning this OFF " +
-                        "restores exact vanilla placement. Default: OFF.",
+                        "Makes Build Anywhere available in the in-game panel — you activate it there, not " +
+                        "here. When activated it lets you place NORMAL buildings on ground vanilla rejects " +
+                        "(steep slopes, no path to town, water/road overlap). Bridges are left alone so they " +
+                        "keep deferring to vanilla and Keep Clarity's Bridge Anywhere. Default: OFF.",
                         order: 110));
-            Reg(GroupGodTools, Config.GodView,
+            Reg(GroupGodTools, Config.EnableGodView,
                 NewMeta("God View",
-                        "Relax the RTS camera limits — zoom far out, tilt to a flat/overhead angle, and " +
-                        "survey the whole map. Captures the map's current camera limits when turned ON and " +
-                        "restores them exactly when turned OFF. Default: OFF.",
+                        "Makes God View available in the in-game panel — you activate it there, not here. " +
+                        "When activated it relaxes the RTS camera limits — zoom far out, tilt to a flat/" +
+                        "overhead angle, survey the whole map — restoring exactly when turned off. Default: OFF.",
                         order: 120));
             Reg(GroupGodTools, Config.ProportionalZoom,
                 NewMeta("Proportional Zoom",
-                        "While God View is on, finer scroll-zoom steps up close (no more jumping from normal " +
-                        "to too-close). Far-out zoom stays vanilla. Off = flat vanilla step. Default: ON.",
+                        "While God View is active, finer scroll-zoom steps up close (no more jumping from " +
+                        "normal to too-close). Far-out zoom stays vanilla. Off = flat vanilla step. Default: ON.",
                         order: 121, indent: 20,
-                        visibleWhen: () => Config.GodView.Value));
+                        visibleWhen: () => Config.EnableGodView.Value));
             Reg(GroupGodTools, Config.ZoomStepScale,
                 NewMeta("Zoom Fineness (close-in)",
                         "Lower = finer steps near the ground (0.4 ≈ 2.5x finer). Far-out zoom is unaffected. " +
                         "Default: 0.4.",
                         min: 0.02f, max: 1.0f, order: 122, indent: 40,
-                        visibleWhen: () => Config.GodView.Value && Config.ProportionalZoom.Value));
-            Reg(GroupGodTools, Config.FreeCam,
+                        visibleWhen: () => Config.EnableGodView.Value && Config.ProportionalZoom.Value));
+            Reg(GroupGodTools, Config.EnableFreeCam,
                 NewMeta("Free Cam",
-                        "Detach + fly the camera. HOLD RIGHT-MOUSE to look + move (WASD, Space/Left-Ctrl " +
-                        "up/down, Shift fast). Release it and the cursor is free/clickable so you can " +
-                        "always toggle off. Turning OFF restores the normal camera exactly. Default: OFF.",
+                        "Makes Free Cam available in the in-game panel — you activate it there, not here. " +
+                        "Press Ctrl+F (configurable) to enter/exit, or use the panel toggle. WASD move, " +
+                        "Space/Ctrl up/down, Shift fast, mouse look. Exiting restores the normal camera " +
+                        "exactly. Default: OFF.",
                         order: 130));
+            Reg(GroupGodTools, Config.FreeCamHotkey,
+                NewMeta("Free Cam Hotkey",
+                        "Key/chord that toggles Free Cam on/off in-game. A Unity KeyCode name or a chord " +
+                        "with Ctrl/Alt/Shift — e.g. Ctrl+F, F8, Alt+C. Default: Ctrl+F.",
+                        order: 131, indent: 20,
+                        visibleWhen: () => Config.EnableFreeCam.Value));
             Reg(GroupGodTools, Config.FreeCamMoveSpeed,
                 NewMeta("Free Cam Move Speed",
                         "Free Cam fly speed in world metres per second. Default: 40.",
-                        min: 1f, max: 300f, order: 131, indent: 20,
-                        visibleWhen: () => Config.FreeCam.Value));
+                        min: 1f, max: 300f, order: 132, indent: 20,
+                        visibleWhen: () => Config.EnableFreeCam.Value));
             Reg(GroupGodTools, Config.FreeCamFastMultiplier,
                 NewMeta("Free Cam Fast Multiplier",
                         "Speed multiplier while holding Shift in Free Cam. Default: 3.",
-                        min: 1f, max: 10f, order: 132, indent: 20,
-                        visibleWhen: () => Config.FreeCam.Value));
+                        min: 1f, max: 10f, order: 133, indent: 20,
+                        visibleWhen: () => Config.EnableFreeCam.Value));
             Reg(GroupGodTools, Config.FreeCamSensitivity,
                 NewMeta("Free Cam Mouse Sensitivity",
                         "Free Cam mouse-look sensitivity. Default: 2.",
-                        min: 0.25f, max: 10f, order: 133, indent: 20,
-                        visibleWhen: () => Config.FreeCam.Value));
+                        min: 0.25f, max: 10f, order: 134, indent: 20,
+                        visibleWhen: () => Config.EnableFreeCam.Value));
 
             // ===== Terrain Sculpting =====
             Reg(GroupTerrain, Config.TerrainEnable,
@@ -239,7 +248,7 @@ namespace DivineHands
                 NewMeta("Spawn Sub-type",
                         "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf. " +
                         "Mineral: 0 Gold/1 Iron/2 Coal/3 Stone/4 Clay/5 Sand. " +
-                        "Resource: 0 Forageable/1 Tree/2 Rock/3 Giant Rock. Villager ignores this.",
+                        "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. Villager ignores this.",
                         min: 0, max: 5, order: 302, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
             Reg(GroupSpawning, Config.SpawnCount,
@@ -298,8 +307,8 @@ namespace DivineHands
                         visibleWhen: () => Config.SpawnEnable.Value
                                         && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 2));
             Reg(GroupSpawning, Config.SpawnGiantRockGuids,
-                NewMeta("Giant Rock GUIDs",
-                        "Delimited prefab GUIDs for the Giant Rock type.",
+                NewMeta("Boulder GUIDs",
+                        "Delimited prefab GUIDs for the Boulder type.",
                         order: 310, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value
                                         && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 3));

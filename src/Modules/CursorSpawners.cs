@@ -152,6 +152,14 @@ namespace DivineHands.Modules
             int count = Mathf.Clamp(Config.SpawnCount.Value, 1, 50);
             var family = (Family)Mathf.Clamp(Config.SpawnFamily.Value, 0, 3);
 
+            // Minerals are always a single deposit/pit; Boulders (Resource→GiantRock) are always single.
+            // (Other resources/animals/villagers respect the count.)
+            if (family == Family.Mineral)
+                count = 1;
+            else if (family == Family.Resource
+                     && (ResourceKind)Mathf.Clamp(Config.SpawnSubtype.Value, 0, 3) == ResourceKind.GiantRock)
+                count = 1;
+
             try
             {
                 switch (family)

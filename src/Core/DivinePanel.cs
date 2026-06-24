@@ -76,17 +76,7 @@ namespace DivineHands.Core
             }
             else
             {
-                GUILayout.Label("God Tools", SectionStyle);
-                Config.RevealMap.Value = GUILayout.Toggle(Config.RevealMap.Value, "  Reveal Map (clear fog)");
-                Config.BuildAnywhere.Value =
-                    GUILayout.Toggle(Config.BuildAnywhere.Value, "  Build anywhere (normal buildings)");
-                Config.GodView.Value =
-                    GUILayout.Toggle(Config.GodView.Value, "  God View (relax camera limits)");
-                Config.FreeCam.Value =
-                    GUILayout.Toggle(Config.FreeCam.Value, "  Free Cam (hold RIGHT-MOUSE to look + fly)");
-                if (Config.FreeCam.Value)
-                    GUILayout.Label("HOLD right-mouse: aim + WASD · Space/Ctrl up/down · Shift fast. " +
-                                    "Release = cursor free.", HintStyle);
+                DrawGodToolsSection();
 
                 GUILayout.Space(6f);
                 DrawTerrainSection();
@@ -107,6 +97,42 @@ namespace DivineHands.Core
 
             // Drag by the whole window (no uGUI header yet).
             GUI.DragWindow(new Rect(0f, 0f, 10000f, 24f));
+        }
+
+        // ---- God Tools ----
+        // Each power's control renders ONLY when its Enable pref (KC config) is true. The toggle drives
+        // the power's RUNTIME Active flag (not a saved pref) — the live ON/OFF that the modules sync off.
+        private static void DrawGodToolsSection()
+        {
+            GUILayout.Label("God Tools", SectionStyle);
+
+            bool anyEnabled = Config.EnableRevealMap.Value || Config.EnableBuildAnywhere.Value
+                           || Config.EnableGodView.Value || Config.EnableFreeCam.Value;
+
+            if (!anyEnabled)
+            {
+                GUILayout.Label("(enable god tools in the Keep Clarity settings)", HintStyle);
+                return;
+            }
+
+            if (Config.EnableRevealMap.Value)
+                DivineHands.Modules.GodTools.RevealActive =
+                    GUILayout.Toggle(DivineHands.Modules.GodTools.RevealActive, "  Reveal Map (clear fog)");
+
+            if (Config.EnableBuildAnywhere.Value)
+                DivineHands.Patches.BuildAnywherePatches.Active =
+                    GUILayout.Toggle(DivineHands.Patches.BuildAnywherePatches.Active, "  Build anywhere");
+
+            if (Config.EnableGodView.Value)
+                DivineHands.Modules.CameraTools.GodViewActive =
+                    GUILayout.Toggle(DivineHands.Modules.CameraTools.GodViewActive, "  God View");
+
+            if (Config.EnableFreeCam.Value)
+            {
+                DivineHands.Modules.CameraTools.FreeCamActive =
+                    GUILayout.Toggle(DivineHands.Modules.CameraTools.FreeCamActive, "  Free Cam");
+                GUILayout.Label("Ctrl+F toggles · WASD fly · mouse look · Shift fast", HintStyle);
+            }
         }
 
         private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten" };
@@ -149,9 +175,14 @@ namespace DivineHands.Core
                     GUILayout.HorizontalSlider(Config.TerrainStrength.Value, 0.05f, 25f);
             }
 
-            // Grid size.
+            // Grid size. Show metres when the per-cell resolution is known (terrain resolved in-game);
+            // otherwise just the cell count.
             int grid = Mathf.Clamp(Config.TerrainGridSize.Value, 1, 10);
-            GUILayout.Label($"Grid: {grid} x {grid} cells", HintStyle);
+            float cellMeters = DivineHands.Modules.TerrainElevation.CellMeters;
+            string gridLabel = cellMeters > 0f
+                ? $"Grid: {grid} x {grid} cells ({grid * cellMeters:0.#} x {grid * cellMeters:0.#} m)"
+                : $"Grid: {grid} x {grid} cells";
+            GUILayout.Label(gridLabel, HintStyle);
             grid = Mathf.RoundToInt(GUILayout.HorizontalSlider(grid, 1f, 10f));
             Config.TerrainGridSize.Value = grid;
 
@@ -162,7 +193,12 @@ namespace DivineHands.Core
         private static readonly string[] _families = { "Animal", "Mineral", "Villager", "Resource" };
         private static readonly string[] _animalKinds = { "Deer", "Bear", "Boar", "Wolf" };
         private static readonly string[] _mineralKinds = { "Gold", "Iron", "Coal", "Stone", "Clay", "Sand" };
-        private static readonly string[] _resourceKinds = { "Forage", "Tree", "Rock", "Giant" };
+        private static readonly string[] _resourceKinds = { "Forage", "Tree", "Rock", "Boulder" };
+
+        // Last-rendered spawner family/subtype, so we can reset the count to 1 when the user switches
+        // type (a fresh type defaults to spawning one). Seeded to an impossible value to skip the first frame.
+        private static int _lastSpawnFamily = -1;
+        private static int _lastSpawnSubtype = -1;
 
         private static void DrawSpawnerSection()
         {
@@ -214,6 +250,17 @@ namespace DivineHands.Core
                 GUILayout.EndHorizontal();
                 Config.SpawnSubtype.Value = sub;
             }
+
+            // When the family or subtype changes vs the previous frame, reset the count to 1 (a fresh
+            // type defaults to one). Skip the very first frame (seeded to -1) so we don't clobber a
+            // user-set count on panel open.
+            int curFamily = Config.SpawnFamily.Value;
+            int curSubtype = Config.SpawnSubtype.Value;
+            if (_lastSpawnFamily != -1
+                && (curFamily != _lastSpawnFamily || curSubtype != _lastSpawnSubtype))
+                Config.SpawnCount.Value = 1;
+            _lastSpawnFamily = curFamily;
+            _lastSpawnSubtype = curSubtype;
 
             // Count slider.
             int count = Mathf.Clamp(Config.SpawnCount.Value, 1, 50);

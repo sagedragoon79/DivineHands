@@ -288,6 +288,11 @@ namespace DivineHands.Modules
 
         public static int UndoDepth => _undo.Count;
 
+        /// <summary>World metres per heightmap cell for the current map (Terrain2.Data.Resolution), or
+        /// 0 if terrain hasn't resolved yet (not in game / not loaded). Read-only; the panel multiplies
+        /// it by the grid cell count to show the brush footprint in metres.</summary>
+        public static float CellMeters => _resolution;
+
         // ---- Shared read-only accessors for the cursor grid preview (TerrainBrushGrid) ----
         // Expose the SAME resolved terrain handles + cell math the brush uses, so the preview
         // outline lands exactly where ApplyStroke() writes.

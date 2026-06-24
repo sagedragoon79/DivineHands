@@ -36,6 +36,11 @@ namespace DivineHands.Modules
     /// </summary>
     public static class GodTools
     {
+        /// <summary>Runtime live ON/OFF for Reveal Map — toggled in the in-game panel, NOT a saved pref.
+        /// Reset to false on every map load / scene exit (see <see cref="ResetActive"/>), so the power
+        /// always starts off when entering a map even if its Enable pref is on.</summary>
+        public static bool RevealActive;
+
         private static bool _appliedReveal;
         private static bool _hasApplied;
 
@@ -57,6 +62,10 @@ namespace DivineHands.Modules
             ClearSnapshot();
         }
 
+        /// <summary>Force the live god-power(s) OFF. Called on map load and scene exit so a fresh
+        /// map always starts with Reveal Map inactive regardless of the Enable pref.</summary>
+        public static void ResetActive() => RevealActive = false;
+
         public static void OnUpdate()
         {
             SyncRevealMap();
@@ -67,7 +76,9 @@ namespace DivineHands.Modules
             var fow = FOWSystem.instance;
             if (fow == null) return;
 
-            bool want = Config.RevealMap.Value;
+            // Live state is the runtime flag, gated by master + the Enable pref. If the power is
+            // disabled in config, RevealActive is held false so the effect can never fire.
+            bool want = Config.MasterEnable.Value && Config.EnableRevealMap.Value && RevealActive;
             if (_hasApplied && want == _appliedReveal) return;
 
             if (want)

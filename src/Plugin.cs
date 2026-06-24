@@ -2,6 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using DivineHands.Core;
 using DivineHands.Modules;
+using DivineHands.Patches;
 
 [assembly: MelonInfo(typeof(DivineHands.Plugin), "Divine Hands", DivineHands.Plugin.Version, "sagedragoon79")]
 [assembly: MelonGame("Crate Entertainment", "Farthest Frontier")]
@@ -56,6 +57,11 @@ namespace DivineHands
             if (!InGame)
             {
                 DivinePanel.Hide();
+                // Force every live god-power OFF on leaving the map so none can linger into the next
+                // load. (Live state is a runtime flag, not a saved pref — see Group A enable/activate split.)
+                GodTools.ResetActive();
+                CameraTools.ResetActive();
+                BuildAnywherePatches.Active = false;
                 GodTools.OnSceneExit();
                 CameraTools.OnSceneExit();
                 TerrainElevation.OnSceneExit();
@@ -64,6 +70,10 @@ namespace DivineHands
                 ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
                 return;
             }
+            // Entering a Map: live god-powers always start OFF regardless of their Enable prefs.
+            GodTools.ResetActive();
+            CameraTools.ResetActive();
+            BuildAnywherePatches.Active = false;
             GodTools.OnMapLoaded();
             CameraTools.OnMapLoaded();
             TerrainElevation.OnMapLoaded();

@@ -25,7 +25,7 @@ namespace DivineHands.Patches
     /// We run a prefix that rescales <c>amount</c> BEFORE the vanilla 0.05f damping, only while
     /// zoomUnlocked is true: multiply by lerp(fine, 1, 1-currentZoom) so steps shrink toward the ground
     /// (currentZoom→1) and stay ~vanilla far out (currentZoom→0). Gating on the live <c>zoomUnlocked</c>
-    /// field (not Config.GodView, which can lag a mid-toggle) means vanilla zoom is untouched when God
+    /// field (not the God View pref/flag, which can lag a mid-toggle) means vanilla zoom is untouched when God
     /// View is off. Auto-registered via Plugin's HarmonyInstance.PatchAll.
     /// </summary>
     [HarmonyPatch(typeof(CameraManager), "AdjustZoom")]
