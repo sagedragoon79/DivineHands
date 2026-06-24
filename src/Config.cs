@@ -41,6 +41,25 @@ namespace DivineHands
         /// Anywhere. Off => pure vanilla.</summary>
         public static MelonPreferences_Entry<bool>   BuildAnywhere  { get; private set; } = null!;
 
+        /// <summary>God View: relax the RTS camera constraints (zoom far out, flatten/overhead pitch,
+        /// raise shadow draw distance) to survey the whole map. Live toggle — captures the map's
+        /// current constraint values on enable and restores them exactly on disable.</summary>
+        public static MelonPreferences_Entry<bool>   GodView        { get; private set; } = null!;
+
+        /// <summary>Free Cam: detach the camera from RTS control and fly it manually (WASD horizontal,
+        /// Space/LeftCtrl up/down, Shift fast, mouse-look). Live toggle — captures camera transform +
+        /// controller state on enable and restores full RTS control on disable.</summary>
+        public static MelonPreferences_Entry<bool>   FreeCam        { get; private set; } = null!;
+
+        /// <summary>Free Cam horizontal/vertical fly speed in world metres per second.</summary>
+        public static MelonPreferences_Entry<float>  FreeCamMoveSpeed { get; private set; } = null!;
+
+        /// <summary>Free Cam speed multiplier while holding Shift.</summary>
+        public static MelonPreferences_Entry<float>  FreeCamFastMultiplier { get; private set; } = null!;
+
+        /// <summary>Free Cam mouse-look sensitivity.</summary>
+        public static MelonPreferences_Entry<float>  FreeCamSensitivity { get; private set; } = null!;
+
         // ===== Terrain Sculpting =====
 
         /// <summary>Master switch for the terrain-elevation god-power.</summary>
@@ -144,6 +163,36 @@ namespace DivineHands
                              "slopes, no path to town, water/road overlap). Bridges are NOT affected — " +
                              "they defer to vanilla and Keep Clarity's Bridge Anywhere. Turning this OFF " +
                              "restores exact vanilla placement rules. Default: off.");
+
+            GodView = _root.CreateEntry(
+                "GodView", false,
+                display_name: "God View",
+                description: "Relax the RTS camera limits so you can zoom far out, tilt to a flat/overhead " +
+                             "angle, and survey the whole map. Captures the map's current camera limits when " +
+                             "turned ON and restores them exactly when turned OFF. Default: off.");
+
+            FreeCam = _root.CreateEntry(
+                "FreeCam", false,
+                display_name: "Free Cam",
+                description: "Detach the camera from RTS control and fly it manually: WASD to move, " +
+                             "Space/Left-Ctrl for up/down, hold Shift for fast, move the mouse to look. " +
+                             "Turning it OFF restores the normal camera and full RTS control exactly where " +
+                             "you left off. Default: off.");
+
+            FreeCamMoveSpeed = _root.CreateEntry(
+                "FreeCamMoveSpeed", 40f,
+                display_name: "Free Cam Move Speed",
+                description: "Free Cam fly speed in world metres per second. Default: 40.");
+
+            FreeCamFastMultiplier = _root.CreateEntry(
+                "FreeCamFastMultiplier", 3f,
+                display_name: "Free Cam Fast Multiplier",
+                description: "Speed multiplier while holding Shift in Free Cam. Default: 3.");
+
+            FreeCamSensitivity = _root.CreateEntry(
+                "FreeCamSensitivity", 2f,
+                display_name: "Free Cam Mouse Sensitivity",
+                description: "Free Cam mouse-look sensitivity. Default: 2.");
 
             // ===== Terrain Sculpting =====
 

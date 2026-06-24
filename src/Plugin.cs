@@ -57,12 +57,14 @@ namespace DivineHands
             {
                 DivinePanel.Hide();
                 GodTools.OnSceneExit();
+                CameraTools.OnSceneExit();
                 TerrainElevation.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
                 CursorSpawners.OnSceneExit();
                 return;
             }
             GodTools.OnMapLoaded();
+            CameraTools.OnMapLoaded();
             TerrainElevation.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
@@ -79,6 +81,7 @@ namespace DivineHands
             if (InGame)
             {
                 GodTools.OnUpdate();
+                CameraTools.OnUpdate();
                 TerrainElevation.OnUpdate();
                 CursorSpawners.OnUpdate();
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state

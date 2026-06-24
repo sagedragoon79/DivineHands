@@ -148,6 +148,33 @@ namespace DivineHands
                         "deferring to vanilla and Keep Clarity's Bridge Anywhere. Turning this OFF " +
                         "restores exact vanilla placement. Default: OFF.",
                         order: 110));
+            Reg(GroupGodTools, Config.GodView,
+                NewMeta("God View",
+                        "Relax the RTS camera limits — zoom far out, tilt to a flat/overhead angle, and " +
+                        "survey the whole map. Captures the map's current camera limits when turned ON and " +
+                        "restores them exactly when turned OFF. Default: OFF.",
+                        order: 120));
+            Reg(GroupGodTools, Config.FreeCam,
+                NewMeta("Free Cam",
+                        "Detach the camera from RTS control and fly it manually: WASD move, Space/Left-Ctrl " +
+                        "up/down, hold Shift for fast, mouse to look. Turning it OFF restores the normal " +
+                        "camera and full RTS control exactly where you left off. Default: OFF.",
+                        order: 130));
+            Reg(GroupGodTools, Config.FreeCamMoveSpeed,
+                NewMeta("Free Cam Move Speed",
+                        "Free Cam fly speed in world metres per second. Default: 40.",
+                        min: 1f, max: 300f, order: 131, indent: 20,
+                        visibleWhen: () => Config.FreeCam.Value));
+            Reg(GroupGodTools, Config.FreeCamFastMultiplier,
+                NewMeta("Free Cam Fast Multiplier",
+                        "Speed multiplier while holding Shift in Free Cam. Default: 3.",
+                        min: 1f, max: 10f, order: 132, indent: 20,
+                        visibleWhen: () => Config.FreeCam.Value));
+            Reg(GroupGodTools, Config.FreeCamSensitivity,
+                NewMeta("Free Cam Mouse Sensitivity",
+                        "Free Cam mouse-look sensitivity. Default: 2.",
+                        min: 0.25f, max: 10f, order: 133, indent: 20,
+                        visibleWhen: () => Config.FreeCam.Value));
 
             // ===== Terrain Sculpting =====
             Reg(GroupTerrain, Config.TerrainEnable,

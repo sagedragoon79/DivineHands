@@ -80,6 +80,12 @@ namespace DivineHands.Core
                 Config.RevealMap.Value = GUILayout.Toggle(Config.RevealMap.Value, "  Reveal Map (clear fog)");
                 Config.BuildAnywhere.Value =
                     GUILayout.Toggle(Config.BuildAnywhere.Value, "  Build anywhere (normal buildings)");
+                Config.GodView.Value =
+                    GUILayout.Toggle(Config.GodView.Value, "  God View (relax camera limits)");
+                Config.FreeCam.Value =
+                    GUILayout.Toggle(Config.FreeCam.Value, "  Free Cam (WASD fly — untoggle to restore)");
+                if (Config.FreeCam.Value)
+                    GUILayout.Label("WASD move · Space/Ctrl up/down · Shift fast · mouse look", HintStyle);
 
                 GUILayout.Space(6f);
                 DrawTerrainSection();
