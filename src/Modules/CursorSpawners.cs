@@ -95,6 +95,7 @@ namespace DivineHands.Modules
             _createSandSite = null;
             _createStoneSite = null;
             _mineralReflectionResolved = false;
+            _mapTreePrefabs = null;
         }
 
         public static void OnSceneExit() => OnMapLoaded();
@@ -500,20 +501,38 @@ namespace DivineHands.Modules
                 _ => ""
             };
 
+            // Resolve the candidate prefabs. A configured GUID list always wins (override); otherwise
+            // TREES fall back to the map's OWN tree prototypes (Terrain2.Data.TreePrototypes — the same
+            // source Pangu plants from), so tree spawning needs zero setup and is always map/DLC-correct.
+            var prefabs = new List<GameObject>();
             var guids = SplitGuids(guidCsv);
-            if (guids.Count == 0)
+            if (guids.Count > 0)
+            {
+                foreach (var g in guids)
+                {
+                    var pf = SafeGetPrefab(g);
+                    if (pf != null) prefabs.Add(pf);
+                }
+            }
+            else if (kind == ResourceKind.Tree)
+            {
+                prefabs.AddRange(CollectMapTreePrefabs());
+            }
+
+            if (prefabs.Count == 0)
             {
                 if (Config.DebugLog.Value)
-                    MelonLogger.Warning($"[DivineHands] No GUIDs configured for {kind}");
+                    MelonLogger.Warning(kind == ResourceKind.Tree
+                        ? "[DivineHands] No tree prefabs (map exposed no TreePrototypes and no GUID override is set)"
+                        : $"[DivineHands] No GUIDs configured for {kind}");
                 return;
             }
 
             int placed = 0;
             for (int i = 0; i < count; i++)
             {
-                // Cycle through the configured GUIDs for variety.
-                string guid = guids[i % guids.Count];
-                var prefab = SafeGetPrefab(guid);
+                // Cycle through the candidate prefabs for variety.
+                var prefab = prefabs[i % prefabs.Count];
                 if (prefab == null) continue;
 
                 Vector3 p = ScatterAround(world, i, count, spacing: 3f);
@@ -538,6 +557,58 @@ namespace DivineHands.Modules
             }
             if (Config.DebugLog.Value)
                 MelonLogger.Msg($"[DivineHands] Spawned {placed}/{count} {kind} @ {world}");
+        }
+
+        // The map's own tree species, pulled live from Terrain2.Data.TreePrototypes — exactly what
+        // Pangu plants from (CollectAvailableTreePrefabs, Pangu_FF.decompiled.cs:10521). Keeps only
+        // prototypes whose prefab is a real TreeResource and isn't regrowth-locked, so the Tree spawner
+        // needs no GUIDs and always matches the current map + DLC. Cached per map (cleared in OnMapLoaded).
+        private static GameObject[]? _mapTreePrefabs;
+
+        private static List<GameObject> CollectMapTreePrefabs()
+        {
+            if (_mapTreePrefabs != null) return new List<GameObject>(_mapTreePrefabs);
+            var result = new List<GameObject>();
+            try
+            {
+                var gm = GameManager.Instance;
+                object? tm = gm != null ? gm.terrainManager : null;
+                if (tm == null) return result;
+
+                // Terrain2Manager.terrain (private) -> Terrain2.Data -> Terrain2Data.TreePrototypes
+                var terrain = tm.GetType()
+                    .GetField("terrain", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(tm);
+                var data = terrain?.GetType().GetProperty("Data")?.GetValue(terrain);
+                var protos = data?.GetType().GetProperty("TreePrototypes")?.GetValue(data)
+                    as System.Collections.IEnumerable;
+                if (protos == null) return result;
+
+                foreach (var proto in protos)
+                {
+                    if (proto == null) continue;
+                    var pt = proto.GetType();
+                    var prefab = (pt.GetField("prefab")?.GetValue(proto)
+                                  ?? pt.GetProperty("prefab")?.GetValue(proto)) as GameObject;
+                    if (prefab == null) continue;
+
+                    var prevObj = pt.GetField("preventRegrowth")?.GetValue(proto)
+                                  ?? pt.GetProperty("preventRegrowth")?.GetValue(proto);
+                    if (prevObj is bool prevent && prevent) continue;
+
+                    if (prefab.GetComponent("TreeResource") == null) continue; // must be a real tree
+                    result.Add(prefab);
+                }
+
+                _mapTreePrefabs = result.ToArray();
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] Collected {result.Count} map tree prototype(s)");
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] CollectMapTreePrefabs failed: {ex.Message}");
+            }
+            return result;
         }
 
         private static bool TryAddGrowingTree(GameObject prefab, Vector3 p)

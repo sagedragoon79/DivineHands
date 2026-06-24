@@ -323,9 +323,11 @@ namespace DivineHands
 
             SpawnTreeGuids = _root.CreateEntry(
                 "SpawnTreeGuids", "",
-                display_name: "Tree GUIDs",
+                display_name: "Tree GUIDs (optional override)",
                 description: "Delimited prefab GUIDs for the Tree type (placed via the terrain grow-tree " +
-                             "system). Fill in your tree prefab GUIDs. Empty by default.");
+                             "system). Leave EMPTY (default) to auto-use the current map's own tree species " +
+                             "(Terrain2 TreePrototypes) — no setup needed. Fill in GUIDs only to override " +
+                             "which trees are planted.");
 
             SpawnRockGuids = _root.CreateEntry(
                 "SpawnRockGuids",

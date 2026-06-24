@@ -260,8 +260,9 @@ namespace DivineHands
                         visibleWhen: () => Config.SpawnEnable.Value
                                         && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 0));
             Reg(GroupSpawning, Config.SpawnTreeGuids,
-                NewMeta("Tree GUIDs",
-                        "Delimited prefab GUIDs for the Tree type (placed via the terrain grow-tree system).",
+                NewMeta("Tree GUIDs (optional override)",
+                        "Leave empty to auto-plant the current map's own tree species (no setup). " +
+                        "Fill in delimited prefab GUIDs only to override which trees are planted.",
                         order: 308, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value
                                         && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 1));
