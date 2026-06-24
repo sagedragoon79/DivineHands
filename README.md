@@ -2,7 +2,7 @@
 
 A god-power / creator-tool mod for **Farthest Frontier** (MelonLoader, Mono build) — terrain sculpting, cursor spawners, and map god-tools behind one in-game panel. The creator-tool pillar of the FF mod constellation, alongside **Keep Clarity** (UX), **Sovereign Boons** (power-spike), and the wildlife/QoL mods.
 
-> **Status: v0.1 (early scaffold).** Proof-of-life: the panel + Keep Clarity integration + **Reveal Map**. Terrain editing, spawners, and the rest are on the roadmap below.
+> **Status: v0.1 (feature-complete, pending in-game testing).** All of the panel, Keep Clarity integration, Reveal Map (+ minimap-icon revert), terrain sculpting (+ cursor grid + undo), cursor spawners, Build Anywhere, God View, Free Cam, and item/livestock injection are implemented and build clean. Not yet load-tested in-game — see the changelog for what each feature does.
 
 ## Design
 
@@ -16,9 +16,8 @@ A god-power / creator-tool mod for **Farthest Frontier** (MelonLoader, Mono buil
 
 | Phase | Contents |
 |---|---|
-| **v0.1** | Panel + KC integration + Reveal Map *(this build)* → terrain elevation (Raise/Lower/Smooth/Flatten, stroke-undo) → cursor spawners (animal/mineral/villager/forageable) → mineral deletion → scoped Build-Anywhere |
-| **v0.2** | Item/livestock injection + infinite storage (with map-load cleanup sweep) · God View camera + Free Cam |
-| **later** | Full Pangu-granularity Forest/Mountain/Lake biome brushes (native) · FFSeedScanner whole-map evaluation shown during Town Center placement |
+| **v0.1** *(implemented)* | Panel + configurable hotkey + KC integration · Reveal Map (+ minimap-icon revert) · Terrain Sculpting (Raise/Lower/Smooth/Flatten, cursor grid, stroke-undo) · Cursor Spawners (animal/mineral/villager/forageable) · Build Anywhere (KC-scoped) · God View + Free Cam · Item/livestock injection + save-safe infinite storage |
+| **later** | Full Pangu-granularity Forest/Mountain/Lake biome brushes (native) · FFSeedScanner whole-map evaluation shown during Town Center placement · uGUI panel (replacing the IMGUI placeholder) |
 
 ## Provenance
 
