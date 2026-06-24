@@ -1,0 +1,15 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+
+# IDE
+.vs/
+.idea/
+*.csproj.user
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

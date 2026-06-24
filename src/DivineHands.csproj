@@ -1,0 +1,103 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net46</TargetFramework>
+    <AssemblyName>DivineHands</AssemblyName>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Version>0.1.0</Version>
+    <RootNamespace>DivineHands</RootNamespace>
+    <Description>God-power / creator-tool mod for Farthest Frontier — terrain sculpting (Pangu granularity, TerrainHelper UI), cursor spawners, and map god-tools, behind one in-game panel. Soft-integrated with Keep Clarity.</Description>
+    <Company>SageDragoon</Company>
+    <Product>Divine Hands</Product>
+    <Copyright>Copyright © SageDragoon 2026</Copyright>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Keep the version string clean in Windows Explorer hover (no +commit-hash suffix). -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Deterministic>true</Deterministic>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <Platforms>AnyCPU;x64</Platforms>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Farthest Frontier</GameDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MelonLoader (Mono / net35 build) -->
+    <Reference Include="MelonLoader">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\MelonLoader\net35\MelonLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\MelonLoader\net35\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="netstandard">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\netstandard.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- Unity -->
+    <Reference Include="UnityEngine">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- Game assembly (includes LibTerrain2: Terrain2Manager / Terrain2Tools — NOT a separate DLL) -->
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(GameDir)\Farthest Frontier (Mono)\Farthest Frontier_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Build (Debug, fast iteration):
+      dotnet build src\DivineHands.csproj -c Debug -p:Platform=x64
+    Build (Release, ship):
+      dotnet build src\DivineHands.csproj -c Release -p:Platform=x64
+
+    Output: bin\<config>\DivineHands.dll
+    Auto-staged to <game>\Farthest Frontier (Mono)\Mods\ on every successful build.
+  -->
+
+  <Target Name="CopyToMods" AfterTargets="Build" Condition="'$(GameDir)' != ''">
+    <PropertyGroup>
+      <ModsDir>$(GameDir)\Farthest Frontier (Mono)\Mods</ModsDir>
+    </PropertyGroup>
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsDir)" SkipUnchangedFiles="false" />
+    <Message Text="Staged $(TargetFileName) -&gt; $(ModsDir)" Importance="high" />
+  </Target>
+
+</Project>
