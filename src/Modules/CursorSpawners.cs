@@ -119,6 +119,7 @@ namespace DivineHands.Modules
             _spawnAreaGroupPointTypeProp = null;
             _animalDenType = null;
             _animalReflectionResolved = false;
+            _isOccupiedThirdParamType = null;
         }
 
         public static void OnSceneExit() => OnMapLoaded();
@@ -201,8 +202,8 @@ namespace DivineHands.Modules
             bool ok = kind switch
             {
                 AnimalKind.Deer => SpawnDeerArea(am, count),
-                AnimalKind.Wolf => SpawnDen(am, GroupAnimalType_Wolf, count),
-                AnimalKind.Boar => SpawnDen(am, GroupAnimalType_Boar, count),
+                AnimalKind.Wolf => SpawnDen(am, GroupAnimalType_Wolf, count, world),
+                AnimalKind.Boar => SpawnDen(am, GroupAnimalType_Boar, count, world),
                 _ => false
             };
 
@@ -232,14 +233,18 @@ namespace DivineHands.Modules
                                 "runtime-only, does not persist through save/load)");
         }
 
-        // ---- PERSISTENT: Wolf/Boar DEN ----
-        // Modeled EXACTLY on AnimalManager.SpawnAnimalDens [92635-92700]:
-        //   den prefab = group.GetWeightedDenPrefab() -> GetComponent<AnimalDen>() (the prefab's component);
-        //   spawn point + grid cells = denSpawnArea.GetValidRandomSpawnPoint(animalDen.gridSize, out cells);
-        //   Instantiate(animalDen, pt, identity); inst.animalGroup = group; inst.SetGridCellLocations(cells);
-        //   inst.SpawnAnimalsAtDen(maxPerSpawnArea).
+        // ---- PERSISTENT: Wolf/Boar DEN — placed AT THE CURSOR ----
+        // The base game's AnimalManager.SpawnAnimalDens [92635-92700] scatters dens at RANDOM points
+        // inside random qualifiedAnimalDenSpawnAreas. For a cursor god-power that's wrong — the den must
+        // appear under the cursor. We therefore replicate the per-point grid validation that lives in
+        // AnimalDenSpawnArea.GetValidRandomSpawnPoint [35756] but seed it with the CURSOR point instead
+        // of a random one: snap the cursor through aiPathfinder.IsPointOccupiedOrUnpathable [478258],
+        // build the gridSize-by-gridSize cell array stepping by gridGraph.nodeSize [476778], and place
+        // the den at the grid-aligned centre. Only if the cursor cells genuinely can't be built (water /
+        // unpathable / occupied) do we fall back to the nearest qualified area's GetValidRandomSpawnPoint.
+        // Instantiation/grid/spawn wiring is shared with the base behaviour via SpawnDenAt.
         // count = number of dens to place (clamped). Returns true if at least one den was created.
-        private static bool SpawnDen(object am, int groupAnimalType, int denCount)
+        private static bool SpawnDen(object am, int groupAnimalType, int denCount, Vector3 cursorWorld)
         {
             try
             {
@@ -251,15 +256,7 @@ namespace DivineHands.Modules
                     return false;
                 }
 
-                var denAreas = GetQualifiedDenAreas(am);
-                if (denAreas == null || denAreas.Count == 0)
-                {
-                    if (Config.DebugLog.Value)
-                        MelonLogger.Warning("[DivineHands] No qualifiedAnimalDenSpawnAreas to host a den");
-                    return false;
-                }
-
-                // Resolve the den prefab + its AnimalDen component (the base loop reads gridSize off it).
+                // Resolve the den prefab + its AnimalDen component (we read gridSize off it).
                 GameObject? denPrefab = InvokeGetWeightedDenPrefab(group);
                 if (denPrefab == null && groupAnimalType == GroupAnimalType_Wolf)
                     denPrefab = SafeGetPrefab(Config.SpawnWolfDenGuid.Value); // optional GUID fallback (wolf only)
@@ -283,35 +280,30 @@ namespace DivineHands.Modules
                 var gridSize = (Vector2)(GetMember(denTemplate, _animalDenType, "gridSize") ?? new Vector2(3f, 3f));
 
                 int made = 0;
-                int attempts = Mathf.Max(1, denCount) * 4; // mirror the base loop's over-attempt budget
-                for (int i = 0; i < attempts && made < denCount; i++)
+                // First den goes exactly at the cursor; extra dens (count>1) ring out from it so they
+                // don't stack, each snapped/validated independently.
+                for (int i = 0; i < denCount; i++)
                 {
-                    var area = denAreas[UnityEngine.Random.Range(0, denAreas.Count)];
-                    if (area == null) continue;
+                    Vector3 target = ScatterAround(cursorWorld, i, denCount, spacing: 6f);
 
-                    // GetValidRandomSpawnPoint(Vector2 gridSize, out Vector2[] gridCellLocations) : Vector3? [35756]
-                    object[] args = { gridSize, null! };
-                    var mi = area.GetType().GetMethod("GetValidRandomSpawnPoint",
-                        new[] { typeof(Vector2), typeof(Vector2[]).MakeByRefType() });
-                    if (mi == null) { if (Config.DebugLog.Value) MelonLogger.Warning("[DivineHands] GetValidRandomSpawnPoint not found"); return made > 0; }
-                    var spawnPointObj = mi.Invoke(area, args);
-                    if (spawnPointObj == null) continue;                 // Vector3? null -> no valid point this try
-                    var spawnPoint = (Vector3)spawnPointObj;
-                    var gridCellLocations = (Vector2[])args[1];          // out param populated by the method
+                    // Try the cursor (ringed) point first.
+                    if (TryComputeDenCellsAt(target, gridSize, out Vector3 placePoint, out Vector2[] cells))
+                    {
+                        SpawnDenAt(denTemplate, group, placePoint, cells);
+                        made++;
+                        continue;
+                    }
 
-                    // Instantiate the AnimalDen component (Unity returns the component on the new GameObject),
-                    // exactly as the base loop does: Instantiate(animalDen, pt, identity).
-                    var inst = UnityEngine.Object.Instantiate((Component)denTemplate, spawnPoint, Quaternion.identity);
-                    if (inst == null) continue;
-
-                    SetMember(inst, "animalGroup", group);                                 // AnimalDen.animalGroup [35315]
-                    InvokeSetGridCellLocations(inst, gridCellLocations);                   // [35512] grid + pathfinding + serialize
-                    InvokeSpawnAnimalsAtDen(inst);                                         // [35587] populate the den
-                    made++;
+                    // Cursor point can't host the den (water/unpathable/occupied) — fall back to the
+                    // qualified den area NEAREST the cursor, mirroring the base game's valid-area path.
+                    if (TrySpawnDenInNearestArea(am, denTemplate, group, gridSize, target))
+                        made++;
+                    else if (Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] Den: cursor point invalid and no qualified-area fallback found");
                 }
 
                 if (Config.DebugLog.Value)
-                    MelonLogger.Msg($"[DivineHands] Created {made}/{denCount} persistent den(s) " +
+                    MelonLogger.Msg($"[DivineHands] Created {made}/{denCount} persistent den(s) at cursor " +
                                     $"(animalType={groupAnimalType}).");
                 return made > 0;
             }
@@ -320,6 +312,185 @@ namespace DivineHands.Modules
                 MelonLogger.Warning($"[DivineHands] SpawnDen failed: {ex.Message}");
                 return false;
             }
+        }
+
+        // Replicates the inner grid-validation of AnimalDenSpawnArea.GetValidRandomSpawnPoint [35756]
+        // but anchored at an explicit world point (the cursor) rather than a random point in a Rect:
+        //   1) snap the point to the AI grid via IsPointOccupiedOrUnpathable (false => buildable);
+        //   2) walk gridSize.x * gridSize.y cells stepping by gridGraph.nodeSize, validating each;
+        //   3) on full success, place point = grid-aligned centre at terrain height.
+        // Returns false if the point or any cell is occupied/unpathable (caller then falls back).
+        private static bool TryComputeDenCellsAt(Vector3 world, Vector2 gridSize,
+                                                 out Vector3 placePoint, out Vector2[] gridCellLocations)
+        {
+            placePoint = world;
+            int nx = Mathf.Max(1, (int)gridSize.x);
+            int nz = Mathf.Max(1, (int)gridSize.y);
+            gridCellLocations = new Vector2[nx * nz];
+
+            try
+            {
+                var gm = GameManager.Instance;
+                var pathfinder = gm != null ? gm.aiPathfinder : null;   // public field [95478]
+                var terrain = gm != null ? gm.terrainManager : null;     // public [95612]
+                if (pathfinder == null) return false;
+
+                float nodeSize = GetNodeSize(pathfinder);
+                if (nodeSize <= 0f) return false;
+
+                // 1) snap the seed point. IsPointOccupiedOrUnpathable(Vector2, out Vector3, out IGridOccupant) [478258].
+                var point = new Vector2(world.x, world.z);
+                if (!TryIsOccupied(pathfinder, point, out Vector3 gridAdjusted))
+                    return false; // occupied/unpathable at the seed -> no den here
+                point = new Vector2(gridAdjusted.x, gridAdjusted.z);
+
+                // 2) validate every cell of the gridSize footprint.
+                for (int z = 0; z < nz; z++)
+                {
+                    for (int x = 0; x < nx; x++)
+                    {
+                        var cell = new Vector2(point.x + x * nodeSize, point.y + z * nodeSize);
+                        if (!TryIsOccupied(pathfinder, cell, out Vector3 cellAdjusted))
+                            return false; // a cell is occupied/unpathable -> abandon this point
+                        gridCellLocations[z * nx + x] = new Vector2(cellAdjusted.x, cellAdjusted.z);
+                    }
+                }
+
+                // 3) grid-aligned centre, terrain height — exactly as the engine computes it [35794-35798].
+                float half = nodeSize / 2f;
+                float cx = gridCellLocations[0].x - half + nodeSize * nx / 2f;
+                float cz = gridCellLocations[0].y - half + nodeSize * nz / 2f;
+                float h = terrain != null ? terrain.GetHeight(cx, cz) : world.y;
+                placePoint = new Vector3(cx, h, cz);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] TryComputeDenCellsAt failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        // IsPointOccupiedOrUnpathable returns TRUE when the point is occupied/unpathable. We invert it:
+        // returns true (buildable) with the grid-adjusted point out, false otherwise.
+        private static bool TryIsOccupied(object pathfinder, Vector2 point, out Vector3 gridAdjustedPoint)
+        {
+            gridAdjustedPoint = default;
+            try
+            {
+                var mi = pathfinder.GetType().GetMethod("IsPointOccupiedOrUnpathable",
+                    new[] { typeof(Vector2), typeof(Vector3).MakeByRefType(),
+                            GetIGridOccupantRefType(pathfinder) });
+                if (mi == null) return false;
+                object[] args = { point, null!, null! };
+                var occupied = mi.Invoke(pathfinder, args);
+                gridAdjustedPoint = args[1] is Vector3 v ? v : default;
+                return occupied is bool b && !b; // buildable == !occupied
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] IsPointOccupiedOrUnpathable invoke failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        // The third (out IGridOccupant) parameter type — resolved off the actual method so we match the
+        // exact overload without referencing the interface type at compile time.
+        private static Type? _isOccupiedThirdParamType;
+        private static Type GetIGridOccupantRefType(object pathfinder)
+        {
+            if (_isOccupiedThirdParamType != null) return _isOccupiedThirdParamType;
+            foreach (var m in pathfinder.GetType().GetMethods())
+            {
+                if (m.Name != "IsPointOccupiedOrUnpathable") continue;
+                var ps = m.GetParameters();
+                if (ps.Length == 3 && ps[0].ParameterType == typeof(Vector2)
+                    && ps[1].ParameterType == typeof(Vector3).MakeByRefType())
+                {
+                    _isOccupiedThirdParamType = ps[2].ParameterType;
+                    return _isOccupiedThirdParamType;
+                }
+            }
+            // Fallback: a by-ref object so GetMethod still resolves something sane.
+            _isOccupiedThirdParamType = typeof(object).MakeByRefType();
+            return _isOccupiedThirdParamType;
+        }
+
+        private static float GetNodeSize(object pathfinder)
+        {
+            try
+            {
+                var gg = pathfinder.GetType().GetProperty("gridGraph",
+                    BindingFlags.Public | BindingFlags.Instance)?.GetValue(pathfinder);
+                if (gg == null) return 0f;
+                var ns = gg.GetType().GetField("nodeSize", BindingFlags.Public | BindingFlags.Instance)?.GetValue(gg);
+                return ns is float f ? f : 0f;
+            }
+            catch { return 0f; }
+        }
+
+        // Fall back to the qualified den area nearest the cursor (only when the cursor point itself is
+        // unbuildable). Uses the engine's own GetValidRandomSpawnPoint within that single nearest area.
+        private static bool TrySpawnDenInNearestArea(object am, object denTemplate, object group,
+                                                     Vector2 gridSize, Vector3 cursorWorld)
+        {
+            var denAreas = GetQualifiedDenAreas(am);
+            if (denAreas == null || denAreas.Count == 0)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning("[DivineHands] No qualifiedAnimalDenSpawnAreas for den fallback");
+                return false;
+            }
+
+            // Order areas by distance from cursor (nearest first) using each area's rect centre.
+            var ordered = new List<object>();
+            foreach (var a in denAreas) if (a != null) ordered.Add(a);
+            var cursor2D = new Vector2(cursorWorld.x, cursorWorld.z);
+            ordered.Sort((a, b) =>
+                Vector2.Distance(GetAreaRectCenter(a), cursor2D)
+                    .CompareTo(Vector2.Distance(GetAreaRectCenter(b), cursor2D)));
+
+            foreach (var area in ordered)
+            {
+                object[] args = { gridSize, null! };
+                var mi = area.GetType().GetMethod("GetValidRandomSpawnPoint",
+                    new[] { typeof(Vector2), typeof(Vector2[]).MakeByRefType() });
+                if (mi == null) return false;
+                var spawnPointObj = mi.Invoke(area, args);
+                if (spawnPointObj == null) continue;                  // no valid point in this area
+                var spawnPoint = (Vector3)spawnPointObj;
+                var cells = (Vector2[])args[1];
+                SpawnDenAt(denTemplate, group, spawnPoint, cells);
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg("[DivineHands] Den placed in nearest qualified area (cursor point was unbuildable).");
+                return true;
+            }
+            return false;
+        }
+
+        private static Vector2 GetAreaRectCenter(object area)
+        {
+            try
+            {
+                var rectObj = GetMember(area, area.GetType(), "rect");
+                if (rectObj is Rect r) return r.center;
+            }
+            catch { /* ignore — fall through */ }
+            return Vector2.zero;
+        }
+
+        // Shared den instantiation/wiring — identical to the base SpawnAnimalDens tail [92692-92699]:
+        // Instantiate(animalDen, pt, identity); inst.animalGroup = group; inst.SetGridCellLocations(cells);
+        // inst.SpawnAnimalsAtDen(maxPerSpawnArea).
+        private static void SpawnDenAt(object denTemplate, object group, Vector3 spawnPoint, Vector2[] cells)
+        {
+            var inst = UnityEngine.Object.Instantiate((Component)denTemplate, spawnPoint, Quaternion.identity);
+            if (inst == null) return;
+            SetMember(inst, "animalGroup", group);            // AnimalDen.animalGroup [35315]
+            InvokeSetGridCellLocations(inst, cells);          // [35512] grid + pathfinding + serialize
+            InvokeSpawnAnimalsAtDen(inst);                    // [35587] populate the den
         }
 
         // ---- PERSISTENT: Deer SPAWN-AREA node ----

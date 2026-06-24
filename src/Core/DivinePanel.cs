@@ -1,7 +1,21 @@
+using System;
 using UnityEngine;
 
 namespace DivineHands.Core
 {
+    /// <summary>Scoped <c>GUI.enabled</c> override (greys + disables contained controls) that restores
+    /// the prior value on dispose — used to grey out storage-ineligible items in the inject picker.</summary>
+    internal readonly struct GUIEnabledScope : IDisposable
+    {
+        private readonly bool _prev;
+        public GUIEnabledScope(bool enabled)
+        {
+            _prev = GUI.enabled;
+            GUI.enabled = _prev && enabled;
+        }
+        public void Dispose() => GUI.enabled = _prev;
+    }
+
     /// <summary>
     /// The shared in-game control surface for every Divine Hands god-power. v0.1 is a lightweight
     /// IMGUI window (fast to ship, proven pattern — same approach as FFSeedScanner) listing the
@@ -316,14 +330,29 @@ namespace DivineHands.Core
             int idx = Mathf.Clamp(Config.InjectItemIndex.Value, 0, names.Length - 1);
             GUILayout.Label($"Item: {names[idx]}", HintStyle);
 
+            // Only storage buildings (warehouse/granary/Preservist pantry…) enforce an allow-list; for
+            // those we grey out items the building won't accept. Manufacturing buildings have no list,
+            // so every item stays selectable. (See ItemInjection.IsItemEligibleForSelectedBuilding.)
+            bool hasAllowList = DivineHands.Modules.ItemInjection.SelectedBuildingHasAllowList();
+            if (hasAllowList)
+                GUILayout.Label("Greyed items aren't accepted by this storage.", HintStyle);
+
             // Compact scrollable item grid (4 per row) — keeps the panel short.
             _itemScroll = GUILayout.BeginScrollView(_itemScroll, GUILayout.Height(96f));
             const int perRow = 4;
             for (int i = 0; i < names.Length; i++)
             {
                 if (i % perRow == 0) GUILayout.BeginHorizontal();
-                bool on = GUILayout.Toggle(idx == i, names[i], GUI.skin.button);
-                if (on && idx != i) idx = i;
+
+                bool eligible = !hasAllowList
+                    || DivineHands.Modules.ItemInjection.IsItemEligibleForSelectedBuilding(names[i]);
+
+                using (new GUIEnabledScope(eligible))
+                {
+                    bool on = GUILayout.Toggle(idx == i, names[i], GUI.skin.button);
+                    if (on && idx != i && eligible) idx = i;
+                }
+
                 if (i % perRow == perRow - 1 || i == names.Length - 1) GUILayout.EndHorizontal();
             }
             GUILayout.EndScrollView();

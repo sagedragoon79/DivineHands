@@ -79,11 +79,18 @@ namespace DivineHands.Modules
             // Live state is the runtime flag, gated by master + the Enable pref. If the power is
             // disabled in config, RevealActive is held false so the effect can never fire.
             bool want = Config.MasterEnable.Value && Config.EnableRevealMap.Value && RevealActive;
-            if (_hasApplied && want == _appliedReveal) return;
+            // Steady-state early-out. The extra `_snap0 != null` guard for the ON case ensures we never
+            // skip a fresh snapshot on a 2nd+ ON cycle: RestoreFog() nulls the snapshot in its finally
+            // block, so once we've toggled OFF, _snap0 is null. Without this guard a re-ON that "matched"
+            // _appliedReveal could skip SnapshotFog and reveal with no clean baseline to restore from.
+            if (_hasApplied && want == _appliedReveal && (!want || _snap0 != null)) return;
 
             if (want)
             {
-                // Capture the real fog state BEFORE the reveal thread overwrites it.
+                // Discard any stale snapshot before taking a fresh one, so a re-ON never reuses a
+                // contaminated _snap0 (UpdateBuffer lerps mBuffer0 while revealed). Then capture the
+                // real fog state BEFORE the reveal thread overwrites it.
+                ClearSnapshot();
                 SnapshotFog(fow);
                 fow.revealCompletely = true;
             }

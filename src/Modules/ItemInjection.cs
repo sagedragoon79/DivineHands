@@ -146,6 +146,12 @@ namespace DivineHands.Modules
             _gameAssembly = null;
             _resolved = false;
 
+            // Storage-eligibility reflection is keyed off the live game assembly; re-resolve per map.
+            _storageBuildingType = null;
+            _isItemAllowed = null;
+            _eligibilityResolved = false;
+            _loggedNoAllowList = false;
+
             // Bind the save hook so in-place manual saves AND autosaves (which never fire OnSceneExit)
             // still strip our infinite flags before the bytes hit disk.
             BindSaveHook();
@@ -276,6 +282,14 @@ namespace DivineHands.Modules
                 var item = CreateItem(itemName);
                 if (item == null) return $"Unknown item '{itemName}'";
 
+                // Eligibility gate: storage buildings (warehouses, granaries, the Preservist's pantry,
+                // etc. that derive StorageBuilding) maintain an allow-list and reject anything not on it.
+                // Block the inject up-front rather than silently dropping the item into a storage that
+                // won't keep it. Manufacturing buildings with no StorageBuilding component have no
+                // allow-list to check (IsBuildingItemAllowed returns true), so they pass through.
+                if (!IsBuildingItemAllowed(go, item))
+                    return $"{itemName} not accepted here";
+
                 // new ItemBundle(Item, uint quantity, uint percentIntact:100) -> storage.AddItems
                 var bundle = new ItemBundle(item, (uint)count, 100u);
                 storage.AddItems(bundle);
@@ -307,6 +321,106 @@ namespace DivineHands.Modules
 
             if (t == null) return null;
             return Activator.CreateInstance(t) as Item;
+        }
+
+        // ---- storage eligibility (StorageBuilding.IsItemAllowed) ----
+        // Cached resolution of the StorageBuilding type + its public bool IsItemAllowed(Item) [355450].
+        private static Type? _storageBuildingType;
+        private static MethodInfo? _isItemAllowed;
+        private static bool _eligibilityResolved;
+        private static bool _loggedNoAllowList;
+
+        private static void ResolveEligibility()
+        {
+            if (_eligibilityResolved) return;
+            _eligibilityResolved = true;
+            try
+            {
+                _storageBuildingType = FindType("StorageBuilding");
+                if (_storageBuildingType != null)
+                    _isItemAllowed = _storageBuildingType.GetMethod("IsItemAllowed",
+                        BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(Item) }, null);
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] ResolveEligibility failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>True if <paramref name="item"/> may be stored in <paramref name="buildingGo"/>.
+        /// Storage buildings (derive StorageBuilding) enforce an allow-list via IsItemAllowed; any other
+        /// building (e.g. a manufacturing building like the Preservist with a ReservableItemStorage but
+        /// no allow-list) has nothing to filter against, so we permit everything and never wrongly block.
+        /// Defensive: on any reflection failure we fail OPEN (allow) so the picker never hard-locks.</summary>
+        private static bool IsBuildingItemAllowed(GameObject buildingGo, Item item)
+        {
+            try
+            {
+                ResolveEligibility();
+                if (_storageBuildingType == null || _isItemAllowed == null) return true;
+
+                var storageBuilding = buildingGo.GetComponent(_storageBuildingType);
+                if (storageBuilding == null)
+                {
+                    // No StorageBuilding component -> no per-building allow-list to honour. Leave the
+                    // picker fully open for this building and note it once (per session) for the log.
+                    if (!_loggedNoAllowList && Config.DebugLog.Value)
+                    {
+                        _loggedNoAllowList = true;
+                        MelonLogger.Msg("[DivineHands] Selected building is not a StorageBuilding " +
+                                        "(no allow-list) — item picker left unfiltered.");
+                    }
+                    return true;
+                }
+
+                var ok = _isItemAllowed.Invoke(storageBuilding, new object[] { item });
+                return ok is bool b && b;
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] IsBuildingItemAllowed failed (allowing): {ex.Message}");
+                return true; // fail open
+            }
+        }
+
+        /// <summary>Picker-side eligibility for the panel: is the item NAMED <paramref name="itemName"/>
+        /// storable in the currently-selected building? Used to grey out ineligible buttons. Returns
+        /// true (eligible) for non-storage buildings and on any failure (fail open).</summary>
+        public static bool IsItemEligibleForSelectedBuilding(string itemName)
+        {
+            try
+            {
+                var go = GetSelectedBuilding();
+                if (go == null) return true;
+
+                ResolveEligibility();
+                if (_storageBuildingType == null || _isItemAllowed == null) return true;
+                if (go.GetComponent(_storageBuildingType) == null) return true; // not a storage building
+
+                var item = CreateItem(itemName);
+                if (item == null) return true; // unknown item name — don't grey on our own ignorance
+                return IsBuildingItemAllowed(go, item);
+            }
+            catch
+            {
+                return true; // fail open — picker never hard-locks
+            }
+        }
+
+        /// <summary>True when the selected building is a StorageBuilding (has an enforceable allow-list),
+        /// so the panel knows whether greying-out is meaningful for this building at all.</summary>
+        public static bool SelectedBuildingHasAllowList()
+        {
+            try
+            {
+                var go = GetSelectedBuilding();
+                if (go == null) return false;
+                ResolveEligibility();
+                return _storageBuildingType != null && go.GetComponent(_storageBuildingType) != null;
+            }
+            catch { return false; }
         }
 
         // =====================================================================

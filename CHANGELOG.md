@@ -28,6 +28,10 @@ Initial scaffold — the god-power core, ready to grow modules onto.
 - Build pipeline auto-stages the DLL to the game `Mods\` folder.
 
 ### Fixed
+- **Reveal Map repeat-toggle** — it worked the first on/off cycle then went inert; now it forces a fresh fog snapshot on every activation (and never skips a re-activation), so toggling works indefinitely.
+- **Item-injection click-through** — clicking an item in the panel no longer deselects the building / closes the panel. A Harmony prefix on the building deselect handler (`Input_SelectGameObject.OnLMBPressed`) skips it whenever the cursor is over the Divine Hands window.
+- **Item-injection eligibility** — for true storage buildings (granary, storehouse, etc.) the picker now greys out items the storage doesn't accept and blocks adding them, via the game's own `StorageBuilding.IsItemAllowed`. (Production buildings like the Preservist expose no allow-list, so they still show everything — see notes.)
+- **Dens spawn at the cursor** — wolf/boar dens are placed at the point you click (cells validated against the AI grid there), not a random "qualified" area; only falls back to the nearest qualified area when the cursor terrain is genuinely unbuildable. This means dens now work on pacifist saves (which mark no qualified areas) wherever the ground allows.
 - **Free Cam no longer traps the cursor.** It used to lock + hide the cursor on enable, which confined the pointer to the FF window with no way to click the toggle off (alt-tab was the only escape). Now the cursor stays free and clickable; mouse-look + fly engage only **while you hold the right mouse button**, and releasing it frees the cursor instantly. Every exit path force-frees the cursor.
 - Panel no longer triggers the game's drag-select marquee while being dragged — a Harmony postfix on `GameManager.pointerIsOverUI` reports the cursor as over-UI while it's over the IMGUI window.
 - Corrected the Reveal Map contract: revealing **does** bake explored state into the save (`FOWSystem.Save` serializes the fog buffer), so saving while revealed persists it. Snapshot/restore reverts the toggle; turn it off before saving for clean fog.
