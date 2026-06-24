@@ -31,6 +31,7 @@ namespace DivineHands
         internal const string GroupGeneral  = "General";
         internal const string GroupGodTools = "God Tools";
         internal const string GroupTerrain  = "Terrain Sculpting";
+        internal const string GroupSpawning = "Cursor Spawners";
 
         public static void TryRegisterAll()
         {
@@ -175,6 +176,72 @@ namespace DivineHands
                         "Key/chord that undoes the last terrain stroke. Default: Ctrl+Z.",
                         order: 205, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
+
+            // ===== Cursor Spawners =====
+            Reg(GroupSpawning, Config.SpawnEnable,
+                NewMeta("Cursor Spawners",
+                        "Enable the cursor-spawner god-power. Pick a family, arm the spawner in the panel, " +
+                        "and press the apply key over the world to place things at the cursor. Default: OFF.",
+                        order: 300));
+            Reg(GroupSpawning, Config.SpawnFamily,
+                NewMeta("Spawn Family",
+                        "0 = Animal, 1 = Mineral, 2 = Villager, 3 = Resource.",
+                        min: 0, max: 3, order: 301, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value));
+            Reg(GroupSpawning, Config.SpawnSubtype,
+                NewMeta("Spawn Sub-type",
+                        "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf. " +
+                        "Mineral: 0 Gold/1 Iron/2 Coal/3 Stone/4 Clay/5 Sand. " +
+                        "Resource: 0 Forageable/1 Tree/2 Rock/3 Giant Rock. Villager ignores this.",
+                        min: 0, max: 5, order: 302, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value));
+            Reg(GroupSpawning, Config.SpawnCount,
+                NewMeta("Spawn Count",
+                        "How many to place per apply (1–50), scattered in a small ring around the cursor.",
+                        min: 1, max: 50, order: 303, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value));
+            Reg(GroupSpawning, Config.SpawnIsDeep,
+                NewMeta("Deep Deposit (gold/iron/coal)",
+                        "Minerals only. Gold/iron/coal spawn as a deep (infinite) deposit when on. " +
+                        "Stone/clay/sand always spawn as infinite pits. Default: OFF.",
+                        order: 304, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 1));
+            Reg(GroupSpawning, Config.SpawnAnnounceVillagers,
+                NewMeta("Announce Villagers",
+                        "Fire the immigration 'arrived' notification when spawning villagers. Default: OFF.",
+                        order: 305, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 2));
+            Reg(GroupSpawning, Config.SpawnApplyKey,
+                NewMeta("Spawn Apply Key",
+                        "Key/button that spawns at the cursor. Mouse2 = middle, Mouse0 = left, or a chord. " +
+                        "Default: Mouse2.",
+                        order: 306, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value));
+            Reg(GroupSpawning, Config.SpawnForageableGuids,
+                NewMeta("Forageable GUIDs",
+                        "Delimited prefab GUIDs for the Forageable type. Each apply cycles the list; " +
+                        "unknown/DLC GUIDs are skipped safely.",
+                        order: 307, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value
+                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 0));
+            Reg(GroupSpawning, Config.SpawnTreeGuids,
+                NewMeta("Tree GUIDs",
+                        "Delimited prefab GUIDs for the Tree type (placed via the terrain grow-tree system).",
+                        order: 308, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value
+                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 1));
+            Reg(GroupSpawning, Config.SpawnRockGuids,
+                NewMeta("Rock GUIDs",
+                        "Delimited prefab GUIDs for the Rock type.",
+                        order: 309, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value
+                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 2));
+            Reg(GroupSpawning, Config.SpawnGiantRockGuids,
+                NewMeta("Giant Rock GUIDs",
+                        "Delimited prefab GUIDs for the Giant Rock type.",
+                        order: 310, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value
+                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 3));
         }
     }
 }

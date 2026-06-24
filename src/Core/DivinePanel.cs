@@ -20,13 +20,23 @@ namespace DivineHands.Core
 
         public static bool Visible => _visible;
 
-        /// <summary>True when the panel is open AND the Terrain tool is the selected mode — read by
+        /// <summary>Which god-power (if any) is currently armed. Only ONE tool is armed at a time —
+        /// arming spawners disarms terrain and vice-versa — so the apply key is never ambiguous.</summary>
+        private enum ArmedTool { None, Terrain, Spawner }
+        private static ArmedTool _armedTool = ArmedTool.None;
+
+        /// <summary>True when the panel is open AND the Terrain tool is the armed mode — read by
         /// <see cref="DivineHands.Modules.TerrainElevation"/> to gate brush application so terrain only
         /// sculpts while the user has explicitly armed the tool. Requires the terrain feature enabled.</summary>
         public static bool TerrainModeActive =>
-            _visible && Config.MasterEnable.Value && Config.TerrainEnable.Value && _terrainArmed;
+            _visible && Config.MasterEnable.Value && Config.TerrainEnable.Value
+            && _armedTool == ArmedTool.Terrain;
 
-        private static bool _terrainArmed;
+        /// <summary>True when the panel is open AND the Spawner tool is the armed mode — read by
+        /// <see cref="DivineHands.Modules.CursorSpawners"/> to gate spawning on the apply key.</summary>
+        public static bool SpawnerModeActive =>
+            _visible && Config.MasterEnable.Value && Config.SpawnEnable.Value
+            && _armedTool == ArmedTool.Spawner;
 
         /// <summary>True when the cursor is over the visible panel — read by the input guard
         /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
@@ -73,9 +83,11 @@ namespace DivineHands.Core
                 DrawTerrainSection();
 
                 GUILayout.Space(6f);
+                DrawSpawnerSection();
+
+                GUILayout.Space(6f);
                 GUILayout.Label("Coming next", SectionStyle);
                 GUI.enabled = false;
-                GUILayout.Toggle(false, "  Cursor spawners");
                 GUILayout.Toggle(false, "  Build anywhere");
                 GUI.enabled = true;
             }
@@ -102,12 +114,15 @@ namespace DivineHands.Core
 
             if (!Config.TerrainEnable.Value)
             {
-                _terrainArmed = false;
+                if (_armedTool == ArmedTool.Terrain) _armedTool = ArmedTool.None;
                 return;
             }
 
-            // Arm toggle — only while armed does the brush apply on the apply key.
-            _terrainArmed = GUILayout.Toggle(_terrainArmed, "  Arm brush (apply on key)");
+            // Arm toggle — arming Terrain disarms any other tool (single-armed-tool rule).
+            bool terrainArmed = _armedTool == ArmedTool.Terrain;
+            bool nowArmed = GUILayout.Toggle(terrainArmed, "  Arm brush (apply on key)");
+            if (nowArmed != terrainArmed)
+                _armedTool = nowArmed ? ArmedTool.Terrain : ArmedTool.None;
 
             // Mode selector.
             int mode = Mathf.Clamp(Config.TerrainMode.Value, 0, 3);
@@ -136,6 +151,77 @@ namespace DivineHands.Core
 
             GUILayout.Label($"Apply: {Config.TerrainApplyKey.Value}   Undo: {Config.TerrainUndoKey.Value}" +
                             $"   (undo depth {DivineHands.Modules.TerrainElevation.UndoDepth})", HintStyle);
+        }
+
+        private static readonly string[] _families = { "Animal", "Mineral", "Villager", "Resource" };
+        private static readonly string[] _animalKinds = { "Deer", "Bear", "Boar", "Wolf" };
+        private static readonly string[] _mineralKinds = { "Gold", "Iron", "Coal", "Stone", "Clay", "Sand" };
+        private static readonly string[] _resourceKinds = { "Forage", "Tree", "Rock", "Giant" };
+
+        private static void DrawSpawnerSection()
+        {
+            GUILayout.Label("Cursor Spawners", SectionStyle);
+
+            Config.SpawnEnable.Value =
+                GUILayout.Toggle(Config.SpawnEnable.Value, "  Enable cursor spawners");
+
+            if (!Config.SpawnEnable.Value)
+            {
+                if (_armedTool == ArmedTool.Spawner) _armedTool = ArmedTool.None;
+                return;
+            }
+
+            // Arm toggle — arming the spawner disarms any other tool.
+            bool spawnerArmed = _armedTool == ArmedTool.Spawner;
+            bool nowArmed = GUILayout.Toggle(spawnerArmed, "  Arm spawner (apply on key)");
+            if (nowArmed != spawnerArmed)
+                _armedTool = nowArmed ? ArmedTool.Spawner : ArmedTool.None;
+
+            // Family picker.
+            int family = Mathf.Clamp(Config.SpawnFamily.Value, 0, _families.Length - 1);
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < _families.Length; i++)
+            {
+                bool on = GUILayout.Toggle(family == i, _families[i], GUI.skin.button);
+                if (on && family != i) { family = i; Config.SpawnSubtype.Value = 0; }
+            }
+            GUILayout.EndHorizontal();
+            Config.SpawnFamily.Value = family;
+
+            // Sub-type picker (per family; Villager has none).
+            string[]? kinds = family switch
+            {
+                0 => _animalKinds,
+                1 => _mineralKinds,
+                3 => _resourceKinds,
+                _ => null
+            };
+            if (kinds != null)
+            {
+                int sub = Mathf.Clamp(Config.SpawnSubtype.Value, 0, kinds.Length - 1);
+                GUILayout.BeginHorizontal();
+                for (int i = 0; i < kinds.Length; i++)
+                {
+                    bool on = GUILayout.Toggle(sub == i, kinds[i], GUI.skin.button);
+                    if (on) sub = i;
+                }
+                GUILayout.EndHorizontal();
+                Config.SpawnSubtype.Value = sub;
+            }
+
+            // Count slider.
+            int count = Mathf.Clamp(Config.SpawnCount.Value, 1, 50);
+            GUILayout.Label($"Count: {count}", HintStyle);
+            count = Mathf.RoundToInt(GUILayout.HorizontalSlider(count, 1f, 50f));
+            Config.SpawnCount.Value = count;
+
+            // Deep toggle (minerals only).
+            if (family == 1)
+                Config.SpawnIsDeep.Value =
+                    GUILayout.Toggle(Config.SpawnIsDeep.Value, "  Deep deposit (gold/iron/coal — infinite)");
+
+            GUILayout.Label($"Apply: {Config.SpawnApplyKey.Value}   (GUIDs & all settings: Keep Clarity panel)",
+                            HintStyle);
         }
 
         private static GUIStyle? _section;

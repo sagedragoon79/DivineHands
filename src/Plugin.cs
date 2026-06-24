@@ -59,11 +59,13 @@ namespace DivineHands
                 GodTools.OnSceneExit();
                 TerrainElevation.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
+                CursorSpawners.OnSceneExit();
                 return;
             }
             GodTools.OnMapLoaded();
             TerrainElevation.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
+            CursorSpawners.OnMapLoaded();
         }
 
         public override void OnUpdate()
@@ -78,6 +80,7 @@ namespace DivineHands
             {
                 GodTools.OnUpdate();
                 TerrainElevation.OnUpdate();
+                CursorSpawners.OnUpdate();
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
             }
         }
