@@ -258,6 +258,19 @@ namespace DivineHands
                         "Fire the immigration 'arrived' notification when spawning villagers. Default: OFF.",
                         order: 305, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 2));
+            Reg(GroupSpawning, Config.SpawnPersistent,
+                NewMeta("Persistent (node/den)",
+                        "Animals only. When ON (default), wildlife is persistent and self-respawns: " +
+                        "Deer place a spawn-area node, Wolf/Boar place a den. When OFF, animals spawn loose " +
+                        "(one-off, won't survive save/load). Bear is always loose. Default: ON.",
+                        order: 307, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 0));
+            Reg(GroupSpawning, Config.SpawnWolfDenGuid,
+                NewMeta("Wolf Den GUID (fallback)",
+                        "Optional fallback wolf-den prefab GUID, used only if the animal group's weighted " +
+                        "den prefab can't be resolved. Leave default unless dens fail to spawn.",
+                        order: 308, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 0));
             Reg(GroupSpawning, Config.SpawnApplyKey,
                 NewMeta("Spawn Apply Key",
                         "Key/button that spawns at the cursor. Mouse2 = middle, Mouse0 = left, or a chord. " +

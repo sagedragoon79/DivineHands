@@ -69,6 +69,22 @@ namespace DivineHands.Modules
         public enum MineralKind { Gold, Iron, Coal, Stone, Clay, Sand }
         public enum ResourceKind { Forageable, Tree, Rock, GiantRock }
 
+        // ---- cached reflection for persistent animal spawning (resolved lazily, once per map) ----
+        private static FieldInfo? _validAnimalGroupsField;        // protected List<AnimalGroupDefinition> AnimalManager.validAnimalGroups
+        private static PropertyInfo? _qualifiedDenAreasProp;      // public List<AnimalDenSpawnArea> AnimalManager.qualifiedAnimalDenSpawnAreas
+        private static PropertyInfo? _spawnAreaGroupTypeProp;     // AnimalGroupDefinition.animalType (getter)
+        private static PropertyInfo? _spawnAreaGroupPointTypeProp;// AnimalGroupDefinition.spawnPointType (getter)
+        private static Type? _animalDenType;                      // AnimalDen (FindType)
+        private static bool _animalReflectionResolved;
+
+        // AnimalGroupDefinition.AnimalType enum values (verified [35809]).
+        private const int GroupAnimalType_Deer = 1;
+        private const int GroupAnimalType_Boar = 2;
+        private const int GroupAnimalType_Wolf = 3;
+        // AnimalGroupDefinition.SpawnPointType enum values (verified [35822]).
+        private const int GroupSpawnPointType_SpawnArea = 1;
+        private const int GroupSpawnPointType_AnimalDen = 2;
+
         // ---- cached reflection (resolved lazily, once per map) ----
         private static MethodInfo? _createMineralSitePrefab;  // private MineralManager
         private static MethodInfo? _createClaySite;           // private MineralManager (Vector2 overload)
@@ -96,6 +112,13 @@ namespace DivineHands.Modules
             _createStoneSite = null;
             _mineralReflectionResolved = false;
             _mapTreePrefabs = null;
+
+            _validAnimalGroupsField = null;
+            _qualifiedDenAreasProp = null;
+            _spawnAreaGroupTypeProp = null;
+            _spawnAreaGroupPointTypeProp = null;
+            _animalDenType = null;
+            _animalReflectionResolved = false;
         }
 
         public static void OnSceneExit() => OnMapLoaded();
@@ -156,16 +179,352 @@ namespace DivineHands.Modules
             if (am == null) return;
 
             var kind = (AnimalKind)Mathf.Clamp(Config.SpawnSubtype.Value, 0, 3);
+
+            // Bear is ALWAYS loose — the base game has no bear den, and there is no bear spawn-area
+            // population path that survives. Bear ignores the persistent toggle entirely.
+            if (kind == AnimalKind.Bear || !Config.SpawnPersistent.Value)
+            {
+                SpawnAnimalsLoose(am, kind, world, count);
+                return;
+            }
+
+            ResolveAnimalReflection(am);
+
+            bool ok = kind switch
+            {
+                AnimalKind.Deer => SpawnDeerArea(am, count),
+                AnimalKind.Wolf => SpawnDen(am, GroupAnimalType_Wolf, count),
+                AnimalKind.Boar => SpawnDen(am, GroupAnimalType_Boar, count),
+                _ => false
+            };
+
+            // Graceful fallback to loose if the persistent path couldn't build a node/den.
+            if (!ok)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] Persistent {kind} spawn unavailable — falling back to loose.");
+                SpawnAnimalsLoose(am, kind, world, count);
+            }
+        }
+
+        // Legacy one-off loose spawn (DebugSpawn*AtPoint). Animals are runtime-only and do not
+        // survive save/load.
+        private static void SpawnAnimalsLoose(object am, AnimalKind kind, Vector3 world, int count)
+        {
+            var animalMgr = (AnimalManager)am;
             switch (kind)
             {
-                case AnimalKind.Deer: am.DebugSpawnDeerAtPoint(count, world); break;
-                case AnimalKind.Bear: am.DebugSpawnBearsAtPoint(count, world); break;
-                case AnimalKind.Boar: am.DebugSpawnBoarsAtPoint(count, world); break;
-                case AnimalKind.Wolf: am.DebugSpawnWolvesAtPoint(count, world); break;
+                case AnimalKind.Deer: animalMgr.DebugSpawnDeerAtPoint(count, world); break;
+                case AnimalKind.Bear: animalMgr.DebugSpawnBearsAtPoint(count, world); break;
+                case AnimalKind.Boar: animalMgr.DebugSpawnBoarsAtPoint(count, world); break;
+                case AnimalKind.Wolf: animalMgr.DebugSpawnWolvesAtPoint(count, world); break;
             }
             if (Config.DebugLog.Value)
-                MelonLogger.Msg($"[DivineHands] Spawned {count}x {kind} @ {world} " +
-                                "(runtime-only — animals do not persist through save/load)");
+                MelonLogger.Msg($"[DivineHands] Spawned {count}x {kind} @ {world} (loose — " +
+                                "runtime-only, does not persist through save/load)");
+        }
+
+        // ---- PERSISTENT: Wolf/Boar DEN ----
+        // Modeled EXACTLY on AnimalManager.SpawnAnimalDens [92635-92700]:
+        //   den prefab = group.GetWeightedDenPrefab() -> GetComponent<AnimalDen>() (the prefab's component);
+        //   spawn point + grid cells = denSpawnArea.GetValidRandomSpawnPoint(animalDen.gridSize, out cells);
+        //   Instantiate(animalDen, pt, identity); inst.animalGroup = group; inst.SetGridCellLocations(cells);
+        //   inst.SpawnAnimalsAtDen(maxPerSpawnArea).
+        // count = number of dens to place (clamped). Returns true if at least one den was created.
+        private static bool SpawnDen(object am, int groupAnimalType, int denCount)
+        {
+            try
+            {
+                var group = FindGroup(groupAnimalType, GroupSpawnPointType_AnimalDen);
+                if (group == null)
+                {
+                    if (Config.DebugLog.Value)
+                        MelonLogger.Warning($"[DivineHands] No den AnimalGroupDefinition for animalType={groupAnimalType}");
+                    return false;
+                }
+
+                var denAreas = GetQualifiedDenAreas(am);
+                if (denAreas == null || denAreas.Count == 0)
+                {
+                    if (Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] No qualifiedAnimalDenSpawnAreas to host a den");
+                    return false;
+                }
+
+                // Resolve the den prefab + its AnimalDen component (the base loop reads gridSize off it).
+                GameObject? denPrefab = InvokeGetWeightedDenPrefab(group);
+                if (denPrefab == null && groupAnimalType == GroupAnimalType_Wolf)
+                    denPrefab = SafeGetPrefab(Config.SpawnWolfDenGuid.Value); // optional GUID fallback (wolf only)
+                if (denPrefab == null)
+                {
+                    if (Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] GetWeightedDenPrefab returned null and no fallback prefab");
+                    return false;
+                }
+
+                if (_animalDenType == null) { if (Config.DebugLog.Value) MelonLogger.Warning("[DivineHands] AnimalDen type unresolved"); return false; }
+                var denTemplate = denPrefab.GetComponent(_animalDenType);
+                if (denTemplate == null)
+                {
+                    if (Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] Den prefab has no AnimalDen component");
+                    return false;
+                }
+
+                // gridSize lives on the AnimalDen component (Vector2) [35292].
+                var gridSize = (Vector2)(GetMember(denTemplate, _animalDenType, "gridSize") ?? new Vector2(3f, 3f));
+
+                int made = 0;
+                int attempts = Mathf.Max(1, denCount) * 4; // mirror the base loop's over-attempt budget
+                for (int i = 0; i < attempts && made < denCount; i++)
+                {
+                    var area = denAreas[UnityEngine.Random.Range(0, denAreas.Count)];
+                    if (area == null) continue;
+
+                    // GetValidRandomSpawnPoint(Vector2 gridSize, out Vector2[] gridCellLocations) : Vector3? [35756]
+                    object[] args = { gridSize, null! };
+                    var mi = area.GetType().GetMethod("GetValidRandomSpawnPoint",
+                        new[] { typeof(Vector2), typeof(Vector2[]).MakeByRefType() });
+                    if (mi == null) { if (Config.DebugLog.Value) MelonLogger.Warning("[DivineHands] GetValidRandomSpawnPoint not found"); return made > 0; }
+                    var spawnPointObj = mi.Invoke(area, args);
+                    if (spawnPointObj == null) continue;                 // Vector3? null -> no valid point this try
+                    var spawnPoint = (Vector3)spawnPointObj;
+                    var gridCellLocations = (Vector2[])args[1];          // out param populated by the method
+
+                    // Instantiate the AnimalDen component (Unity returns the component on the new GameObject),
+                    // exactly as the base loop does: Instantiate(animalDen, pt, identity).
+                    var inst = UnityEngine.Object.Instantiate((Component)denTemplate, spawnPoint, Quaternion.identity);
+                    if (inst == null) continue;
+
+                    SetMember(inst, "animalGroup", group);                                 // AnimalDen.animalGroup [35315]
+                    InvokeSetGridCellLocations(inst, gridCellLocations);                   // [35512] grid + pathfinding + serialize
+                    InvokeSpawnAnimalsAtDen(inst);                                         // [35587] populate the den
+                    made++;
+                }
+
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] Created {made}/{denCount} persistent den(s) " +
+                                    $"(animalType={groupAnimalType}).");
+                return made > 0;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DivineHands] SpawnDen failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        // ---- PERSISTENT: Deer SPAWN-AREA node ----
+        // Modeled on CreateNewAnimalGroups [91780] / GetRandomEmptySpawnArea [92283]:
+        //   area = am.GetRandomEmptySpawnArea(group); area.CalculateSpawnPoints();
+        //   foreach point in area.allSpawnPointsRO: am.SpawnAnimal(group, area, point) (returns bool);
+        //   area.inUse = true. SpawnAnimal->AddAnimal sets the area's animalGroup, so it self-respawns.
+        // count = number of distinct spawn-area nodes to claim. Returns true if at least one was populated.
+        private static bool SpawnDeerArea(object am, int areaCount)
+        {
+            try
+            {
+                var groupObj = FindGroup(GroupAnimalType_Deer, GroupSpawnPointType_SpawnArea);
+                if (groupObj == null)
+                {
+                    if (Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] No spawn-area AnimalGroupDefinition for Deer");
+                    return false;
+                }
+                var group = (AnimalGroupDefinition)groupObj;
+
+                var animalMgr = (AnimalManager)am;
+                int made = 0;
+                int attempts = Mathf.Max(1, areaCount) * 4;
+                for (int a = 0; a < attempts && made < areaCount; a++)
+                {
+                    var area = animalMgr.GetRandomEmptySpawnArea(group); // PUBLIC [92283]; null if none free
+                    if (area == null) break;                            // no more empty areas -> stop
+
+                    // Populate the area's spawn-point list, then iterate it (allSpawnPointsRO is the safe view).
+                    area.CalculateSpawnPoints();                        // PUBLIC [36406]
+                    var points = GetSpawnAreaPoints(area);
+                    if (points == null || points.Count == 0) { area.inUse = true; continue; }
+
+                    int spawned = 0;
+                    foreach (var p in points)
+                    {
+                        if (animalMgr.SpawnAnimal(group, area, p))       // PUBLIC [92069]; ties animal to the area
+                            spawned++;
+                    }
+                    area.inUse = true;                                  // claim the area so it persists/respawns
+                    if (spawned > 0) made++;
+                }
+
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] Created {made}/{areaCount} persistent deer spawn-area node(s). " +
+                                    "(Deer fill the area over time — give it a moment / reload to see them respawn.)");
+                return made > 0;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DivineHands] SpawnDeerArea failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        // ---- persistent-animal reflection helpers ----
+
+        // Find a validAnimalGroups entry by animalType + spawnPointType. validAnimalGroups is PROTECTED.
+        private static object? FindGroup(int animalType, int spawnPointType)
+        {
+            try
+            {
+                var am = GameManager.Instance?.animalManager;
+                if (am == null || _validAnimalGroupsField == null) return null;
+                var list = _validAnimalGroupsField.GetValue(am) as System.Collections.IEnumerable;
+                if (list == null) return null;
+                foreach (var g in list)
+                {
+                    if (g == null) continue;
+                    var atObj = _spawnAreaGroupTypeProp?.GetValue(g);
+                    var ptObj = _spawnAreaGroupPointTypeProp?.GetValue(g);
+                    if (atObj == null || ptObj == null) continue;
+                    if (Convert.ToInt32(atObj) == animalType && Convert.ToInt32(ptObj) == spawnPointType)
+                        return g;
+                }
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] FindGroup failed: {ex.Message}");
+            }
+            return null;
+        }
+
+        private static System.Collections.IList? GetQualifiedDenAreas(object am)
+        {
+            try { return _qualifiedDenAreasProp?.GetValue(am) as System.Collections.IList; }
+            catch { return null; }
+        }
+
+        private static GameObject? InvokeGetWeightedDenPrefab(object group)
+        {
+            try
+            {
+                var mi = group.GetType().GetMethod("GetWeightedDenPrefab",
+                    BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                return mi?.Invoke(group, null) as GameObject;
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] GetWeightedDenPrefab threw: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void InvokeSetGridCellLocations(object denComponent, Vector2[] cells)
+        {
+            // public void AnimalDen.SetGridCellLocations(Vector2[] cells) [35512] — does
+            // RotateOpeningToLowestHeight + aiPathfinder.AddGridOccupantToAIGridGraph + stores for save.
+            var mi = denComponent.GetType().GetMethod("SetGridCellLocations",
+                BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(Vector2[]) }, null);
+            mi?.Invoke(denComponent, new object[] { cells });
+        }
+
+        private static void InvokeSpawnAnimalsAtDen(object denComponent)
+        {
+            // public void AnimalDen.SpawnAnimalsAtDen(int numAnimalsToSpawn) [35587].
+            // Use the group's own per-area max so the den fills like the base game; fall back to a sane count.
+            int numToSpawn = 3;
+            try
+            {
+                var group = GetMember(denComponent, denComponent.GetType(), "animalGroup");
+                if (group != null)
+                {
+                    // GetMaxPerSpawnArea(float animalScore, float cutoff) — use the den-score cutoff if available.
+                    // We don't have the area's score here, so use a generous default and let the den clamp.
+                    var mi = group.GetType().GetMethod("GetMaxPerSpawnArea",
+                        BindingFlags.Public | BindingFlags.Instance, null,
+                        new[] { typeof(float), typeof(float) }, null);
+                    if (mi != null)
+                    {
+                        var v = mi.Invoke(group, new object[] { 100f, 0f });
+                        if (v is int n && n > 0) numToSpawn = n;
+                    }
+                }
+            }
+            catch { /* keep default numToSpawn */ }
+
+            var spawn = denComponent.GetType().GetMethod("SpawnAnimalsAtDen",
+                BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(int) }, null);
+            spawn?.Invoke(denComponent, new object[] { numToSpawn });
+        }
+
+        // Iterate spawn points like AnimalSpawnerMono does — allSpawnPointsRO is the read-only view
+        // populated by CalculateSpawnPoints [36410]; allSpawnPoints is its protected backing list.
+        private static List<Vector3>? GetSpawnAreaPoints(object area)
+        {
+            try
+            {
+                var ro = GetMember(area, area.GetType(), "allSpawnPointsRO") as System.Collections.IEnumerable;
+                if (ro != null)
+                {
+                    var outList = new List<Vector3>();
+                    foreach (var v in ro) if (v is Vector3 p) outList.Add(p);
+                    if (outList.Count > 0) return outList;
+                }
+                // Fallback: the protected backing list directly.
+                var backing = GetMember(area, area.GetType(), "allSpawnPoints") as System.Collections.IEnumerable;
+                if (backing != null)
+                {
+                    var outList = new List<Vector3>();
+                    foreach (var v in backing) if (v is Vector3 p) outList.Add(p);
+                    return outList;
+                }
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] GetSpawnAreaPoints failed: {ex.Message}");
+            }
+            return null;
+        }
+
+        private static void ResolveAnimalReflection(object am)
+        {
+            if (_animalReflectionResolved) return;
+            _animalReflectionResolved = true;
+            try
+            {
+                var amType = am.GetType();
+                const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+                // protected List<AnimalGroupDefinition> validAnimalGroups [90274] — walk base types.
+                for (var t = amType; t != null && _validAnimalGroupsField == null; t = t.BaseType)
+                    _validAnimalGroupsField = t.GetField("validAnimalGroups", F);
+
+                // public List<AnimalDenSpawnArea> qualifiedAnimalDenSpawnAreas { get; protected set; } [90520]
+                _qualifiedDenAreasProp = amType.GetProperty("qualifiedAnimalDenSpawnAreas", F);
+
+                _animalDenType = FindType("AnimalDen");
+
+                // AnimalGroupDefinition.animalType / spawnPointType getters [35947/35973].
+                var groupType = FindType("AnimalGroupDefinition");
+                if (groupType != null)
+                {
+                    _spawnAreaGroupTypeProp = groupType.GetProperty("animalType",
+                        BindingFlags.Public | BindingFlags.Instance);
+                    _spawnAreaGroupPointTypeProp = groupType.GetProperty("spawnPointType",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg("[DivineHands] Animal persistent reflection: " +
+                        $"groups={_validAnimalGroupsField != null} dens={_qualifiedDenAreasProp != null} " +
+                        $"denType={_animalDenType != null} typeProp={_spawnAreaGroupTypeProp != null}");
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] ResolveAnimalReflection failed: {ex.Message}");
+            }
         }
 
         // ---------------------------------------------------------------------

@@ -116,6 +116,16 @@ namespace DivineHands
         /// <summary>Villager spawns: fire the immigration "arrived" announcement when true.</summary>
         public static MelonPreferences_Entry<bool>   SpawnAnnounceVillagers { get; private set; } = null!;
 
+        /// <summary>Animals only: when on (default), spawn PERSISTENT, self-respawning wildlife —
+        /// Deer place a spawn-AREA node, Wolf/Boar place a DEN. When off, spawn loose one-off animals
+        /// (the legacy DebugSpawn*AtPoint path). Bear is ALWAYS loose regardless (no base-game bear den).</summary>
+        public static MelonPreferences_Entry<bool>   SpawnPersistent { get; private set; } = null!;
+
+        /// <summary>Optional fallback wolf-den prefab GUID, used ONLY if the AnimalGroupDefinition's
+        /// GetWeightedDenPrefab() returns null (e.g. a misconfigured/DLC group). Leave default unless
+        /// dens fail to spawn.</summary>
+        public static MelonPreferences_Entry<string> SpawnWolfDenGuid { get; private set; } = null!;
+
         /// <summary>Key/button that spawns the selected family at the cursor.</summary>
         public static MelonPreferences_Entry<string> SpawnApplyKey  { get; private set; } = null!;
 
@@ -326,6 +336,19 @@ namespace DivineHands
                 display_name: "Announce Villagers",
                 description: "When spawning villagers, fire the usual immigration 'arrived' notification. " +
                              "Default: off (silent).");
+
+            SpawnPersistent = _root.CreateEntry(
+                "SpawnPersistent", true,
+                display_name: "Persistent (node/den)",
+                description: "Animals only. When on (default), spawned wildlife is PERSISTENT and self-respawns: " +
+                             "Deer create a spawn-area node, Wolf/Boar create a den. When off, animals spawn loose " +
+                             "(one-off, won't survive save/load). Bear is always loose (the game has no bear dens).");
+
+            SpawnWolfDenGuid = _root.CreateEntry(
+                "SpawnWolfDenGuid", "465936e7-d613-4d08-af70-147fe603715f",
+                display_name: "Wolf Den GUID (fallback)",
+                description: "Optional fallback wolf-den prefab GUID, used ONLY if the animal group's weighted " +
+                             "den prefab can't be resolved. Leave default unless dens fail to spawn.");
 
             SpawnApplyKey = _root.CreateEntry(
                 "SpawnApplyKey", "Mouse2",
