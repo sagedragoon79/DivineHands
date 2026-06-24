@@ -58,10 +58,12 @@ namespace DivineHands
                 DivinePanel.Hide();
                 GodTools.OnSceneExit();
                 TerrainElevation.OnSceneExit();
+                TerrainBrushGrid.OnSceneExit();
                 return;
             }
             GodTools.OnMapLoaded();
             TerrainElevation.OnMapLoaded();
+            TerrainBrushGrid.OnMapLoaded();
         }
 
         public override void OnUpdate()
@@ -76,6 +78,7 @@ namespace DivineHands
             {
                 GodTools.OnUpdate();
                 TerrainElevation.OnUpdate();
+                TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
             }
         }
 

@@ -288,6 +288,52 @@ namespace DivineHands.Modules
 
         public static int UndoDepth => _undo.Count;
 
+        // ---- Shared read-only accessors for the cursor grid preview (TerrainBrushGrid) ----
+        // Expose the SAME resolved terrain handles + cell math the brush uses, so the preview
+        // outline lands exactly where ApplyStroke() writes.
+
+        /// <summary>Resolve terrain (cached) and report the live heightmap grid metadata.
+        /// Returns false until terrain is ready.</summary>
+        public static bool TryGetGridContext(out Heightmap hm, out int size, out float resolution)
+        {
+            hm = null!;
+            size = 0;
+            resolution = 0f;
+            if (!ResolveTerrain()) return false;
+            if (_heightmap == null) return false;
+            hm = _heightmap;
+            size = _size;
+            resolution = _resolution;
+            return true;
+        }
+
+        /// <summary>World point under the cursor via FF's terrain raycast (same call ApplyStroke uses).</summary>
+        public static bool TryGetCursorWorld(out Vector3 world) => TryGetCursorWorldPoint(out world);
+
+        /// <summary>The brush's index-space rect for the current cursor + grid size, clamped to the
+        /// heightmap. Mirrors ApplyStroke() EXACTLY. Returns false if off-map or terrain not ready.</summary>
+        public static bool TryGetBrushRect(out int minX, out int minZ, out int maxX, out int maxZ)
+        {
+            minX = minZ = maxX = maxZ = 0;
+            if (!ResolveTerrain() || _heightmap == null) return false;
+            if (!TryGetCursorWorldPoint(out Vector3 world)) return false;
+
+            int cx = Mathf.FloorToInt(world.x / _resolution);
+            int cz = Mathf.FloorToInt(world.z / _resolution);
+            int grid = Mathf.Clamp(Config.TerrainGridSize.Value, 1, 10);
+            int half = grid / 2;
+            minX = cx - half;
+            minZ = cz - half;
+            maxX = minX + (grid - 1);
+            maxZ = minZ + (grid - 1);
+
+            minX = Mathf.Max(minX, 0);
+            minZ = Mathf.Max(minZ, 0);
+            maxX = Mathf.Min(maxX, _size - 1);
+            maxZ = Mathf.Min(maxZ, _size - 1);
+            return minX <= maxX && minZ <= maxZ;
+        }
+
         // =====================================================================
         // Refresh — call the engine's own full post-edit notify, Terrain2.SmoothHeightsNotify [491080].
         // That single call does (synchronously, no coroutine/Laplacian): InvalidateSpace (visual mesh)
