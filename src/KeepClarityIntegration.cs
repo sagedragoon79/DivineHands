@@ -141,6 +141,13 @@ namespace DivineHands
                         "save while revealed, the whole map stays explored. Turn it off before saving " +
                         "for clean fog. Default: OFF.",
                         order: 100));
+            Reg(GroupGodTools, Config.BuildAnywhere,
+                NewMeta("Build Anywhere",
+                        "Place NORMAL buildings on ground vanilla rejects — steep slopes, no path to " +
+                        "town, water/road overlap. Bridges are intentionally left alone so they keep " +
+                        "deferring to vanilla and Keep Clarity's Bridge Anywhere. Turning this OFF " +
+                        "restores exact vanilla placement. Default: OFF.",
+                        order: 110));
 
             // ===== Terrain Sculpting =====
             Reg(GroupTerrain, Config.TerrainEnable,

@@ -35,6 +35,12 @@ namespace DivineHands
         /// drives FOWSystem.instance.revealCompletely while in-game.</summary>
         public static MelonPreferences_Entry<bool>   RevealMap      { get; private set; } = null!;
 
+        /// <summary>Build Anywhere: bypass placement/pathing validity for NORMAL buildings so they
+        /// can be placed on otherwise-invalid ground (steep slope, no path to town, overlaps). Bridge
+        /// placements are deliberately NOT affected — they defer to vanilla + Keep Clarity's Bridge
+        /// Anywhere. Off => pure vanilla.</summary>
+        public static MelonPreferences_Entry<bool>   BuildAnywhere  { get; private set; } = null!;
+
         // ===== Terrain Sculpting =====
 
         /// <summary>Master switch for the terrain-elevation god-power.</summary>
@@ -130,6 +136,14 @@ namespace DivineHands
                              "best-effort restores the fog you had explored before. Caveat: FF bakes " +
                              "explored state into the SAVE — if you save while revealed, the whole map " +
                              "stays explored. Turn it off before saving for clean fog. Default: off.");
+
+            BuildAnywhere = _root.CreateEntry(
+                "BuildAnywhere", false,
+                display_name: "Build Anywhere",
+                description: "Lets you place NORMAL buildings on ground vanilla would reject (steep " +
+                             "slopes, no path to town, water/road overlap). Bridges are NOT affected — " +
+                             "they defer to vanilla and Keep Clarity's Bridge Anywhere. Turning this OFF " +
+                             "restores exact vanilla placement rules. Default: off.");
 
             // ===== Terrain Sculpting =====
 

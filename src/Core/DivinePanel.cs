@@ -78,18 +78,14 @@ namespace DivineHands.Core
             {
                 GUILayout.Label("God Tools", SectionStyle);
                 Config.RevealMap.Value = GUILayout.Toggle(Config.RevealMap.Value, "  Reveal Map (clear fog)");
+                Config.BuildAnywhere.Value =
+                    GUILayout.Toggle(Config.BuildAnywhere.Value, "  Build anywhere (normal buildings)");
 
                 GUILayout.Space(6f);
                 DrawTerrainSection();
 
                 GUILayout.Space(6f);
                 DrawSpawnerSection();
-
-                GUILayout.Space(6f);
-                GUILayout.Label("Coming next", SectionStyle);
-                GUI.enabled = false;
-                GUILayout.Toggle(false, "  Build anywhere");
-                GUI.enabled = true;
             }
 
             GUILayout.Space(8f);
