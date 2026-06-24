@@ -155,6 +155,18 @@ namespace DivineHands
                         "survey the whole map. Captures the map's current camera limits when turned ON and " +
                         "restores them exactly when turned OFF. Default: OFF.",
                         order: 120));
+            Reg(GroupGodTools, Config.ProportionalZoom,
+                NewMeta("Proportional Zoom",
+                        "While God View is on, finer scroll-zoom steps up close (no more jumping from normal " +
+                        "to too-close). Far-out zoom stays vanilla. Off = flat vanilla step. Default: ON.",
+                        order: 121, indent: 20,
+                        visibleWhen: () => Config.GodView.Value));
+            Reg(GroupGodTools, Config.ZoomStepScale,
+                NewMeta("Zoom Fineness (close-in)",
+                        "Lower = finer steps near the ground (0.4 ≈ 2.5x finer). Far-out zoom is unaffected. " +
+                        "Default: 0.4.",
+                        min: 0.02f, max: 1.0f, order: 122, indent: 40,
+                        visibleWhen: () => Config.GodView.Value && Config.ProportionalZoom.Value));
             Reg(GroupGodTools, Config.FreeCam,
                 NewMeta("Free Cam",
                         "Detach the camera from RTS control and fly it manually: WASD move, Space/Left-Ctrl " +

@@ -46,6 +46,16 @@ namespace DivineHands
         /// current constraint values on enable and restores them exactly on disable.</summary>
         public static MelonPreferences_Entry<bool>   GodView        { get; private set; } = null!;
 
+        /// <summary>Proportional God-View zoom: while God View is on, make mouse-scroll zoom steps finer
+        /// as you zoom in close (the wide god-view range otherwise makes each notch coarse near the
+        /// ground). Off = vanilla flat step. Implemented as a Harmony prefix on CameraManager.AdjustZoom,
+        /// gated on the live zoomUnlocked flag, so vanilla zoom is untouched when God View is off.</summary>
+        public static MelonPreferences_Entry<bool>   ProportionalZoom { get; private set; } = null!;
+
+        /// <summary>Close-in zoom fineness (0.02–1.0) as a fraction of the vanilla step. Lower = finer
+        /// steps near the ground; far-out zoom stays near vanilla. Used only with God View + Proportional Zoom.</summary>
+        public static MelonPreferences_Entry<float>  ZoomStepScale  { get; private set; } = null!;
+
         /// <summary>Free Cam: detach the camera from RTS control and fly it manually (WASD horizontal,
         /// Space/LeftCtrl up/down, Shift fast, mouse-look). Live toggle — captures camera transform +
         /// controller state on enable and restores full RTS control on disable.</summary>
@@ -199,6 +209,20 @@ namespace DivineHands
                 description: "Relax the RTS camera limits so you can zoom far out, tilt to a flat/overhead " +
                              "angle, and survey the whole map. Captures the map's current camera limits when " +
                              "turned ON and restores them exactly when turned OFF. Default: off.");
+
+            ProportionalZoom = _root.CreateEntry(
+                "ProportionalZoom", true,
+                display_name: "Proportional God-View Zoom",
+                description: "While God View is on, make mouse-scroll zoom steps finer as you zoom in close " +
+                             "(the wide god-view range otherwise jumps from normal to too-close with nothing " +
+                             "between). Far-out zoom stays near vanilla. Off = flat vanilla step. Default: on.");
+
+            ZoomStepScale = _root.CreateEntry(
+                "ZoomStepScale", 0.4f,
+                display_name: "Zoom Fineness (close-in)",
+                description: "How fine the zoom steps get when zoomed in close, as a fraction of the vanilla " +
+                             "step (0.4 ≈ 40% = ~2.5x finer near the ground). Lower = finer. Far-out zoom is " +
+                             "unaffected. Range 0.02–1.0. Default: 0.4.");
 
             FreeCam = _root.CreateEntry(
                 "FreeCam", false,
