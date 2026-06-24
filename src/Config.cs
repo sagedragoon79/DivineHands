@@ -65,9 +65,10 @@ namespace DivineHands
             RevealMap = _root.CreateEntry(
                 "RevealMap", false,
                 display_name: "Reveal Map",
-                description: "Clear the entire fog of war (sets FOWSystem.revealCompletely). " +
-                             "Live toggle — takes effect immediately in-game and reverts when off. " +
-                             "Does NOT bake into the save. Default: off.");
+                description: "Clear the entire fog of war (FOWSystem.revealCompletely). Toggling OFF " +
+                             "best-effort restores the fog you had explored before. Caveat: FF bakes " +
+                             "explored state into the SAVE — if you save while revealed, the whole map " +
+                             "stays explored. Turn it off before saving for clean fog. Default: off.");
 
             MelonLogger.Msg("[DivineHands] Config initialized");
         }

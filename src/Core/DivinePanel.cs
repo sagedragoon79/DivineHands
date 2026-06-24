@@ -20,6 +20,15 @@ namespace DivineHands.Core
 
         public static bool Visible => _visible;
 
+        /// <summary>True when the cursor is over the visible panel — read by the input guard
+        /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
+        /// UI and doesn't start a drag-select underneath it. <c>_rect</c> is in GUI space (y down),
+        /// so the mouse Y is flipped to match.</summary>
+        public static bool BlocksGameInput =>
+            _visible
+            && Config.MasterEnable.Value
+            && _rect.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y));
+
         public static void Toggle() => _visible = !_visible;
         public static void Show() => _visible = true;
         public static void Hide() => _visible = false;

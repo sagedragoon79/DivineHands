@@ -134,9 +134,10 @@ namespace DivineHands
             // ===== God Tools =====
             Reg(GroupGodTools, Config.RevealMap,
                 NewMeta("Reveal Map",
-                        "Clear the entire fog of war (FOWSystem.revealCompletely). Live toggle — takes " +
-                        "effect immediately in-game and reverts when off. Does NOT bake into the save. " +
-                        "Default: OFF.",
+                        "Clear the entire fog of war. Toggling OFF best-effort restores the fog you had " +
+                        "explored before. Caveat: FF serializes explored state into the save — if you " +
+                        "save while revealed, the whole map stays explored. Turn it off before saving " +
+                        "for clean fog. Default: OFF.",
                         order: 100));
         }
     }

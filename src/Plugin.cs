@@ -44,6 +44,9 @@ namespace DivineHands
             Config.Initialize();
             KeepClarityIntegration.TryRegisterAll();
 
+            // Harmony patches: currently just the IMGUI-over-game input guard.
+            HarmonyInstance.PatchAll(typeof(Plugin).Assembly);
+
             LoggerInstance.Msg($"Divine Hands {Version} initialized — panel hotkey: {Config.PanelHotkey.Value}");
         }
 
