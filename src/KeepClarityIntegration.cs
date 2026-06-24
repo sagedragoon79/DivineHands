@@ -32,6 +32,7 @@ namespace DivineHands
         internal const string GroupGodTools = "God Tools";
         internal const string GroupTerrain  = "Terrain Sculpting";
         internal const string GroupSpawning = "Cursor Spawners";
+        internal const string GroupInject   = "Selected Building";
 
         public static void TryRegisterAll()
         {
@@ -276,6 +277,54 @@ namespace DivineHands
                         order: 310, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value
                                         && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 3));
+
+            // ===== Selected Building (Item Injection) =====
+            Reg(GroupInject, Config.InjectEnable,
+                NewMeta("Item Injection",
+                        "Enable item injection on the SELECTED building. Select a building in-game, " +
+                        "then use the panel's Selected Building section to add items, add livestock, " +
+                        "or toggle infinite storage. Infinite storage is SESSION-ONLY — it is auto-" +
+                        "stripped before every save (manual, autosave, and exit) so it never bakes " +
+                        "into your .sav. Default: OFF.",
+                        order: 400));
+            Reg(GroupInject, Config.InjectItemIndex,
+                NewMeta("Item to Add",
+                        "Which item the Add Items button injects into the selected building's storage " +
+                        "(index into the panel's item list). Pick the item in the panel.",
+                        min: 0, max: 999, order: 401, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
+            Reg(GroupInject, Config.InjectItemCount,
+                NewMeta("Item Count",
+                        "How many of the selected item to add per click (1–9999). Default: 100.",
+                        min: 1, max: 9999, order: 402, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
+            Reg(GroupInject, Config.InjectLivestockKind,
+                NewMeta("Livestock to Add",
+                        "0 = Cow (Barn), 1 = Chicken (Coop), 2 = Goat (Goat Barn), 3 = Horse (Stable). " +
+                        "The selected building must match the animal. Default: Cow.",
+                        min: 0, max: 3, order: 403, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
+            Reg(GroupInject, Config.LivestockGuidCow,
+                NewMeta("Cow Prefab GUID",
+                        "Prefab GUID instantiated when adding a Cow to a Barn. Editable in case a DLC " +
+                        "or game update changes it. Unknown/DLC GUIDs are skipped safely.",
+                        order: 404, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
+            Reg(GroupInject, Config.LivestockGuidChicken,
+                NewMeta("Chicken Prefab GUID",
+                        "Prefab GUID instantiated when adding a Chicken to a Chicken Coop.",
+                        order: 405, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
+            Reg(GroupInject, Config.LivestockGuidGoat,
+                NewMeta("Goat Prefab GUID",
+                        "Prefab GUID instantiated when adding a Goat to a Goat Barn.",
+                        order: 406, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
+            Reg(GroupInject, Config.LivestockGuidHorse,
+                NewMeta("Horse Prefab GUID",
+                        "Prefab GUID instantiated when adding a Horse to a Stable.",
+                        order: 407, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
         }
     }
 }

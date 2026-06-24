@@ -92,6 +92,9 @@ namespace DivineHands.Core
 
                 GUILayout.Space(6f);
                 DrawSpawnerSection();
+
+                GUILayout.Space(6f);
+                DrawInjectSection();
             }
 
             GUILayout.Space(8f);
@@ -224,6 +227,90 @@ namespace DivineHands.Core
 
             GUILayout.Label($"Apply: {Config.SpawnApplyKey.Value}   (GUIDs & all settings: Keep Clarity panel)",
                             HintStyle);
+        }
+
+        // ---- Selected Building (Item Injection) ----
+
+        private static readonly string[] _livestockKinds = { "Cow", "Chicken", "Goat", "Horse" };
+        private static string _injectStatus = "";
+        private static Vector2 _itemScroll;
+
+        private static void DrawInjectSection()
+        {
+            GUILayout.Label("Selected Building", SectionStyle);
+
+            Config.InjectEnable.Value =
+                GUILayout.Toggle(Config.InjectEnable.Value, "  Enable item injection");
+            if (!Config.InjectEnable.Value) return;
+
+            string buildingName = DivineHands.Modules.ItemInjection.GetSelectedBuildingName();
+            bool hasBuilding = !string.IsNullOrEmpty(buildingName);
+
+            GUILayout.Label(hasBuilding ? $"Selected: {buildingName}" : "Select a building in-game.",
+                            HintStyle);
+
+            if (!hasBuilding)
+            {
+                if (!string.IsNullOrEmpty(_injectStatus))
+                    GUILayout.Label(_injectStatus, HintStyle);
+                return;
+            }
+
+            // ---- Add Items ----
+            var names = DivineHands.Modules.ItemInjection.ItemNames;
+            int idx = Mathf.Clamp(Config.InjectItemIndex.Value, 0, names.Length - 1);
+            GUILayout.Label($"Item: {names[idx]}", HintStyle);
+
+            // Compact scrollable item grid (4 per row) — keeps the panel short.
+            _itemScroll = GUILayout.BeginScrollView(_itemScroll, GUILayout.Height(96f));
+            const int perRow = 4;
+            for (int i = 0; i < names.Length; i++)
+            {
+                if (i % perRow == 0) GUILayout.BeginHorizontal();
+                bool on = GUILayout.Toggle(idx == i, names[i], GUI.skin.button);
+                if (on && idx != i) idx = i;
+                if (i % perRow == perRow - 1 || i == names.Length - 1) GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+            Config.InjectItemIndex.Value = idx;
+
+            int count = Mathf.Clamp(Config.InjectItemCount.Value, 1, 9999);
+            GUILayout.Label($"Count: {count}", HintStyle);
+            count = Mathf.RoundToInt(GUILayout.HorizontalSlider(count, 1f, 9999f));
+            Config.InjectItemCount.Value = count;
+
+            if (GUILayout.Button($"Add {count}x {names[idx]}"))
+                _injectStatus = DivineHands.Modules.ItemInjection.AddItems(names[idx], count);
+
+            GUILayout.Space(4f);
+
+            // ---- Add Livestock ----
+            int kind = Mathf.Clamp(Config.InjectLivestockKind.Value, 0, _livestockKinds.Length - 1);
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < _livestockKinds.Length; i++)
+            {
+                bool on = GUILayout.Toggle(kind == i, _livestockKinds[i], GUI.skin.button);
+                if (on) kind = i;
+            }
+            GUILayout.EndHorizontal();
+            Config.InjectLivestockKind.Value = kind;
+
+            if (GUILayout.Button($"Add 1x {_livestockKinds[kind]}"))
+                _injectStatus = DivineHands.Modules.ItemInjection.AddLivestock(
+                    (DivineHands.Modules.ItemInjection.LivestockKind)kind);
+
+            GUILayout.Space(4f);
+
+            // ---- Infinite storage (SESSION-ONLY) ----
+            bool infinite = DivineHands.Modules.ItemInjection.IsSelectedInfinite();
+            bool nowInfinite = GUILayout.Toggle(infinite, "  Infinite storage (session-only)");
+            if (nowInfinite != infinite)
+                _injectStatus = DivineHands.Modules.ItemInjection.ToggleSelectedInfinite();
+            GUILayout.Label("Session-only: auto-stripped from every save (manual, autosave, exit), " +
+                            "so it never bakes into your .sav.", HintStyle);
+
+            if (!string.IsNullOrEmpty(_injectStatus))
+                GUILayout.Label(_injectStatus, HintStyle);
         }
 
         private static GUIStyle? _section;

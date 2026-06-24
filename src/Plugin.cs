@@ -61,6 +61,7 @@ namespace DivineHands
                 TerrainElevation.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
                 CursorSpawners.OnSceneExit();
+                ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
                 return;
             }
             GodTools.OnMapLoaded();
@@ -68,10 +69,19 @@ namespace DivineHands
             TerrainElevation.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
+            ItemInjection.OnMapLoaded();
         }
+
+        private static bool _wasMasterEnabled = true;
 
         public override void OnUpdate()
         {
+            // If the master switch was just turned off, revert session-only cheats (infinite storage)
+            // so they can't linger into a save, then go inert.
+            if (_wasMasterEnabled && !Config.MasterEnable.Value)
+                ItemInjection.OnMasterDisabled();
+            _wasMasterEnabled = Config.MasterEnable.Value;
+
             if (!Config.MasterEnable.Value) return;
 
             // Toggle the shared god-power panel on the configurable hotkey.
@@ -84,6 +94,7 @@ namespace DivineHands
                 CameraTools.OnUpdate();
                 TerrainElevation.OnUpdate();
                 CursorSpawners.OnUpdate();
+                ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
             }
         }

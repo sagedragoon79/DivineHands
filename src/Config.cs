@@ -121,6 +121,35 @@ namespace DivineHands
         /// <summary>Delimited prefab GUIDs for the Giant-Rock resource type.</summary>
         public static MelonPreferences_Entry<string> SpawnGiantRockGuids { get; private set; } = null!;
 
+        // ===== Item Injection (selected building) =====
+
+        /// <summary>Master switch for the Item Injection god-power (add items/livestock + infinite
+        /// storage on the selected building).</summary>
+        public static MelonPreferences_Entry<bool>   InjectEnable     { get; private set; } = null!;
+
+        /// <summary>Index into <see cref="Modules.ItemInjection.ItemNames"/> — which item the
+        /// Add-Items button injects.</summary>
+        public static MelonPreferences_Entry<int>    InjectItemIndex  { get; private set; } = null!;
+
+        /// <summary>How many of the selected item to add per click (1–9999).</summary>
+        public static MelonPreferences_Entry<int>    InjectItemCount  { get; private set; } = null!;
+
+        /// <summary>Livestock kind for the Add-Livestock button: 0=Cow, 1=Chicken, 2=Goat, 3=Horse
+        /// (<see cref="Modules.ItemInjection.LivestockKind"/>).</summary>
+        public static MelonPreferences_Entry<int>    InjectLivestockKind { get; private set; } = null!;
+
+        /// <summary>Cow prefab GUID (Barn). User-editable so a DLC/renamed prefab can be pointed at.</summary>
+        public static MelonPreferences_Entry<string> LivestockGuidCow     { get; private set; } = null!;
+
+        /// <summary>Chicken prefab GUID (ChickenCoop).</summary>
+        public static MelonPreferences_Entry<string> LivestockGuidChicken { get; private set; } = null!;
+
+        /// <summary>Goat prefab GUID (GoatBarn).</summary>
+        public static MelonPreferences_Entry<string> LivestockGuidGoat    { get; private set; } = null!;
+
+        /// <summary>Horse prefab GUID (Stable).</summary>
+        public static MelonPreferences_Entry<string> LivestockGuidHorse   { get; private set; } = null!;
+
         public static void Initialize()
         {
             _root = MelonPreferences.CreateCategory("DivineHands", "Divine Hands");
@@ -309,6 +338,54 @@ namespace DivineHands
                 "SpawnGiantRockGuids", "51310685-9865-4e53-b294-f57dd0d086dc",
                 display_name: "Giant Rock GUIDs",
                 description: "Delimited prefab GUIDs for the Giant Rock type.");
+
+            // ===== Item Injection (selected building) =====
+
+            InjectEnable = _root.CreateEntry(
+                "InjectEnable", false,
+                display_name: "Item Injection",
+                description: "Enable item injection on the selected building. With it on, select a " +
+                             "building in-game, then use the panel's Selected Building section to add " +
+                             "items, add livestock, or toggle infinite storage. Default: off.");
+
+            InjectItemIndex = _root.CreateEntry(
+                "InjectItemIndex", 0,
+                display_name: "Item to Add",
+                description: "Which item the Add Items button injects into the selected building's " +
+                             "storage (index into the panel's item list). Default: first item.");
+
+            InjectItemCount = _root.CreateEntry(
+                "InjectItemCount", 100,
+                display_name: "Item Count",
+                description: "How many of the selected item to add per click (1–9999). Default: 100.");
+
+            InjectLivestockKind = _root.CreateEntry(
+                "InjectLivestockKind", 0,
+                display_name: "Livestock to Add",
+                description: "0 = Cow (Barn), 1 = Chicken (Coop), 2 = Goat (Goat Barn), 3 = Horse " +
+                             "(Stable). The selected building must match the animal. Default: Cow.");
+
+            // Default GUIDs from the working AddItemMono reference; user-overridable for DLC/renames.
+            LivestockGuidCow = _root.CreateEntry(
+                "LivestockGuidCow", "7b65f80b-c40a-4485-84ab-69cb1332ca55",
+                display_name: "Cow Prefab GUID",
+                description: "Prefab GUID instantiated when adding a Cow to a Barn. Editable in case a " +
+                             "DLC or game update changes it. Unknown GUIDs are skipped safely.");
+
+            LivestockGuidChicken = _root.CreateEntry(
+                "LivestockGuidChicken", "c5c32c43-4bc4-459b-80af-2cb82c41ed81",
+                display_name: "Chicken Prefab GUID",
+                description: "Prefab GUID instantiated when adding a Chicken to a Chicken Coop.");
+
+            LivestockGuidGoat = _root.CreateEntry(
+                "LivestockGuidGoat", "b5924130-f05c-4eb6-bd10-3271137d8b24",
+                display_name: "Goat Prefab GUID",
+                description: "Prefab GUID instantiated when adding a Goat to a Goat Barn.");
+
+            LivestockGuidHorse = _root.CreateEntry(
+                "LivestockGuidHorse", "4d656c72-240b-4326-bba0-25d36268ca9c",
+                display_name: "Horse Prefab GUID",
+                description: "Prefab GUID instantiated when adding a Horse to a Stable.");
 
             MelonLogger.Msg("[DivineHands] Config initialized");
         }
