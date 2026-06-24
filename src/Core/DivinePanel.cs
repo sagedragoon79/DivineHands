@@ -20,6 +20,14 @@ namespace DivineHands.Core
 
         public static bool Visible => _visible;
 
+        /// <summary>True when the panel is open AND the Terrain tool is the selected mode — read by
+        /// <see cref="DivineHands.Modules.TerrainElevation"/> to gate brush application so terrain only
+        /// sculpts while the user has explicitly armed the tool. Requires the terrain feature enabled.</summary>
+        public static bool TerrainModeActive =>
+            _visible && Config.MasterEnable.Value && Config.TerrainEnable.Value && _terrainArmed;
+
+        private static bool _terrainArmed;
+
         /// <summary>True when the cursor is over the visible panel — read by the input guard
         /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
         /// UI and doesn't start a drag-select underneath it. <c>_rect</c> is in GUI space (y down),
@@ -62,9 +70,11 @@ namespace DivineHands.Core
                 Config.RevealMap.Value = GUILayout.Toggle(Config.RevealMap.Value, "  Reveal Map (clear fog)");
 
                 GUILayout.Space(6f);
+                DrawTerrainSection();
+
+                GUILayout.Space(6f);
                 GUILayout.Label("Coming next", SectionStyle);
                 GUI.enabled = false;
-                GUILayout.Toggle(false, "  Terrain sculpt (elevation)");
                 GUILayout.Toggle(false, "  Cursor spawners");
                 GUILayout.Toggle(false, "  Build anywhere");
                 GUI.enabled = true;
@@ -79,6 +89,53 @@ namespace DivineHands.Core
 
             // Drag by the whole window (no uGUI header yet).
             GUI.DragWindow(new Rect(0f, 0f, 10000f, 24f));
+        }
+
+        private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten" };
+
+        private static void DrawTerrainSection()
+        {
+            GUILayout.Label("Terrain Sculpting", SectionStyle);
+
+            Config.TerrainEnable.Value =
+                GUILayout.Toggle(Config.TerrainEnable.Value, "  Enable terrain editing");
+
+            if (!Config.TerrainEnable.Value)
+            {
+                _terrainArmed = false;
+                return;
+            }
+
+            // Arm toggle — only while armed does the brush apply on the apply key.
+            _terrainArmed = GUILayout.Toggle(_terrainArmed, "  Arm brush (apply on key)");
+
+            // Mode selector.
+            int mode = Mathf.Clamp(Config.TerrainMode.Value, 0, 3);
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < _terrainModes.Length; i++)
+            {
+                bool on = GUILayout.Toggle(mode == i, _terrainModes[i], GUI.skin.button);
+                if (on) mode = i;
+            }
+            GUILayout.EndHorizontal();
+            Config.TerrainMode.Value = mode;
+
+            // Strength (hidden for Flatten, which uses cursor height).
+            if (mode != 3)
+            {
+                GUILayout.Label($"Strength: {Config.TerrainStrength.Value:0.0} m", HintStyle);
+                Config.TerrainStrength.Value =
+                    GUILayout.HorizontalSlider(Config.TerrainStrength.Value, 0.05f, 25f);
+            }
+
+            // Grid size.
+            int grid = Mathf.Clamp(Config.TerrainGridSize.Value, 1, 10);
+            GUILayout.Label($"Grid: {grid} x {grid} cells", HintStyle);
+            grid = Mathf.RoundToInt(GUILayout.HorizontalSlider(grid, 1f, 10f));
+            Config.TerrainGridSize.Value = grid;
+
+            GUILayout.Label($"Apply: {Config.TerrainApplyKey.Value}   Undo: {Config.TerrainUndoKey.Value}" +
+                            $"   (undo depth {DivineHands.Modules.TerrainElevation.UndoDepth})", HintStyle);
         }
 
         private static GUIStyle? _section;

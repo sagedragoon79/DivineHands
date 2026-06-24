@@ -30,6 +30,7 @@ namespace DivineHands
         // Setting groups (the SettingsMeta.Group field).
         internal const string GroupGeneral  = "General";
         internal const string GroupGodTools = "God Tools";
+        internal const string GroupTerrain  = "Terrain Sculpting";
 
         public static void TryRegisterAll()
         {
@@ -139,6 +140,41 @@ namespace DivineHands
                         "save while revealed, the whole map stays explored. Turn it off before saving " +
                         "for clean fog. Default: OFF.",
                         order: 100));
+
+            // ===== Terrain Sculpting =====
+            Reg(GroupTerrain, Config.TerrainEnable,
+                NewMeta("Terrain Sculpting",
+                        "Enable the terrain-elevation god-power. With it on, pick Terrain in the panel and " +
+                        "apply the brush over the world with the apply key. Default: OFF.",
+                        order: 200));
+            Reg(GroupTerrain, Config.TerrainMode,
+                NewMeta("Brush Mode",
+                        "0 = Raise, 1 = Lower, 2 = Smooth, 3 = Flatten. Hold Shift to invert Raise<->Lower.",
+                        min: 0, max: 3, order: 201, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
+            Reg(GroupTerrain, Config.TerrainStrength,
+                NewMeta("Brush Strength",
+                        "Raise/Lower height change in world metres per application (also the Smooth step). " +
+                        "Flatten ignores this. Default: 1.0.",
+                        min: 0.05f, max: 25f, order: 202, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
+            Reg(GroupTerrain, Config.TerrainGridSize,
+                NewMeta("Brush Grid Size",
+                        "Brush footprint in heightmap cells per side (1–10). Each cell ≈ Resolution metres " +
+                        "(default 5 m). Default: 3.",
+                        min: 1, max: 10, order: 203, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
+            Reg(GroupTerrain, Config.TerrainApplyKey,
+                NewMeta("Apply Key",
+                        "Key/button that applies the brush at the cursor. A Unity KeyCode name (Mouse2 = " +
+                        "middle, Mouse0 = left) or a chord. Default: Mouse2.",
+                        order: 204, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
+            Reg(GroupTerrain, Config.TerrainUndoKey,
+                NewMeta("Undo Key",
+                        "Key/chord that undoes the last terrain stroke. Default: Ctrl+Z.",
+                        order: 205, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
         }
     }
 }

@@ -57,9 +57,11 @@ namespace DivineHands
             {
                 DivinePanel.Hide();
                 GodTools.OnSceneExit();
+                TerrainElevation.OnSceneExit();
                 return;
             }
             GodTools.OnMapLoaded();
+            TerrainElevation.OnMapLoaded();
         }
 
         public override void OnUpdate()
@@ -71,7 +73,10 @@ namespace DivineHands
                 DivinePanel.Toggle();
 
             if (InGame)
+            {
                 GodTools.OnUpdate();
+                TerrainElevation.OnUpdate();
+            }
         }
 
         public override void OnGUI()
