@@ -252,6 +252,12 @@ namespace DivineHands
                         "Key/chord that undoes the last terrain stroke. Default: Ctrl+Z.",
                         order: 205, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
+            Reg(GroupTerrain, Config.TerrainArmHotkey,
+                NewMeta("Terrain Arm Hotkey",
+                        "Keyboard key/chord that arms (re-press disarms) the Terrain brush without clicking " +
+                        "its tab; opens the panel when arming. Default: End (TerrainHelper convention).",
+                        order: 206, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
 
             // ===== Cursor Spawners =====
             Reg(GroupSpawning, Config.SpawnEnable,
@@ -305,6 +311,12 @@ namespace DivineHands
                         "Key/button that spawns at the cursor. Mouse2 = middle, Mouse0 = left, or a chord. " +
                         "Default: Mouse2.",
                         order: 306, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value));
+            Reg(GroupSpawning, Config.SpawnerArmHotkey,
+                NewMeta("Spawner Arm Hotkey",
+                        "Keyboard key/chord that arms (re-press disarms) the Spawner without clicking its " +
+                        "tab; opens the panel when arming. Default: Home.",
+                        order: 307, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
             Reg(GroupSpawning, Config.SpawnForageableGuids,
                 NewMeta("Forageable GUIDs",

@@ -111,6 +111,10 @@ namespace DivineHands
         /// Up/Down arrows while the brush is armed. Tab swaps width and depth.</summary>
         public static MelonPreferences_Entry<int>    TerrainGridHeight { get; private set; } = null!;
 
+        /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
+        /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
+        public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
+
         /// <summary>Hotkey that applies the brush at the cursor. Default middle mouse button.</summary>
         public static MelonPreferences_Entry<string> TerrainApplyKey { get; private set; } = null!;
 
@@ -150,6 +154,10 @@ namespace DivineHands
         /// GetWeightedDenPrefab() returns null (e.g. a misconfigured/DLC group). Leave default unless
         /// dens fail to spawn.</summary>
         public static MelonPreferences_Entry<string> SpawnWolfDenGuid { get; private set; } = null!;
+
+        /// <summary>Keyboard hotkey that arms/disarms the Spawner tool without clicking its tab (opens
+        /// the panel when arming). Default Home.</summary>
+        public static MelonPreferences_Entry<string> SpawnerArmHotkey { get; private set; } = null!;
 
         /// <summary>Key/button that spawns the selected family at the cursor.</summary>
         public static MelonPreferences_Entry<string> SpawnApplyKey  { get; private set; } = null!;
@@ -341,6 +349,13 @@ namespace DivineHands
                              "Up/Down arrows while the brush is armed; Tab swaps width and depth. " +
                              "Use e.g. 1×10 to carve a path. Default: 3.");
 
+            TerrainArmHotkey = _root.CreateEntry(
+                "TerrainArmHotkey", "End",
+                display_name: "Terrain Arm Hotkey",
+                description: "Keyboard key/chord that arms (and re-press disarms) the Terrain brush without " +
+                             "clicking its tab — opens the panel when arming. A Unity KeyCode name or chord " +
+                             "(e.g. End, Home, F6, Ctrl+T). Default: End (TerrainHelper convention).");
+
             TerrainApplyKey = _root.CreateEntry(
                 "TerrainApplyKey", "Ctrl+Mouse1",
                 display_name: "Apply Key",
@@ -405,6 +420,13 @@ namespace DivineHands
                 display_name: "Wolf Den GUID (fallback)",
                 description: "Optional fallback wolf-den prefab GUID, used ONLY if the animal group's weighted " +
                              "den prefab can't be resolved. Leave default unless dens fail to spawn.");
+
+            SpawnerArmHotkey = _root.CreateEntry(
+                "SpawnerArmHotkey", "Home",
+                display_name: "Spawner Arm Hotkey",
+                description: "Keyboard key/chord that arms (and re-press disarms) the Spawner without clicking " +
+                             "its tab — opens the panel when arming. A Unity KeyCode name or chord (e.g. Home, " +
+                             "End, F7, Ctrl+B). Default: Home.");
 
             SpawnApplyKey = _root.CreateEntry(
                 "SpawnApplyKey", "Ctrl+Mouse1",

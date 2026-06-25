@@ -100,6 +100,10 @@ namespace DivineHands
 
             if (InGame)
             {
+                // Arm Terrain / Spawner straight from the keyboard (no tab click) — re-press disarms.
+                if (Hotkey.Pressed(Config.TerrainArmHotkey.Value)) DivinePanel.ToggleArmTerrain();
+                if (Hotkey.Pressed(Config.SpawnerArmHotkey.Value)) DivinePanel.ToggleArmSpawner();
+
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
                 TerrainElevation.OnUpdate();

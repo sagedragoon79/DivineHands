@@ -65,6 +65,33 @@ namespace DivineHands.Core
         public static void Show() => _visible = true;
         public static void Hide() => _visible = false;
 
+        /// <summary>Toggle-arm the Terrain tool from a global hotkey (no tab click). Engaging shows the
+        /// panel so its options + cursor grid are visible and <see cref="TerrainModeActive"/> is satisfied;
+        /// re-pressing disarms. No-op unless terrain is enabled in the config.</summary>
+        public static void ToggleArmTerrain() => HotkeyArm(ArmedTool.Terrain, Config.TerrainEnable.Value);
+
+        /// <summary>Toggle-arm the Spawner tool from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
+        public static void ToggleArmSpawner() => HotkeyArm(ArmedTool.Spawner, Config.SpawnEnable.Value);
+
+        private static void HotkeyArm(ArmedTool tool, bool enabled)
+        {
+            if (!Config.MasterEnable.Value || !enabled) return; // tool not available — ignore the key
+
+            // "Engaged" = this tool armed AND the panel actually showing (so it's live). Re-pressing the
+            // key while truly engaged disarms; otherwise engage it — arm (disarming any other tool) and
+            // reveal the panel. Gating on _visible too means a dormant armed-but-hidden state re-engages
+            // rather than silently toggling off where the user can't see it.
+            if (_armedTool == tool && _visible)
+            {
+                _armedTool = ArmedTool.None;
+            }
+            else
+            {
+                _armedTool = tool;
+                _visible = true;
+            }
+        }
+
         public static void Render()
         {
             if (!_visible) return;
@@ -194,8 +221,8 @@ namespace DivineHands.Core
                 case ArmedTool.Terrain: DrawTerrainOptions(); break;
                 case ArmedTool.Spawner: DrawSpawnerOptions(); break;
                 default:
-                    GUILayout.Label("Click a tab to arm a tool — it applies on its key while armed.",
-                                    HintStyle);
+                    GUILayout.Label($"Click a tab — or press {Config.TerrainArmHotkey.Value} (Terrain) / " +
+                                    $"{Config.SpawnerArmHotkey.Value} (Spawner) — to arm a tool.", HintStyle);
                     break;
             }
         }
