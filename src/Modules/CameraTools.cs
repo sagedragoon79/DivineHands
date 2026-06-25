@@ -101,6 +101,10 @@ namespace DivineHands.Modules
         // (59156-59180); GetField with both binding flags catches them whether public or [SerializeField].
         private static FieldInfo? _minDistField, _maxDistField, _minAngleField, _maxAngleField,
                                   _minFovField, _maxFovField, _shadowMinField, _shadowMaxField;
+        // CameraManager.zoomUnlocked [59294] — gating it on enables the vanilla 5% zoom damping (59658)
+        // AND satisfies the proportional-zoom patch's gate. We set the FIELD directly (not via
+        // UnlockCameraZoom) to skip that method's RenderSettings.fog toggle (would collide with Reveal Map).
+        private static FieldInfo? _zoomUnlockedField;
         private static bool _constraintFieldsResolved;
 
         private static void ResolveConstraintFields()
@@ -117,12 +121,29 @@ namespace DivineHands.Modules
             _maxFovField    = t.GetField("maxFieldOfView", F);
             _shadowMinField = t.GetField("shadowDistMin", F);
             _shadowMaxField = t.GetField("shadowDistMax", F);
+            _zoomUnlockedField = t.GetField("zoomUnlocked", F);
         }
 
         private static float ReadField(FieldInfo? f, CameraManager cam, float fallback)
         {
             try { return f != null ? (float)f.GetValue(cam) : fallback; }
             catch { return fallback; }
+        }
+
+        private static bool ReadBool(FieldInfo? f, CameraManager cam, bool fallback)
+        {
+            try { return f != null ? (bool)f.GetValue(cam) : fallback; }
+            catch { return fallback; }
+        }
+
+        private static void WriteBool(FieldInfo? f, CameraManager cam, bool value)
+        {
+            try { f?.SetValue(cam, value); }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] camera bool write failed: {ex.Message}");
+            }
         }
 
         private static void WriteField(FieldInfo? f, CameraManager cam, float value)
@@ -211,6 +232,7 @@ namespace DivineHands.Modules
         // captured originals
         private static float _ovMinDist, _ovMaxDist, _ovMinAngle, _ovMaxAngle,
                              _ovMinFOV, _ovMaxFOV, _ovShadowMin, _ovShadowMax;
+        private static bool _ovZoomUnlocked;
 
         private static void SyncGodView()
         {
@@ -254,6 +276,12 @@ namespace DivineHands.Modules
                 WriteField(_shadowMinField, cam, Mathf.Max(_ovShadowMin, GV_ShadowMin));
                 WriteField(_shadowMaxField, cam, Mathf.Max(_ovShadowMax, GV_ShadowMax));
 
+                // Set zoomUnlocked so the vanilla 5% zoom damping kicks in (taming the coarse god-view
+                // zoom) AND the proportional-zoom patch's gate is satisfied. Field set directly to avoid
+                // UnlockCameraZoom's RenderSettings.fog toggle.
+                _ovZoomUnlocked = ReadBool(_zoomUnlockedField, cam, false);
+                WriteBool(_zoomUnlockedField, cam, true);
+
                 _godViewApplied = true;
             }
             catch (Exception ex)
@@ -280,6 +308,7 @@ namespace DivineHands.Modules
                     WriteField(_maxFovField,    cam, _ovMaxFOV);
                     WriteField(_shadowMinField, cam, _ovShadowMin);
                     WriteField(_shadowMaxField, cam, _ovShadowMax);
+                    WriteBool(_zoomUnlockedField, cam, _ovZoomUnlocked);
                 }
                 catch (Exception ex)
                 {
