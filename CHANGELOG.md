@@ -28,6 +28,7 @@ Initial scaffold — the god-power core, ready to grow modules onto.
 - Build pipeline auto-stages the DLL to the game `Mods\` folder.
 
 ### Fixed
+- **Severe lag with the panel open eliminated.** The item-injection picker was resolving the selected building (including an O(all-objects) `FindObjectOfType` scan) and instantiating an `Item` + invoking `IsItemAllowed` *per item, on every IMGUI event* (~88 items × 2/frame). Now the selected building is memoized per frame (window instance cached), and the eligible-item set is computed once per building selection — the per-frame loop is a hash lookup.
 - **Harmony patching no longer aborts on load.** The proportional-zoom prefix named its by-ref argument `amount` (from the decompile), but the shipped DLL names that parameter `zoomAdj`; Harmony matches prefix args by name, so `PatchAll` threw "Parameter not found" and **every** Divine Hands patch failed (input guard, build-anywhere, deselect guard, zoom). Switched to Harmony's positional `__0`, which is name-agnostic.
 - **Reveal Map repeat-toggle** — it worked the first on/off cycle then went inert; now it forces a fresh fog snapshot on every activation (and never skips a re-activation), so toggling works indefinitely.
 - **Item-injection click-through** — clicking an item in the panel no longer deselects the building / closes the panel. A Harmony prefix on the building deselect handler (`Input_SelectGameObject.OnLMBPressed`) skips it whenever the cursor is over the Divine Hands window.

@@ -154,6 +154,13 @@ namespace DivineHands.Modules
             _loggedNoFilter = false;
             _consumedCacheGo = null;
             _consumedNames = null;
+            // Per-frame / per-building lookup caches (selection + eligible-item set).
+            _infoWindowType = null;
+            _infoWindow = null;
+            _selCacheGo = null;
+            _selCacheFrame = -1;
+            _eligSetGo = null;
+            _eligibleNames = null;
 
             // Bind the save hook so in-place manual saves AND autosaves (which never fire OnSceneExit)
             // still strip our infinite flags before the bytes hit disk.
@@ -214,11 +221,30 @@ namespace DivineHands.Modules
         // Selected building resolution
         // =====================================================================
 
+        // GetSelectedBuilding is hit many times per IMGUI frame (per-item eligibility + header checks,
+        // and OnGUI fires Layout+Repaint each frame). Memoize the result per frame so the resolve — and
+        // especially the FindObjectOfType fallback — runs at most once per frame, not per item.
+        private static GameObject? _selCacheGo;
+        private static int _selCacheFrame = -1;
+        private static Type? _infoWindowType;
+        private static UnityEngine.Object? _infoWindow;       // cached window instance (FindObjectOfType is O(all objects))
+        private static int _infoWindowProbeFrame = -1000;
+
         /// <summary>The building GameObject the player currently has selected (info window open), or
-        /// null. Primary: inputManager.selectedObject [WickerToolbox 273]. Fallback:
-        /// UIBuildingInfoWindow_New.targetObject [AddItemMono 981].</summary>
+        /// null. Primary: inputManager.selectedObject. Fallback: UIBuildingInfoWindow_New.targetObject.
+        /// Memoized per frame — cheap to call repeatedly within a frame.</summary>
         public static GameObject? GetSelectedBuilding()
         {
+            int frame = Time.frameCount;
+            if (frame == _selCacheFrame) return _selCacheGo;
+            _selCacheFrame = frame;
+            _selCacheGo = ResolveSelectedBuilding(frame);
+            return _selCacheGo;
+        }
+
+        private static GameObject? ResolveSelectedBuilding(int frame)
+        {
+            // Fast path — the game's own selection (cheap; reliable while a building is selected).
             try
             {
                 var gm = GameManager.Instance;
@@ -228,20 +254,21 @@ namespace DivineHands.Modules
             }
             catch { /* fall through to the info-window probe */ }
 
-            // Fallback: read the open building info window's target (reflection — no UI type ref).
+            // Fallback — open info window's target. FindObjectOfType is O(all objects), so cache the
+            // window instance and only re-probe every ~30 frames when we don't have a live one.
             try
             {
-                var winType = FindType("UIBuildingInfoWindow_New");
-                if (winType != null)
+                _infoWindowType ??= FindType("UIBuildingInfoWindow_New");
+                if (_infoWindowType == null) return null;
+                if (_infoWindow == null && frame - _infoWindowProbeFrame >= 30)
                 {
-                    var win = UnityEngine.Object.FindObjectOfType(winType);
-                    if (win != null)
-                    {
-                        var target = GetMember(win, winType, "targetObject") as GameObject;
-                        if (target != null && target.GetComponent<Building>() != null)
-                            return target;
-                    }
+                    _infoWindowProbeFrame = frame;
+                    _infoWindow = UnityEngine.Object.FindObjectOfType(_infoWindowType);
                 }
+                if (_infoWindow == null) return null;
+                var target = GetMember(_infoWindow, _infoWindowType, "targetObject") as GameObject;
+                if (target != null && target.GetComponent<Building>() != null)
+                    return target;
             }
             catch { /* no selection available */ }
 
@@ -458,14 +485,33 @@ namespace DivineHands.Modules
             }
         }
 
+        // Cache the full set of eligible picker-item names per selected building. The per-item check
+        // (CreateItem + IsItemAllowed.Invoke for storage) is computed ONCE when the building changes —
+        // NOT per item per frame — so the panel's grey-out loop is just a HashSet lookup.
+        private static GameObject? _eligSetGo;
+        private static HashSet<string>? _eligibleNames;
+
+        private static void EnsureEligibleSet(GameObject go)
+        {
+            if (ReferenceEquals(go, _eligSetGo) && _eligibleNames != null) return;
+            _eligSetGo = go;
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var names = ItemNames;
+            for (int i = 0; i < names.Length; i++)
+                if (IsItemInjectableByName(go, names[i]))
+                    set.Add(names[i]);
+            _eligibleNames = set;
+        }
+
         /// <summary>Picker-side eligibility for greying out buttons: storage -> accepted items;
-        /// producer -> consumed inputs; neither -> not eligible. Fails OPEN only when no building is
-        /// selected or reflection is fully broken.</summary>
+        /// producer -> consumed inputs; neither -> not eligible. Cached per building (cheap per call);
+        /// fails OPEN only when no building is selected.</summary>
         public static bool IsItemEligibleForSelectedBuilding(string itemName)
         {
             var go = GetSelectedBuilding();
             if (go == null) return true;
-            return IsItemInjectableByName(go, itemName);
+            EnsureEligibleSet(go);
+            return _eligibleNames!.Contains(itemName);
         }
 
         /// <summary>True whenever a building is selected — the picker greys items by eligibility
