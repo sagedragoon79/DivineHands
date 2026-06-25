@@ -436,6 +436,23 @@ namespace DivineHands.Modules
                 // where Time.deltaTime is 0). Surveying a frozen scene is a primary Free Cam use case.
                 if (move.sqrMagnitude > 0f)
                     tr.position += move.normalized * speed * Time.unscaledDeltaTime;
+
+                // Ground floor: keep the camera above the terrain surface (+ clearance) so it can't clip
+                // through into the backface/sky void. A SMALL clearance still allows true ground-level
+                // shots (skim just above the grass) — it only blocks going under the world. Toggle off
+                // for deliberate under-the-map shots. No-ops until terrain resolves (safe in menus).
+                if (Config.FreeCamGroundFloor.Value
+                    && DivineHands.Modules.TerrainElevation.TryGetGroundHeight(
+                           tr.position.x, tr.position.z, out float groundY))
+                {
+                    float minY = groundY + Mathf.Max(0f, Config.FreeCamFloorClearance.Value);
+                    if (tr.position.y < minY)
+                    {
+                        Vector3 p = tr.position;
+                        p.y = minY;
+                        tr.position = p;
+                    }
+                }
             }
             catch (Exception ex)
             {

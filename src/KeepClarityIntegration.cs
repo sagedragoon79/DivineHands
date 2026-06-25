@@ -197,6 +197,18 @@ namespace DivineHands
                         "Free Cam mouse-look sensitivity. Default: 2.",
                         min: 0.25f, max: 10f, order: 134, indent: 20,
                         visibleWhen: () => Config.EnableFreeCam.Value));
+            Reg(GroupGodTools, Config.FreeCamGroundFloor,
+                NewMeta("Free Cam Ground Floor",
+                        "Keep Free Cam above the terrain so it can't clip through the world into the " +
+                        "backface/sky void. Turn OFF for under-the-map shots. Default: on.",
+                        order: 135, indent: 20,
+                        visibleWhen: () => Config.EnableFreeCam.Value));
+            Reg(GroupGodTools, Config.FreeCamFloorClearance,
+                NewMeta("Free Cam Floor Clearance",
+                        "Metres the floor sits above the surface. Small = ground-level skim shots; 0 rides " +
+                        "the surface (may clip the near plane). Default: 1.0 m.",
+                        min: 0f, max: 20f, order: 136, indent: 20,
+                        visibleWhen: () => Config.EnableFreeCam.Value && Config.FreeCamGroundFloor.Value));
 
             // ===== Terrain Sculpting =====
             Reg(GroupTerrain, Config.TerrainEnable,

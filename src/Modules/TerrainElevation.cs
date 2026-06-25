@@ -324,6 +324,31 @@ namespace DivineHands.Modules
         /// <summary>World point under the cursor via FF's terrain raycast (same call ApplyStroke uses).</summary>
         public static bool TryGetCursorWorld(out Vector3 world) => TryGetCursorWorldPoint(out world);
 
+        /// <summary>Terrain surface height (world-space Y, metres) at an arbitrary world XZ, bilinearly
+        /// sampled from the heightmap so it varies smoothly between cells. Heightmap values ARE world Y
+        /// (ApplyStroke writes <c>world.y</c> directly via SetHeight). Used by Free Cam's ground floor.
+        /// Returns false until terrain resolves; off-map XZ clamps to the nearest edge cells.</summary>
+        public static bool TryGetGroundHeight(float worldX, float worldZ, out float height)
+        {
+            height = 0f;
+            if (!TryGetGridContext(out Heightmap hm, out int size, out float resolution)) return false;
+            if (resolution <= 0f || size <= 0) return false;
+
+            float fx = worldX / resolution;
+            float fz = worldZ / resolution;
+            int x0 = Mathf.Clamp(Mathf.FloorToInt(fx), 0, size - 1);
+            int z0 = Mathf.Clamp(Mathf.FloorToInt(fz), 0, size - 1);
+            int x1 = Mathf.Min(x0 + 1, size - 1);
+            int z1 = Mathf.Min(z0 + 1, size - 1);
+            float tx = Mathf.Clamp01(fx - x0);
+            float tz = Mathf.Clamp01(fz - z0);
+
+            float h0 = Mathf.Lerp(hm.GetHeight(x0, z0), hm.GetHeight(x1, z0), tx);
+            float h1 = Mathf.Lerp(hm.GetHeight(x0, z1), hm.GetHeight(x1, z1), tx);
+            height = Mathf.Lerp(h0, h1, tz);
+            return true;
+        }
+
         /// <summary>The brush's index-space rect for the current cursor + grid size, clamped to the
         /// heightmap. Mirrors ApplyStroke() EXACTLY. Returns false if off-map or terrain not ready.</summary>
         public static bool TryGetBrushRect(out int minX, out int minZ, out int maxX, out int maxZ)

@@ -83,6 +83,14 @@ namespace DivineHands
         /// <summary>Free Cam mouse-look sensitivity.</summary>
         public static MelonPreferences_Entry<float>  FreeCamSensitivity { get; private set; } = null!;
 
+        /// <summary>When true, Free Cam can't descend below the terrain surface (+clearance) — stops the
+        /// camera clipping through the world into the backface/sky void. Off lets you fly under the map.</summary>
+        public static MelonPreferences_Entry<bool>   FreeCamGroundFloor { get; private set; } = null!;
+
+        /// <summary>Metres the Free Cam floor sits ABOVE the terrain surface. Small = true ground-level
+        /// skim shots; 0 = right on the surface (may clip the near plane).</summary>
+        public static MelonPreferences_Entry<float>  FreeCamFloorClearance { get; private set; } = null!;
+
         // ===== Terrain Sculpting =====
 
         /// <summary>Master switch for the terrain-elevation god-power.</summary>
@@ -282,6 +290,19 @@ namespace DivineHands
                 "FreeCamSensitivity", 2f,
                 display_name: "Free Cam Mouse Sensitivity",
                 description: "Free Cam mouse-look sensitivity. Default: 2.");
+
+            FreeCamGroundFloor = _root.CreateEntry(
+                "FreeCamGroundFloor", true,
+                display_name: "Free Cam Ground Floor",
+                description: "Keep Free Cam above the terrain surface so it can't clip through the world " +
+                             "into the backface/sky void. Turn OFF for under-the-map shots. Default: on.");
+
+            FreeCamFloorClearance = _root.CreateEntry(
+                "FreeCamFloorClearance", 1.0f,
+                display_name: "Free Cam Floor Clearance",
+                description: "Metres the ground floor sits above the terrain surface. Small values let you " +
+                             "skim the ground for low cinematic shots; 0 rides the surface (may clip the " +
+                             "near plane). Default: 1.0 m.");
 
             // ===== Terrain Sculpting =====
 
