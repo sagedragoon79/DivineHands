@@ -142,9 +142,18 @@ namespace DivineHands.Modules
             if (!Config.SpawnEnable.Value) return;
 
             // Only fire while the spawner tool is the armed panel mode and the cursor isn't on the panel.
+            bool keyDown = Hotkey.Pressed(Config.SpawnApplyKey.Value);
+
+            // Diagnostic: log every apply-key press with the gate state, so a "nothing spawns" report can
+            // be pinpointed to key vs arm vs cursor-over-panel vs downstream spawn. (DebugLog only.)
+            if (Config.DebugLog.Value && keyDown)
+                MelonLogger.Msg($"[DivineHands] Spawn key '{Config.SpawnApplyKey.Value}' down — " +
+                                $"armed={DivineHands.Core.DivinePanel.SpawnerModeActive} " +
+                                $"cursorOverPanel={DivineHands.Core.DivinePanel.BlocksGameInput}");
+
             if (DivineHands.Core.DivinePanel.SpawnerModeActive
                 && !DivineHands.Core.DivinePanel.BlocksGameInput
-                && Hotkey.Pressed(Config.SpawnApplyKey.Value))
+                && keyDown)
             {
                 ApplyAtCursor();
             }
@@ -173,6 +182,10 @@ namespace DivineHands.Modules
             else if (family == Family.Resource
                      && (ResourceKind)Mathf.Clamp(Config.SpawnSubtype.Value, 0, 3) == ResourceKind.GiantRock)
                 count = 1;
+
+            if (Config.DebugLog.Value)
+                MelonLogger.Msg($"[DivineHands] Spawn apply — family={family} " +
+                                $"subtype={Config.SpawnSubtype.Value} count={count} @ {world}");
 
             try
             {
