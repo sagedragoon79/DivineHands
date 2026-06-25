@@ -12,6 +12,18 @@ namespace DivineHands.Patches
     ///   1. <c>Placeable.IsPlacementValid</c>             (decompile L348583, public virtual bool)
     ///   2. <c>PlacementValidityHelper.CanPathToPoint</c> (decompile L216399, private static bool)
     ///   3. <c>WagonShop.CanPathToWagon</c>               (decompile L361508, private bool)
+    ///   4. <c>Placeable.excludeValidityCheckFlags</c>    (getter, L348515) — slope bypass (see below)
+    ///
+    /// === Why "slope too steep" needs its own hook ===
+    /// The slope rejection is NOT part of <c>IsPlacementValid</c> — it's a PER-CELL flag
+    /// (<c>PlacementGridValidityCheckFlags.TerrainTooSteep</c> 0x10 / <c>TerrainTooSteepForBuilding</c>
+    /// 0x20) computed by <c>UpdatePlaceableValidity</c>, which builds the active check set as
+    /// <c>(invalidation | required) &amp; ~excludeValidityCheckFlags</c> (L214968) and threads the same
+    /// exclude set into per-cell validity (L348726-348727). <c>IsPlacementValid</c> only READS the
+    /// resulting failed flags, so forcing it true never relaxed slope — the cells were still red and the
+    /// confirm/visual still saw the failure. Patch #4 OR-s the two slope flags into the getter so the
+    /// slope check simply doesn't run: cells stay valid, no slope failure flag is ever set, and EVERY
+    /// downstream consumer agrees. Bridge-scoped like the rest.
     ///
     /// === Keep Clarity (Bridge Anywhere) coexistence ===
     /// KC's BridgeAnywherePatches selectively clear the <c>Overlap_Water</c> flag and tune the bridge
@@ -128,6 +140,30 @@ namespace DivineHands.Patches
                 catch
                 {
                     return true;
+                }
+            }
+        }
+
+        // ===== 4. Placeable.excludeValidityCheckFlags (slope bypass) =====
+        // OR-in the two slope flags so the per-cell "terrain too steep" check is excluded from the active
+        // check set (decompile L214968) and from per-cell validity (L348726-348727). This is the ONLY
+        // path that actually relaxes slope — IsPlacementValid merely reads the resulting flags. We touch
+        // only slope (overlaps, edge-of-map, fog, etc. still apply, so you can't stack buildings).
+        [HarmonyPatch(typeof(Placeable), "get_excludeValidityCheckFlags")]
+        internal static class PatchExcludeSlopeChecks
+        {
+            private static void Postfix(Placeable __instance, ref PlacementGridValidityCheckFlags __result)
+            {
+                try
+                {
+                    if (!Engaged) return;                           // feature off => vanilla
+                    if (__instance is PlaceableBridge) return;     // bridge => defer to vanilla + KC
+                    __result |= PlacementGridValidityCheckFlags.TerrainTooSteep
+                              | PlacementGridValidityCheckFlags.TerrainTooSteepForBuilding;
+                }
+                catch
+                {
+                    // Never throw from a postfix — leave the vanilla exclude set untouched.
                 }
             }
         }
