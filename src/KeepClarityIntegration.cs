@@ -301,12 +301,11 @@ namespace DivineHands
                         "(one-off, won't survive save/load). Bear is always loose. Default: ON.",
                         order: 307, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 0));
-            Reg(GroupSpawning, Config.SpawnWolfDenGuid,
-                NewMeta("Wolf Den GUID (fallback)",
-                        "Optional fallback wolf-den prefab GUID, used only if the animal group's weighted " +
-                        "den prefab can't be resolved. Leave default unless dens fail to spawn.",
-                        order: 308, indent: 20,
-                        visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 0));
+            // NOTE: prefab-GUID prefs (SpawnWolfDenGuid, Spawn{Forageable,Tree,Rock,GiantRock}Guids,
+            // LivestockGuid{Cow,Chicken,Goat,Horse}) are intentionally NOT registered with Keep Clarity.
+            // They ship with working defaults, and a mistyped GUID silently breaks spawning — so they're
+            // hidden from the settings panel to prevent accidental breakage. Power users can still edit
+            // them directly in UserData/MelonPreferences.cfg.
             Reg(GroupSpawning, Config.SpawnApplyKey,
                 NewMeta("Spawn Apply Key",
                         "Key/button that spawns at the cursor. Mouse2 = middle, Mouse0 = left, or a chord. " +
@@ -319,32 +318,7 @@ namespace DivineHands
                         "tab; opens the panel when arming. Default: Home.",
                         order: 307, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
-            Reg(GroupSpawning, Config.SpawnForageableGuids,
-                NewMeta("Forageable GUIDs",
-                        "Delimited prefab GUIDs for the Forageable type. Each apply cycles the list; " +
-                        "unknown/DLC GUIDs are skipped safely.",
-                        order: 307, indent: 20,
-                        visibleWhen: () => Config.SpawnEnable.Value
-                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 0));
-            Reg(GroupSpawning, Config.SpawnTreeGuids,
-                NewMeta("Tree GUIDs (optional override)",
-                        "Leave empty to auto-plant the current map's own tree species (no setup). " +
-                        "Fill in delimited prefab GUIDs only to override which trees are planted.",
-                        order: 308, indent: 20,
-                        visibleWhen: () => Config.SpawnEnable.Value
-                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 1));
-            Reg(GroupSpawning, Config.SpawnRockGuids,
-                NewMeta("Rock GUIDs",
-                        "Delimited prefab GUIDs for the Rock type.",
-                        order: 309, indent: 20,
-                        visibleWhen: () => Config.SpawnEnable.Value
-                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 2));
-            Reg(GroupSpawning, Config.SpawnGiantRockGuids,
-                NewMeta("Boulder GUIDs",
-                        "Delimited prefab GUIDs for the Boulder type.",
-                        order: 310, indent: 20,
-                        visibleWhen: () => Config.SpawnEnable.Value
-                                        && Config.SpawnFamily.Value == 3 && Config.SpawnSubtype.Value == 3));
+            // (Forageable/Tree/Rock/Boulder prefab-GUID prefs are hidden from KC — see note above.)
 
             // ===== Selected Building (Item Injection) =====
             Reg(GroupInject, Config.InjectEnable,
@@ -372,27 +346,8 @@ namespace DivineHands
                         "The selected building must match the animal. Default: Cow.",
                         min: 0, max: 3, order: 403, indent: 20,
                         visibleWhen: () => Config.InjectEnable.Value));
-            Reg(GroupInject, Config.LivestockGuidCow,
-                NewMeta("Cow Prefab GUID",
-                        "Prefab GUID instantiated when adding a Cow to a Barn. Editable in case a DLC " +
-                        "or game update changes it. Unknown/DLC GUIDs are skipped safely.",
-                        order: 404, indent: 20,
-                        visibleWhen: () => Config.InjectEnable.Value));
-            Reg(GroupInject, Config.LivestockGuidChicken,
-                NewMeta("Chicken Prefab GUID",
-                        "Prefab GUID instantiated when adding a Chicken to a Chicken Coop.",
-                        order: 405, indent: 20,
-                        visibleWhen: () => Config.InjectEnable.Value));
-            Reg(GroupInject, Config.LivestockGuidGoat,
-                NewMeta("Goat Prefab GUID",
-                        "Prefab GUID instantiated when adding a Goat to a Goat Barn.",
-                        order: 406, indent: 20,
-                        visibleWhen: () => Config.InjectEnable.Value));
-            Reg(GroupInject, Config.LivestockGuidHorse,
-                NewMeta("Horse Prefab GUID",
-                        "Prefab GUID instantiated when adding a Horse to a Stable.",
-                        order: 407, indent: 20,
-                        visibleWhen: () => Config.InjectEnable.Value));
+            // (Cow/Chicken/Goat/Horse prefab-GUID prefs are hidden from KC — working defaults ship and a
+            // mistyped GUID breaks the add; edit them in UserData/MelonPreferences.cfg if ever needed.)
         }
     }
 }
