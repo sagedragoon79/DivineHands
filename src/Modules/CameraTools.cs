@@ -432,8 +432,10 @@ namespace DivineHands.Modules
                 if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
                     move -= Vector3.up;
 
+                // unscaledDeltaTime so the camera still flies while the game is PAUSED (timeScale 0,
+                // where Time.deltaTime is 0). Surveying a frozen scene is a primary Free Cam use case.
                 if (move.sqrMagnitude > 0f)
-                    tr.position += move.normalized * speed * Time.deltaTime;
+                    tr.position += move.normalized * speed * Time.unscaledDeltaTime;
             }
             catch (Exception ex)
             {
