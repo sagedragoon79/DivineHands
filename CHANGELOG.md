@@ -16,6 +16,7 @@ Initial scaffold — the god-power core, ready to grow modules onto.
 - Mineral deposits and Boulder spawn **one at a time** (count is ignored for those); "Giant Rock" renamed **Boulder**; spawn count resets to 1 when you switch spawn type.
 
 ### Added
+- **Terrain brush "Average" mode (5th mode).** Smooth does a *local* neighbour relaxation — it de-bumps roughness but preserves the overall slope, so it converges and stops (it mirrors FF's native smoothing). Average instead steps the whole brush toward a *single* mean height, so repeated strokes creep the patch toward one flat level — the TerrainHelper "click the same spot until it's level" behaviour. Uses the Strength slider as its per-stroke step; its cursor grid previews in orange.
 - **Free Cam ground floor.** Free Cam can no longer clip *through* the terrain into the backface/sky void — it's clamped to stay above the surface. The floor sits at a configurable **clearance** above the ground (default 1 m, bilinearly sampled so it glides smoothly), so you can still drop right down for low ground-level shots; it only blocks going *under* the world. Toggle **Free Cam Ground Floor** off in the Keep Clarity settings when you deliberately want an under-the-map angle.
 - **DivineCore** — MelonMod entry, scene lifecycle, and a single in-game panel (`DivinePanel`) toggled by a **configurable hotkey** (default `Ctrl+G`).
 - **Keep Clarity integration** — all settings register reflectively with KC's settings panel (soft-dep); runs standalone if KC is absent.

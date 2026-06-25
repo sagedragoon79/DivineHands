@@ -200,14 +200,14 @@ namespace DivineHands.Core
             }
         }
 
-        private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten" };
+        private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten", "Average" };
 
         // Terrain options (mode/strength/grid). The section header, the config-enable, and the arm now
         // live in DrawToolsSection — the Terrain tab is the arm — so this just draws the controls.
         private static void DrawTerrainOptions()
         {
             // Mode selector.
-            int mode = Mathf.Clamp(Config.TerrainMode.Value, 0, 3);
+            int mode = Mathf.Clamp(Config.TerrainMode.Value, 0, 4);
             GUILayout.BeginHorizontal();
             for (int i = 0; i < _terrainModes.Length; i++)
             {

@@ -316,15 +316,16 @@ namespace DivineHands
             TerrainMode = _root.CreateEntry(
                 "TerrainMode", 0,
                 display_name: "Brush Mode",
-                description: "0 = Raise, 1 = Lower, 2 = Smooth, 3 = Flatten. Hold Shift to invert " +
-                             "Raise<->Lower. Default: Raise.");
+                description: "0 = Raise, 1 = Lower, 2 = Smooth, 3 = Flatten, 4 = Average. Hold Shift to " +
+                             "invert Raise<->Lower. (Average = creep the whole brush toward one flat mean " +
+                             "level, TerrainHelper-style; Smooth only de-bumps and keeps slopes.) Default: Raise.");
 
             TerrainStrength = _root.CreateEntry(
                 "TerrainStrength", 1.0f,
                 display_name: "Brush Strength",
                 description: "Raise/Lower height change in world metres per application (also the Smooth " +
-                             "step size). Flatten ignores this — it sets the brush to the cursor's height. " +
-                             "Default: 1.0.");
+                             "and Average step size). Flatten ignores this — it sets the brush to the " +
+                             "cursor's height. Default: 1.0.");
 
             TerrainGridWidth = _root.CreateEntry(
                 "TerrainGridWidth", 3,

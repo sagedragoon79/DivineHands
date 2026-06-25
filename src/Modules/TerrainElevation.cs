@@ -48,7 +48,7 @@ namespace DivineHands.Modules
     /// </summary>
     public static class TerrainElevation
     {
-        public enum Mode { Raise, Lower, Smooth, Flatten }
+        public enum Mode { Raise, Lower, Smooth, Flatten, Average }
 
         // ---- cached reflection (resolved once per map) ----
         private static FieldInfo? _terrainField;     // Terrain2Manager.terrain  (private)
@@ -165,7 +165,7 @@ namespace DivineHands.Modules
 
             // 5) Resolve the per-mode target/amount.  For Raise/Lower/Flatten we work off the
             //    cursor's current world height (world.y), exactly like TerrainHelperMono.
-            var mode = (Mode)Mathf.Clamp(Config.TerrainMode.Value, 0, 3);
+            var mode = (Mode)Mathf.Clamp(Config.TerrainMode.Value, 0, 4);
             float strength = Mathf.Max(0f, Config.TerrainStrength.Value);
 
             // Shift inverts Raise <-> Lower (TerrainHelperMono convention).
@@ -186,6 +186,9 @@ namespace DivineHands.Modules
                     break;
                 case Mode.Smooth:
                     SmoothElevation(hm, minX, minZ, maxX, maxZ, strength);
+                    break;
+                case Mode.Average:
+                    AverageElevation(hm, minX, minZ, maxX, maxZ, strength);
                     break;
             }
 
@@ -227,6 +230,32 @@ namespace DivineHands.Modules
                     hm.SetHeight(x, z, h);
                 }
             }
+        }
+
+        /// <summary>Steps every cell toward the SINGLE mean height of the whole brush rect (computed
+        /// from the original heights before any writes), capped by <paramref name="amount"/> per stroke.
+        /// Unlike <see cref="SmoothElevation"/> — local neighbour relaxation that preserves slopes —
+        /// repeated Average strokes drive the entire patch toward one flat level (TerrainHelper-style
+        /// "creep toward flat"). Target is the arithmetic mean, so the patch flattens around its average
+        /// height; because the step is symmetric the mean is ~conserved, so it converges, it doesn't drift.</summary>
+        private static void AverageElevation(Heightmap hm, int minX, int minZ, int maxX, int maxZ, float amount)
+        {
+            float sum = 0f;
+            int count = 0;
+            for (int x = minX; x <= maxX; x++)
+                for (int z = minZ; z <= maxZ; z++) { sum += hm.GetHeight(x, z); count++; }
+            if (count == 0) return;
+            float target = sum / count;
+
+            for (int x = minX; x <= maxX; x++)
+                for (int z = minZ; z <= maxZ; z++)
+                {
+                    float h = hm.GetHeight(x, z);
+                    if (Mathf.Abs(h - target) < amount) h = target;       // close enough → snap to mean
+                    else if (h > target) h -= amount;                     // else step toward it by `amount`
+                    else h += amount;
+                    hm.SetHeight(x, z, h);
+                }
         }
 
         // Mirror of Terrain2Tools.SampleAverageHeight [493230]: (kernelRadius-1) box average, clamped.

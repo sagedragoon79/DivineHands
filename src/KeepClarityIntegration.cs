@@ -218,13 +218,15 @@ namespace DivineHands
                         order: 200));
             Reg(GroupTerrain, Config.TerrainMode,
                 NewMeta("Brush Mode",
-                        "0 = Raise, 1 = Lower, 2 = Smooth, 3 = Flatten. Hold Shift to invert Raise<->Lower.",
-                        min: 0, max: 3, order: 201, indent: 20,
+                        "0 = Raise, 1 = Lower, 2 = Smooth, 3 = Flatten, 4 = Average. Hold Shift to invert " +
+                        "Raise<->Lower. Average creeps the whole brush toward one flat mean level " +
+                        "(TerrainHelper-style); Smooth only de-bumps and keeps slopes.",
+                        min: 0, max: 4, order: 201, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainStrength,
                 NewMeta("Brush Strength",
-                        "Raise/Lower height change in world metres per application (also the Smooth step). " +
-                        "Flatten ignores this. Default: 1.0.",
+                        "Raise/Lower height change in world metres per application (also the Smooth and " +
+                        "Average step). Flatten ignores this. Default: 1.0.",
                         min: 0.05f, max: 25f, order: 202, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridWidth,

@@ -71,7 +71,7 @@ namespace DivineHands.Core
             EnsureLines(needed);
             if (_root == null) return;
 
-            Color col = ColorForMode((TerrainElevation.Mode)Mathf.Clamp(Config.TerrainMode.Value, 0, 3));
+            Color col = ColorForMode((TerrainElevation.Mode)Mathf.Clamp(Config.TerrainMode.Value, 0, 4));
 
             int li = 0;
 
@@ -127,7 +127,8 @@ namespace DivineHands.Core
             TerrainElevation.Mode.Raise   => new Color(0.30f, 1f, 0.30f, 0.9f), // green
             TerrainElevation.Mode.Lower   => new Color(1f, 0.35f, 0.30f, 0.9f), // red
             TerrainElevation.Mode.Smooth  => new Color(1f, 0.92f, 0.30f, 0.9f), // yellow
-            TerrainElevation.Mode.Flatten => new Color(0.35f, 0.85f, 1f, 0.9f), // cyan
+            TerrainElevation.Mode.Flatten => new Color(0.35f, 0.85f, 1f, 0.9f),  // cyan
+            TerrainElevation.Mode.Average => new Color(1f, 0.6f, 0.15f, 0.9f),   // orange
             _ => Color.white
         };
 
