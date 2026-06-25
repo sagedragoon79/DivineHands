@@ -93,10 +93,7 @@ namespace DivineHands.Core
                 DrawGodToolsSection();
 
                 GUILayout.Space(6f);
-                DrawTerrainSection();
-
-                GUILayout.Space(6f);
-                DrawSpawnerSection();
+                DrawToolsSection();
 
                 GUILayout.Space(6f);
                 DrawInjectSection();
@@ -149,27 +146,66 @@ namespace DivineHands.Core
             }
         }
 
-        private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten" };
-
-        private static void DrawTerrainSection()
+        // ---- Terrain / Spawner tabs ----
+        // The brush and the spawner are never in use at once (one armed tool, one apply key), so they
+        // share a single screen area as tabs. A tool's tab appears only when it's enabled in the Keep
+        // Clarity settings; clicking a tab BOTH arms that tool and reveals its options below (the tab
+        // IS the arm radial), and clicking the armed tab again disarms it. Same enable(config)/
+        // activate(panel) split as God Tools — there's no separate in-panel "Enable" toggle anymore.
+        private static void DrawToolsSection()
         {
-            GUILayout.Label("Terrain Sculpting", SectionStyle);
+            bool terrainEnabled = Config.TerrainEnable.Value;
+            bool spawnerEnabled = Config.SpawnEnable.Value;
 
-            Config.TerrainEnable.Value =
-                GUILayout.Toggle(Config.TerrainEnable.Value, "  Enable terrain editing");
+            GUILayout.Label("Terrain & Spawner", SectionStyle);
 
-            if (!Config.TerrainEnable.Value)
+            if (!terrainEnabled && !spawnerEnabled)
             {
-                if (_armedTool == ArmedTool.Terrain) _armedTool = ArmedTool.None;
+                _armedTool = ArmedTool.None;
+                GUILayout.Label("(enable Terrain editing or Cursor spawners in the Keep Clarity settings)",
+                                HintStyle);
                 return;
             }
 
-            // Arm toggle — arming Terrain disarms any other tool (single-armed-tool rule).
-            bool terrainArmed = _armedTool == ArmedTool.Terrain;
-            bool nowArmed = GUILayout.Toggle(terrainArmed, "  Arm brush (apply on key)");
-            if (nowArmed != terrainArmed)
-                _armedTool = nowArmed ? ArmedTool.Terrain : ArmedTool.None;
+            // Drop a stale arm if its tool was disabled in config since it was armed.
+            if (_armedTool == ArmedTool.Terrain && !terrainEnabled) _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Spawner && !spawnerEnabled) _armedTool = ArmedTool.None;
 
+            // Tab row — each tab is a toggle-button whose pressed state == that tool being armed.
+            // Re-clicking the active tab clears the arm (None); clicking the other tab switches.
+            GUILayout.BeginHorizontal();
+            if (terrainEnabled)
+            {
+                bool armed = _armedTool == ArmedTool.Terrain;
+                bool now = GUILayout.Toggle(armed, "Terrain", GUI.skin.button);
+                if (now != armed) _armedTool = now ? ArmedTool.Terrain : ArmedTool.None;
+            }
+            if (spawnerEnabled)
+            {
+                bool armed = _armedTool == ArmedTool.Spawner;
+                bool now = GUILayout.Toggle(armed, "Spawner", GUI.skin.button);
+                if (now != armed) _armedTool = now ? ArmedTool.Spawner : ArmedTool.None;
+            }
+            GUILayout.EndHorizontal();
+
+            // Options for whichever tab is armed (shared area). Nothing armed => prompt.
+            switch (_armedTool)
+            {
+                case ArmedTool.Terrain: DrawTerrainOptions(); break;
+                case ArmedTool.Spawner: DrawSpawnerOptions(); break;
+                default:
+                    GUILayout.Label("Click a tab to arm a tool — it applies on its key while armed.",
+                                    HintStyle);
+                    break;
+            }
+        }
+
+        private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten" };
+
+        // Terrain options (mode/strength/grid). The section header, the config-enable, and the arm now
+        // live in DrawToolsSection — the Terrain tab is the arm — so this just draws the controls.
+        private static void DrawTerrainOptions()
+        {
             // Mode selector.
             int mode = Mathf.Clamp(Config.TerrainMode.Value, 0, 3);
             GUILayout.BeginHorizontal();
@@ -220,25 +256,10 @@ namespace DivineHands.Core
         private static int _lastSpawnFamily = -1;
         private static int _lastSpawnSubtype = -1;
 
-        private static void DrawSpawnerSection()
+        // Spawner options (family/subtype/count/…). The section header, the config-enable, and the arm
+        // now live in DrawToolsSection — the Spawner tab is the arm — so this just draws the controls.
+        private static void DrawSpawnerOptions()
         {
-            GUILayout.Label("Cursor Spawners", SectionStyle);
-
-            Config.SpawnEnable.Value =
-                GUILayout.Toggle(Config.SpawnEnable.Value, "  Enable cursor spawners");
-
-            if (!Config.SpawnEnable.Value)
-            {
-                if (_armedTool == ArmedTool.Spawner) _armedTool = ArmedTool.None;
-                return;
-            }
-
-            // Arm toggle — arming the spawner disarms any other tool.
-            bool spawnerArmed = _armedTool == ArmedTool.Spawner;
-            bool nowArmed = GUILayout.Toggle(spawnerArmed, "  Arm spawner (apply on key)");
-            if (nowArmed != spawnerArmed)
-                _armedTool = nowArmed ? ArmedTool.Spawner : ArmedTool.None;
-
             // Family picker.
             int family = Mathf.Clamp(Config.SpawnFamily.Value, 0, _families.Length - 1);
             GUILayout.BeginHorizontal();
