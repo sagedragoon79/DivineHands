@@ -225,9 +225,14 @@ namespace DivineHands.Modules
                 return;
             }
 
-            // Bear AND the DLC kinds are ALWAYS loose — no den/spawn-area population path exists for them,
-            // so they ignore the persistent toggle (Fox/Groundhog are loose wildlife; Dog/Cat are pets).
-            if (kind == AnimalKind.Bear || IsDlcAnimal(kind) || !Config.SpawnPersistent.Value)
+            // Bear, Deer, and the DLC kinds are ALWAYS loose, so they ignore the persistent toggle and
+            // spawn `count` at the cursor. Bear/Fox/Groundhog/Dog/Cat have no den/area population path.
+            // Deer DO have spawn-areas, but those are invisible, map-FIXED regions — the engine only
+            // offers GetRandomEmptySpawnArea (a RANDOM existing area, not the cursor), so a "persistent
+            // deer at the cursor with a visible node" doesn't exist in FF. Loose-at-cursor is the
+            // predictable behaviour (and makes count work). Only Wolf/Boar get cursor-placed dens.
+            if (kind == AnimalKind.Bear || kind == AnimalKind.Deer
+                || IsDlcAnimal(kind) || !Config.SpawnPersistent.Value)
             {
                 SpawnAnimalsLoose(am, kind, world, count);
                 return;
@@ -237,7 +242,6 @@ namespace DivineHands.Modules
 
             bool ok = kind switch
             {
-                AnimalKind.Deer => SpawnDeerArea(am, count),
                 AnimalKind.Wolf => SpawnDen(am, GroupAnimalType_Wolf, count, world),
                 AnimalKind.Boar => SpawnDen(am, GroupAnimalType_Boar, count, world),
                 _ => false
@@ -632,6 +636,9 @@ namespace DivineHands.Modules
         //   foreach point in area.allSpawnPointsRO: am.SpawnAnimal(group, area, point) (returns bool);
         //   area.inUse = true. SpawnAnimal->AddAnimal sets the area's animalGroup, so it self-respawns.
         // count = number of distinct spawn-area nodes to claim. Returns true if at least one was populated.
+        // CURRENTLY UNUSED: deer now route to loose-at-cursor (see SpawnAnimals) because FF deer
+        // spawn-areas are invisible / map-fixed and GetRandomEmptySpawnArea isn't cursor-based. Kept for
+        // reference / a possible future "repopulate the map's deer spawn-areas" feature.
         private static bool SpawnDeerArea(object am, int areaCount)
         {
             try

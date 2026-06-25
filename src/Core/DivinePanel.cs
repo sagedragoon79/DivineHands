@@ -354,12 +354,12 @@ namespace DivineHands.Core
             count = Mathf.RoundToInt(GUILayout.HorizontalSlider(count, 1f, 50f));
             Config.SpawnCount.Value = count;
 
-            // Persistent toggle (animals only). On = Deer→spawn-area node, Wolf/Boar→den (self-respawning).
+            // Persistent toggle (animals only). On = Wolf/Boar place a self-respawning den at the cursor.
             // Off = loose one-off animals. Bear is always loose regardless.
             if (family == 0)
                 Config.SpawnPersistent.Value =
                     GUILayout.Toggle(Config.SpawnPersistent.Value,
-                        "  Persistent (node/den — bear always loose)");
+                        "  Persistent (Wolf/Boar dens — deer & bear always loose)");
 
             // Deep toggle (minerals only).
             if (family == 1)

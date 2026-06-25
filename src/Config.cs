@@ -411,10 +411,11 @@ namespace DivineHands
 
             SpawnPersistent = _root.CreateEntry(
                 "SpawnPersistent", true,
-                display_name: "Persistent (node/den)",
-                description: "Animals only. When on (default), spawned wildlife is PERSISTENT and self-respawns: " +
-                             "Deer create a spawn-area node, Wolf/Boar create a den. When off, animals spawn loose " +
-                             "(one-off, won't survive save/load). Bear is always loose (the game has no bear dens).");
+                display_name: "Persistent (Wolf/Boar dens)",
+                description: "Animals only. When on (default), Wolf/Boar create a self-respawning DEN at the " +
+                             "cursor (persists through save/load). When off, Wolf/Boar spawn loose. Deer and Bear " +
+                             "ALWAYS spawn loose at the cursor — FF has no cursor-placeable deer/bear node " +
+                             "(deer spawn-areas are invisible and map-fixed). Loose animals are runtime-only.");
 
             SpawnWolfDenGuid = _root.CreateEntry(
                 "SpawnWolfDenGuid", "465936e7-d613-4d08-af70-147fe603715f",
