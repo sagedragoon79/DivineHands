@@ -487,6 +487,15 @@ namespace DivineHands.Modules
         private static bool TryGetCursorWorldPoint(out Vector3 point)
         {
             point = Vector3.zero;
+            // Resolve the terrain manager on demand. The cursor raycast only needs the manager (not the
+            // heightmap), and callers like the Spawner never run ResolveTerrain() first — so on a fresh
+            // map this returned false ("no terrain under cursor") until a terrain SCULPT happened to
+            // populate _terrainManager. Resolve it here directly (the cheap part, no _resolveFailed latch).
+            if (_terrainManager == null)
+            {
+                var gm = GameManager.Instance;
+                _terrainManager = gm != null ? gm.terrainManager : null;
+            }
             if (_terrainManager == null) return false;
             try
             {
