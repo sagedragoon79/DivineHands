@@ -272,10 +272,11 @@ namespace DivineHands
                         visibleWhen: () => Config.SpawnEnable.Value));
             Reg(GroupSpawning, Config.SpawnSubtype,
                 NewMeta("Spawn Sub-type",
-                        "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf. " +
+                        "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf/4 Fox/5 Groundhog/" +
+                        "6 Dog/7 Cat (4-7 require the Cats & Dogs DLC). " +
                         "Mineral: 0 Gold/1 Iron/2 Coal/3 Stone/4 Clay/5 Sand. " +
                         "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. Villager ignores this.",
-                        min: 0, max: 5, order: 302, indent: 20,
+                        min: 0, max: 7, order: 302, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
             Reg(GroupSpawning, Config.SpawnCount,
                 NewMeta("Spawn Count",

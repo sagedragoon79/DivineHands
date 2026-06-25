@@ -385,7 +385,8 @@ namespace DivineHands
             SpawnSubtype = _root.CreateEntry(
                 "SpawnSubtype", 0,
                 display_name: "Spawn Sub-type",
-                description: "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf. " +
+                description: "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf/4 Fox/" +
+                             "5 Groundhog/6 Dog/7 Cat (4-7 need the Cats & Dogs DLC). " +
                              "Mineral: 0 Gold/1 Iron/2 Coal/3 Stone/4 Clay/5 Sand. " +
                              "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. Villager ignores this.");
 

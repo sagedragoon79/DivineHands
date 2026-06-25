@@ -65,7 +65,10 @@ namespace DivineHands.Modules
         public enum Family { Animal, Mineral, Villager, Resource }
 
         // Order MUST match the panel pickers and the Config descriptions.
-        public enum AnimalKind { Deer, Bear, Boar, Wolf }
+        // Deer..Wolf are base-game; Fox/Groundhog (wildlife) + Dog/Cat (pets) ship in the Cats & Dogs
+        // DLC — their prefab/asset only resolves when the DLC is owned, so they self-gate (see
+        // DlcAnimalAvailable). Append-only: existing indices must not shift (Config stores the int).
+        public enum AnimalKind { Deer, Bear, Boar, Wolf, Fox, Groundhog, Dog, Cat }
         public enum MineralKind { Gold, Iron, Coal, Stone, Clay, Sand }
         public enum ResourceKind { Forageable, Tree, Rock, GiantRock }
 
@@ -77,10 +80,17 @@ namespace DivineHands.Modules
         private static Type? _animalDenType;                      // AnimalDen (FindType)
         private static bool _animalReflectionResolved;
 
-        // AnimalGroupDefinition.AnimalType enum values (verified [35809]).
+        // AnimalGroupDefinition.AnimalType enum values (verified [35809]: None,Deer,Boar,Wolf,Bear,
+        // Groundhog,Fox,_Count). We reference the enum members directly elsewhere (compiler-checked);
+        // these ints are only for the den/spawn-area group lookups that already used them.
         private const int GroupAnimalType_Deer = 1;
         private const int GroupAnimalType_Boar = 2;
         private const int GroupAnimalType_Wolf = 3;
+
+        // DLC animal availability, probed once per map (prefab/asset actually resolves). Robust to the
+        // base-game-vs-DLC question: a kind is offered iff it can really spawn. Reset in OnMapLoaded.
+        private static bool _dlcAvailResolved;
+        private static bool _foxAvail, _groundhogAvail, _dogAvail, _catAvail;
         // AnimalGroupDefinition.SpawnPointType enum values (verified [35822]).
         private const int GroupSpawnPointType_SpawnArea = 1;
         private const int GroupSpawnPointType_AnimalDen = 2;
@@ -120,6 +130,9 @@ namespace DivineHands.Modules
             _animalDenType = null;
             _animalReflectionResolved = false;
             _isOccupiedThirdParamType = null;
+
+            _dlcAvailResolved = false;
+            _foxAvail = _groundhogAvail = _dogAvail = _catAvail = false;
         }
 
         public static void OnSceneExit() => OnMapLoaded();
@@ -187,11 +200,21 @@ namespace DivineHands.Modules
             var am = gm != null ? gm.animalManager : null;
             if (am == null) return;
 
-            var kind = (AnimalKind)Mathf.Clamp(Config.SpawnSubtype.Value, 0, 3);
+            var kind = (AnimalKind)Mathf.Clamp(Config.SpawnSubtype.Value, 0, 7);
 
-            // Bear is ALWAYS loose — the base game has no bear den, and there is no bear spawn-area
-            // population path that survives. Bear ignores the persistent toggle entirely.
-            if (kind == AnimalKind.Bear || !Config.SpawnPersistent.Value)
+            // DLC animals (Fox/Groundhog/Dog/Cat) only spawn when their prefab/asset resolves (DLC owned,
+            // or base-game in a future build). The picker greys them otherwise; this guards a stale Config
+            // value. Graceful no-op — never a crash.
+            if (!DlcAnimalAvailable(kind))
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] {kind} unavailable (needs the Cats & Dogs DLC) — skipped.");
+                return;
+            }
+
+            // Bear AND the DLC kinds are ALWAYS loose — no den/spawn-area population path exists for them,
+            // so they ignore the persistent toggle (Fox/Groundhog are loose wildlife; Dog/Cat are pets).
+            if (kind == AnimalKind.Bear || IsDlcAnimal(kind) || !Config.SpawnPersistent.Value)
             {
                 SpawnAnimalsLoose(am, kind, world, count);
                 return;
@@ -227,10 +250,107 @@ namespace DivineHands.Modules
                 case AnimalKind.Bear: animalMgr.DebugSpawnBearsAtPoint(count, world); break;
                 case AnimalKind.Boar: animalMgr.DebugSpawnBoarsAtPoint(count, world); break;
                 case AnimalKind.Wolf: animalMgr.DebugSpawnWolvesAtPoint(count, world); break;
+                // DLC wildlife — no DebugSpawn*AtPoint exists, so go through the generic SpawnAnimal
+                // pipeline (self-no-ops if the DLC prefab can't resolve).
+                case AnimalKind.Fox:       SpawnWildlifeGroup(animalMgr, AnimalGroupDefinition.AnimalType.Fox, world, count); break;
+                case AnimalKind.Groundhog: SpawnWildlifeGroup(animalMgr, AnimalGroupDefinition.AnimalType.Groundhog, world, count); break;
+                // DLC pets — instantiated from the DLC-populated prefab lists; self-register in Start().
+                case AnimalKind.Dog:       SpawnPets(animalMgr, dog: true, world, count); break;
+                case AnimalKind.Cat:       SpawnPets(animalMgr, dog: false, world, count); break;
             }
             if (Config.DebugLog.Value)
                 MelonLogger.Msg($"[DivineHands] Spawned {count}x {kind} @ {world} (loose — " +
                                 "runtime-only, does not persist through save/load)");
+        }
+
+        // DLC wildlife (Fox/Groundhog): no DebugSpawn*AtPoint exists, so loop the generic
+        // AnimalManager.SpawnAnimal(List<AnimalGroupDefinition>, Vector3) [92118], scattering so they
+        // don't stack. SpawnAnimal returns false and no-ops if the group prefab can't resolve (no DLC).
+        private static void SpawnWildlifeGroup(AnimalManager am, AnimalGroupDefinition.AnimalType type,
+                                               Vector3 world, int count)
+        {
+            var groups = am.GetAllAnimalGroupDefinitions(type);
+            if (groups == null || groups.Count == 0) return;
+            for (int i = 0; i < count; i++)
+                am.SpawnAnimal(groups, ScatterAround(world, i, count, spacing: 6f));
+        }
+
+        // DLC pets (Dog/Cat): no SpawnPet/PetManager exists. The base game's starting-pet path just
+        // Instantiates from animalManager.dogPrefabs/catPrefabs [90532/90534] (populated only when the
+        // DLC is owned) and lets the pet self-register in its own Start() via ResourceManager. We mirror
+        // that. Lists are empty without the DLC, so this is a clean no-op then.
+        private static void SpawnPets(AnimalManager am, bool dog, Vector3 world, int count)
+        {
+            var prefabs = dog ? am.dogPrefabs : am.catPrefabs;
+            if (prefabs == null || prefabs.Count == 0) return;
+            for (int i = 0; i < count; i++)
+            {
+                var prefab = prefabs[UnityEngine.Random.Range(0, prefabs.Count)];
+                if (prefab == null) continue;
+                UnityEngine.Object.Instantiate(prefab, ScatterAround(world, i, count, spacing: 4f),
+                                               Quaternion.identity);
+            }
+        }
+
+        // ---- DLC animal availability (probed once per map; robust to base-game-vs-DLC) ----
+
+        private static bool IsDlcAnimal(AnimalKind kind) =>
+            kind == AnimalKind.Fox || kind == AnimalKind.Groundhog
+            || kind == AnimalKind.Dog || kind == AnimalKind.Cat;
+
+        /// <summary>True if this animal kind can actually spawn right now — base kinds always; the DLC
+        /// kinds only when their prefab/asset resolves (DLC owned, or base-game in a future build).
+        /// Read by the panel to grey out unavailable kinds and by the spawn path as a final guard.</summary>
+        public static bool DlcAnimalAvailable(AnimalKind kind)
+        {
+            if (!IsDlcAnimal(kind)) return true;
+            EnsureDlcAnimalAvailability();
+            return kind switch
+            {
+                AnimalKind.Fox => _foxAvail,
+                AnimalKind.Groundhog => _groundhogAvail,
+                AnimalKind.Dog => _dogAvail,
+                AnimalKind.Cat => _catAvail,
+                _ => true
+            };
+        }
+
+        private static void EnsureDlcAnimalAvailability()
+        {
+            if (_dlcAvailResolved) return;
+            try
+            {
+                var gm = GameManager.Instance;
+                var am = gm != null ? gm.animalManager : null;
+                if (am == null) return; // not ready yet — leave unresolved so we retry next query
+
+                _dlcAvailResolved = true;
+                _foxAvail       = GroupPrefabResolves(am, AnimalGroupDefinition.AnimalType.Fox);
+                _groundhogAvail = GroupPrefabResolves(am, AnimalGroupDefinition.AnimalType.Groundhog);
+                _dogAvail       = am.hasDogAssets;   // dogPrefabs.Count > 0 (DLC-populated)
+                _catAvail       = am.hasCatAssets;   // catPrefabs.Count > 0
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] DLC animals available — Fox:{_foxAvail} " +
+                                    $"Groundhog:{_groundhogAvail} Dog:{_dogAvail} Cat:{_catAvail}");
+            }
+            catch (Exception ex)
+            {
+                _dlcAvailResolved = true; // don't hammer a failing probe every frame
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] DLC availability probe failed: {ex.Message}");
+            }
+        }
+
+        // A group type is spawnable if ANY of its AnimalGroupDefinitions yields a non-null weighted
+        // prefab. For Fox/Groundhog the prefab is null until the DLC asset resolves [36088-36094], so
+        // this is exactly "is the DLC content present" without any Steam-API dependency.
+        private static bool GroupPrefabResolves(AnimalManager am, AnimalGroupDefinition.AnimalType type)
+        {
+            var groups = am.GetAllAnimalGroupDefinitions(type);
+            if (groups == null) return false;
+            foreach (var g in groups)
+                if (g != null && g.GetWeightedAnimalPrefab() != null) return true;
+            return false;
         }
 
         // ---- PERSISTENT: Wolf/Boar DEN — placed AT THE CURSOR ----

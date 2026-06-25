@@ -274,7 +274,8 @@ namespace DivineHands.Core
         }
 
         private static readonly string[] _families = { "Animal", "Mineral", "Villager", "Resource" };
-        private static readonly string[] _animalKinds = { "Deer", "Bear", "Boar", "Wolf" };
+        private static readonly string[] _animalKinds =
+            { "Deer", "Bear", "Boar", "Wolf", "Fox", "Groundhog", "Dog", "Cat" };
         private static readonly string[] _mineralKinds = { "Gold", "Iron", "Coal", "Stone", "Clay", "Sand" };
         private static readonly string[] _resourceKinds = { "Forage", "Tree", "Rock", "Boulder" };
 
@@ -309,14 +310,31 @@ namespace DivineHands.Core
             if (kinds != null)
             {
                 int sub = Mathf.Clamp(Config.SpawnSubtype.Value, 0, kinds.Length - 1);
-                GUILayout.BeginHorizontal();
+                bool greyedAny = false;
+                const int perRow = 4; // wrap so 8 animal kinds (incl. "Groundhog") don't overflow the panel
                 for (int i = 0; i < kinds.Length; i++)
                 {
-                    bool on = GUILayout.Toggle(sub == i, kinds[i], GUI.skin.button);
-                    if (on) sub = i;
+                    if (i % perRow == 0) GUILayout.BeginHorizontal();
+
+                    // Animal family: grey out DLC kinds whose prefab/asset isn't available right now
+                    // (needs the Cats & Dogs DLC). Index == AnimalKind value, so the cast is direct.
+                    bool available = family != 0
+                        || DivineHands.Modules.CursorSpawners.DlcAnimalAvailable(
+                               (DivineHands.Modules.CursorSpawners.AnimalKind)i);
+                    if (!available) greyedAny = true;
+
+                    using (new GUIEnabledScope(available))
+                    {
+                        bool on = GUILayout.Toggle(sub == i, kinds[i], GUI.skin.button);
+                        if (on && available) sub = i;
+                    }
+
+                    if (i % perRow == perRow - 1 || i == kinds.Length - 1) GUILayout.EndHorizontal();
                 }
-                GUILayout.EndHorizontal();
                 Config.SpawnSubtype.Value = sub;
+
+                if (greyedAny)
+                    GUILayout.Label("Greyed animals need the Cats & Dogs DLC.", HintStyle);
             }
 
             // When the family or subtype changes vs the previous frame, reset the count to 1 (a fresh
