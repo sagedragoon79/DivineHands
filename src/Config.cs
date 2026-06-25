@@ -95,9 +95,13 @@ namespace DivineHands
         /// <summary>Raise/Lower height delta (world metres) per stroke; also the Smooth step.</summary>
         public static MelonPreferences_Entry<float>  TerrainStrength { get; private set; } = null!;
 
-        /// <summary>Brush grid size in heightmap cells per side (1–10). Each cell ≈ terrain Resolution
-        /// metres (default 5 m).</summary>
-        public static MelonPreferences_Entry<int>    TerrainGridSize { get; private set; } = null!;
+        /// <summary>Brush footprint WIDTH (X / columns) in heightmap cells (1–10). Adjust live with the
+        /// Left/Right arrows while the brush is armed. Each cell ≈ terrain Resolution metres (~5 m).</summary>
+        public static MelonPreferences_Entry<int>    TerrainGridWidth  { get; private set; } = null!;
+
+        /// <summary>Brush footprint DEPTH (Z / rows) in heightmap cells (1–10). Adjust live with the
+        /// Up/Down arrows while the brush is armed. Tab swaps width and depth.</summary>
+        public static MelonPreferences_Entry<int>    TerrainGridHeight { get; private set; } = null!;
 
         /// <summary>Hotkey that applies the brush at the cursor. Default middle mouse button.</summary>
         public static MelonPreferences_Entry<string> TerrainApplyKey { get; private set; } = null!;
@@ -301,11 +305,19 @@ namespace DivineHands
                              "step size). Flatten ignores this — it sets the brush to the cursor's height. " +
                              "Default: 1.0.");
 
-            TerrainGridSize = _root.CreateEntry(
-                "TerrainGridSize", 3,
-                display_name: "Brush Grid Size",
-                description: "Brush footprint in heightmap cells per side (1–10). Each cell is ~Resolution " +
-                             "metres (default 5 m), so a 3 grid ≈ 15 m. Default: 3.");
+            TerrainGridWidth = _root.CreateEntry(
+                "TerrainGridWidth", 3,
+                display_name: "Brush Grid Width",
+                description: "Brush footprint width (X / columns) in heightmap cells (1–10). Adjust live " +
+                             "with Left/Right arrows while the brush is armed. Each cell is ~Resolution " +
+                             "metres (~5 m). Default: 3.");
+
+            TerrainGridHeight = _root.CreateEntry(
+                "TerrainGridHeight", 3,
+                display_name: "Brush Grid Depth",
+                description: "Brush footprint depth (Z / rows) in heightmap cells (1–10). Adjust live with " +
+                             "Up/Down arrows while the brush is armed; Tab swaps width and depth. " +
+                             "Use e.g. 1×10 to carve a path. Default: 3.");
 
             TerrainApplyKey = _root.CreateEntry(
                 "TerrainApplyKey", "Ctrl+Mouse1",

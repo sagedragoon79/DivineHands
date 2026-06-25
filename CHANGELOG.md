@@ -7,6 +7,7 @@ All notable changes to Divine Hands are documented here.
 Initial scaffold — the god-power core, ready to grow modules onto.
 
 ### Changed
+- **Terrain brush grid is now independent width × depth.** Replaced the single square grid size with separate **Width (X)** and **Depth (Z)** (1–10 each), so you can make a `1×10` footprint to carve a path through a ridge, a `5×5` plateau, etc. While the brush is armed, the **arrow keys** resize it live (←→ width, ↑↓ depth) and **Tab** swaps the two — same as TerrainHelper. The color-coded cursor grid follows the new shape, so it doubles as an alignment guide (e.g. arm the brush, set 5×5, and line up a 4×4 building in free-placement mode without sculpting).
 - **Config now *enables*, the in-game panel *activates*.** Each God Tool has an `Enable…` switch in the Keep Clarity settings that only makes it **available** (and reveals its sliders) — it no longer fires the effect. The power then appears in the in-game panel, where you actually turn it on; disabled powers are hidden from the panel entirely. Live state is runtime-only and **resets OFF on every map load**, so you never load straight into an active god-power (no more being thrown into Free Cam from the settings screen).
 - **Free Cam is now a `Ctrl+F` toggle** (configurable), not hold-right-mouse. Press to enter (cursor locks for mouse-look, WASD/Space/Ctrl fly, Shift fast), press again to exit — the keyboard hotkey is always a safe escape.
 - **Apply key is now `Ctrl`+right-click** for both terrain and spawner (was middle-click) to prevent accidental application.

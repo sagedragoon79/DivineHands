@@ -112,6 +112,24 @@ namespace DivineHands.Modules
                     ApplyStroke();
             }
 
+            // Resize the grid while the terrain tool is armed (matches TerrainHelper). Independent
+            // dimensions via the arrow keys — Left/Right = width (X), Up/Down = depth (Z) — and Tab
+            // swaps them. Keyboard, so it works regardless of cursor position over the panel.
+            if (DivineHands.Core.DivinePanel.TerrainModeActive)
+            {
+                if (Input.GetKeyDown(KeyCode.RightArrow)) BumpGrid(Config.TerrainGridWidth, +1);
+                if (Input.GetKeyDown(KeyCode.LeftArrow))  BumpGrid(Config.TerrainGridWidth, -1);
+                if (Input.GetKeyDown(KeyCode.UpArrow))    BumpGrid(Config.TerrainGridHeight, +1);
+                if (Input.GetKeyDown(KeyCode.DownArrow))  BumpGrid(Config.TerrainGridHeight, -1);
+                if (Input.GetKeyDown(KeyCode.Tab))
+                {
+                    int w = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
+                    int h = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+                    Config.TerrainGridWidth.Value = h;
+                    Config.TerrainGridHeight.Value = w;
+                }
+            }
+
             // Undo works whenever terrain editing is enabled (even when not actively painting),
             // but still suppressed while the cursor is over the panel to avoid stealing UI clicks.
             if (!DivineHands.Core.DivinePanel.BlocksGameInput
@@ -137,19 +155,9 @@ namespace DivineHands.Modules
             int cx = Mathf.FloorToInt(world.x / _resolution);
             int cz = Mathf.FloorToInt(world.z / _resolution);
 
-            // 3) NxN grid centred on the cursor cell.  grid = Config grid size (cells per side).
-            int grid = Mathf.Clamp(Config.TerrainGridSize.Value, 1, 10);
-            int half = grid / 2;
-            int minX = cx - half;
-            int minZ = cz - half;
-            int maxX = minX + (grid - 1);
-            int maxZ = minZ + (grid - 1);
-
-            // Clamp to the heightmap, bail if the whole brush is off-map.
-            minX = Mathf.Max(minX, 0);
-            minZ = Mathf.Max(minZ, 0);
-            maxX = Mathf.Min(maxX, _size - 1);
-            maxZ = Mathf.Min(maxZ, _size - 1);
+            // 3) Width × depth grid centred on the cursor cell (independent dimensions — e.g. a 1×10
+            //    footprint to carve a path through a ridge). Clamped; bail if entirely off-map.
+            BrushRectFromCenter(cx, cz, out int minX, out int minZ, out int maxX, out int maxZ);
             if (minX > maxX || minZ > maxZ) return;
 
             // 4) Snapshot the affected rect BEFORE writing (for undo).
@@ -185,7 +193,8 @@ namespace DivineHands.Modules
             RefreshRect(minX, minZ, maxX, maxZ);
 
             if (Config.DebugLog.Value)
-                MelonLogger.Msg($"[DivineHands] Terrain {mode} @ cell ({cx},{cz}) grid {grid} " +
+                MelonLogger.Msg($"[DivineHands] Terrain {mode} @ cell ({cx},{cz}) " +
+                                $"grid {Config.TerrainGridWidth.Value}x{Config.TerrainGridHeight.Value} " +
                                 $"rect [{minX},{minZ}..{maxX},{maxZ}] strength {strength:0.##}");
         }
 
@@ -325,19 +334,28 @@ namespace DivineHands.Modules
 
             int cx = Mathf.FloorToInt(world.x / _resolution);
             int cz = Mathf.FloorToInt(world.z / _resolution);
-            int grid = Mathf.Clamp(Config.TerrainGridSize.Value, 1, 10);
-            int half = grid / 2;
-            minX = cx - half;
-            minZ = cz - half;
-            maxX = minX + (grid - 1);
-            maxZ = minZ + (grid - 1);
-
-            minX = Mathf.Max(minX, 0);
-            minZ = Mathf.Max(minZ, 0);
-            maxX = Mathf.Min(maxX, _size - 1);
-            maxZ = Mathf.Min(maxZ, _size - 1);
+            BrushRectFromCenter(cx, cz, out minX, out minZ, out maxX, out maxZ);
             return minX <= maxX && minZ <= maxZ;
         }
+
+        // Width (X, columns) × depth (Z, rows) brush footprint centred on cell (cx, cz), clamped to the
+        // heightmap. Independent dimensions so the brush can be e.g. 1×10 (a trench) or 5×5 (a plateau).
+        // maxX/maxZ are taken from the UNclamped origin so a partially off-map brush still spans correctly.
+        private static void BrushRectFromCenter(int cx, int cz,
+            out int minX, out int minZ, out int maxX, out int maxZ)
+        {
+            int w = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
+            int h = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+            int rawMinX = cx - w / 2;
+            int rawMinZ = cz - h / 2;
+            minX = Mathf.Max(rawMinX, 0);
+            minZ = Mathf.Max(rawMinZ, 0);
+            maxX = Mathf.Min(rawMinX + (w - 1), _size - 1);
+            maxZ = Mathf.Min(rawMinZ + (h - 1), _size - 1);
+        }
+
+        private static void BumpGrid(MelonLoader.MelonPreferences_Entry<int> entry, int delta)
+            => entry.Value = Mathf.Clamp(entry.Value + delta, 1, 10);
 
         // =====================================================================
         // Refresh — call the engine's own full post-edit notify, Terrain2.SmoothHeightsNotify [491080].

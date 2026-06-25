@@ -215,11 +215,17 @@ namespace DivineHands
                         "Flatten ignores this. Default: 1.0.",
                         min: 0.05f, max: 25f, order: 202, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
-            Reg(GroupTerrain, Config.TerrainGridSize,
-                NewMeta("Brush Grid Size",
-                        "Brush footprint in heightmap cells per side (1–10). Each cell ≈ Resolution metres " +
-                        "(default 5 m). Default: 3.",
+            Reg(GroupTerrain, Config.TerrainGridWidth,
+                NewMeta("Brush Grid Width",
+                        "Footprint width (X) in heightmap cells (1–10). Live: Left/Right arrows while armed. " +
+                        "Each cell ≈ Resolution metres (~5 m). Default: 3.",
                         min: 1, max: 10, order: 203, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
+            Reg(GroupTerrain, Config.TerrainGridHeight,
+                NewMeta("Brush Grid Depth",
+                        "Footprint depth (Z) in heightmap cells (1–10). Live: Up/Down arrows while armed; " +
+                        "Tab swaps width/depth. Use e.g. 1×10 to carve a path. Default: 3.",
+                        min: 1, max: 10, order: 204, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainApplyKey,
                 NewMeta("Apply Key",
