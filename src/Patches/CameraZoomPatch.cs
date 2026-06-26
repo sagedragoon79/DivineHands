@@ -7,62 +7,47 @@ using UnityEngine;
 namespace DivineHands.Patches
 {
     /// <summary>
-    /// Makes God View's mouse-scroll zoom proportional: fine steps when zoomed in close, near-vanilla
-    /// steps when zoomed out. Fixes the "jump from normal to too-close with nothing between" that God
-    /// View causes — turning on God View flips <c>CameraManager.zoomUnlocked</c>, which applies a FLAT
-    /// 5% zoom damping, and because zoom maps linearly across the widened 1..1000 distance range, every
-    /// scroll notch is ~5 world units regardless of how close you are.
+    /// Tames God View's mouse-scroll zoom: in God View the distance range is widened (1..1000), so a raw
+    /// scroll notch jumps a huge amount. A prefix on <c>CameraManager.AdjustZoom</c> rescales the zoom
+    /// delta by <c>fine × lerp(closeBoost,1,1-currentZoom) × baseStep</c> — <c>fine</c> (the Zoom Fineness
+    /// slider) scales the whole range so its effect is visible at any zoom level, a mild taper keeps
+    /// close-in a touch finer, and <c>baseStep</c> supplies the overall damping.
     ///
-    /// Verified against the Assembly-CSharp decompile:
-    ///   CameraManager.AdjustZoom(float amount)  [59656] — public; does `if (zoomUnlocked) amount *= 0.05f;`
-    ///                                                       then SetDesiredZoom(desiredZoom + amount)
-    ///   CameraManager.CalculateZoom()           [59689] — public; normalized 0..1 (1 = zoomed in close)
-    ///   CameraManager.zoomUnlocked              [59294] — private bool; set only by UnlockCameraZoom
-    ///                                                       [59999], i.e. zoomUnlocked == God View on
-    ///   SetDesiredZoom [59665] clamps to [minZoom,maxZoom] with NO step rounding, so a scaled-down
-    ///   delta always accumulates (never a no-op).
-    ///
-    /// We run a prefix that rescales <c>amount</c> BEFORE the vanilla 0.05f damping, only while
-    /// zoomUnlocked is true: multiply by lerp(fine, 1, 1-currentZoom) so steps shrink toward the ground
-    /// (currentZoom→1) and stay ~vanilla far out (currentZoom→0). Gating on the live <c>zoomUnlocked</c>
-    /// field (not the God View pref/flag, which can lag a mid-toggle) means vanilla zoom is untouched when God
-    /// View is off. Auto-registered via Plugin's HarmonyInstance.PatchAll.
+    /// HISTORY / why it's built this way: the original design gated on the live <c>CameraManager.zoomUnlocked</c>
+    /// field (and had God View set it so the game's own 5% damping applied). In practice that field — and
+    /// sometimes <c>CalculateZoom</c> — failed to resolve on the live build (the patch logged "could not
+    /// resolve … — proportional zoom disabled" and was completely inert). So the patch no longer reflects
+    /// <c>zoomUnlocked</c> at all: it gates on DH's own <see cref="DivineHands.Modules.CameraTools.GodViewActive"/>
+    /// flag (no game reflection), owns the damping itself (<c>baseStep</c>, since God View no longer sets
+    /// <c>zoomUnlocked</c>), and treats <c>CalculateZoom()</c> [59689] as OPTIONAL — if it can't be bound
+    /// (rename / added overload) the taper is simply dropped and a flat scale is used. Vanilla zoom (God
+    /// View off) is untouched. Auto-registered via Plugin's HarmonyInstance.PatchAll.
     /// </summary>
     [HarmonyPatch(typeof(CameraManager), "AdjustZoom")]
     internal static class CameraZoomPatch
     {
-        private static FieldInfo? _zoomUnlockedField;     // private bool zoomUnlocked
-        private static MethodInfo? _calculateZoomMethod;  // public float CalculateZoom()
+        private static MethodInfo? _calculateZoomMethod;  // OPTIONAL — only the close-in taper uses it
         private static bool _resolved;
-        private static bool _resolveFailed;
 
         private static void Resolve()
         {
-            if (_resolved || _resolveFailed) return;
+            if (_resolved) return;
+            _resolved = true; // always — the gate now uses DH's GodViewActive, not reflected game internals
+            // CalculateZoom is OPTIONAL (close-in taper only). Look up the PARAMETERLESS overload
+            // explicitly so an added overload (ambiguous match) or a game-version rename can't break the
+            // patch; without it we just use a flat scale (no taper). We no longer reflect zoomUnlocked at
+            // all — it failed to resolve in this build (that's why the patch was inert), so the gate moved
+            // to DH's own God View flag and the damping moved into this patch (see Prefix).
             try
             {
-                var t = typeof(CameraManager);
-                _zoomUnlockedField = t.GetField("zoomUnlocked",
-                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                _calculateZoomMethod = t.GetMethod("CalculateZoom",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
-                if (_zoomUnlockedField == null || _calculateZoomMethod == null)
-                {
-                    _resolveFailed = true;
-                    if (Config.DebugLog.Value)
-                        MelonLogger.Warning("[DivineHands] CameraZoomPatch: could not resolve " +
-                            "zoomUnlocked/CalculateZoom — proportional zoom disabled (vanilla unaffected).");
-                    return;
-                }
-                _resolved = true;
+                _calculateZoomMethod = typeof(CameraManager).GetMethod("CalculateZoom",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, Type.EmptyTypes, null);
             }
-            catch (Exception ex)
-            {
-                _resolveFailed = true;
-                if (Config.DebugLog.Value)
-                    MelonLogger.Warning($"[DivineHands] CameraZoomPatch resolve failed: {ex.Message}");
-            }
+            catch { _calculateZoomMethod = null; }
+            if (Config.DebugLog.Value)
+                MelonLogger.Msg("[DivineHands] CameraZoomPatch resolved (CalculateZoom taper: " +
+                                (_calculateZoomMethod != null ? "yes)." : "no — flat scale)."));
         }
 
         // Prefix runs before vanilla AdjustZoom; we rescale the zoom delta in place and let the original
@@ -77,37 +62,34 @@ namespace DivineHands.Patches
             if (Mathf.Approximately(__0, 0f)) return;
             if (!Config.MasterEnable.Value || !Config.ProportionalZoom.Value) return;
 
+            // Only act while God View is on — gate on DH's OWN runtime flag (no reflection), so a
+            // game-version rename of zoomUnlocked can't silently disable the patch (which is what happened).
+            if (!DivineHands.Modules.CameraTools.GodViewActive) return;
+
             Resolve();
-            if (!_resolved)
-            {
-                if (Config.DebugLog.Value)
-                    MelonLogger.Msg("[DivineHands] Zoom prefix: reflection not resolved — passing through");
-                return;
-            }
 
             try
             {
-                bool unlocked = _zoomUnlockedField!.GetValue(__instance) is bool b && b;
+                // currentZoom: 0 (far) .. 1 (close) — only for the optional close-in taper.
+                float currentZoom = 0f;
+                if (_calculateZoomMethod != null)
+                {
+                    try { currentZoom = Mathf.Clamp01((float)_calculateZoomMethod.Invoke(__instance, null)!); }
+                    catch { currentZoom = 0f; }
+                }
 
-                // currentZoom: 0 (far) .. 1 (close).
-                float currentZoom = Mathf.Clamp01((float)_calculateZoomMethod!.Invoke(__instance, null)!);
-
-                // `fine` (Zoom Fineness slider) scales the WHOLE god-view zoom step, so its effect is
-                // visible at ANY zoom level. The old lerp(fine,1,1-cz) collapsed to ~1 when far out, which
-                // hid the slider unless you were zoomed all the way in. A mild built-in taper keeps close-in
-                // steps a touch finer than far-out (closeBoost), but `fine` is the dominant control.
+                // `fine` (Zoom Fineness slider) scales the whole god-view step (visible at any zoom level),
+                // with a mild close-in taper. baseStep tames the widened god-view range — it replaces the
+                // game's 5% zoom damping, which DH's God View no longer relies on (that path was reflection-
+                // fragile). fine=1 ≈ the old vanilla-god-view feel; lower = finer.
                 float fine = Mathf.Clamp(Config.ZoomStepScale.Value, 0.02f, 1f);
                 const float closeBoost = 0.5f; // close-in steps = 0.5x of far-out steps
-                float multiplier = Mathf.Max(fine * Mathf.Lerp(closeBoost, 1f, 1f - currentZoom), 0.01f);
+                const float baseStep = 0.05f;  // overall tame factor for the widened god-view zoom range
+                float multiplier = Mathf.Max(fine * Mathf.Lerp(closeBoost, 1f, 1f - currentZoom) * baseStep, 0.001f);
 
-                // Diagnostic: every scroll while DebugLog is on, so a "zoom not working" report can be
-                // pinpointed (patch firing? God View flag set? what numbers?).
                 if (Config.DebugLog.Value)
-                    MelonLogger.Msg($"[DivineHands] Zoom prefix: in={__0:0.#####} godView(zoomUnlocked)={unlocked} " +
-                                    $"curZoom={currentZoom:0.###} fine={fine:0.##} mult={multiplier:0.###}");
-
-                // Only act while God View is on (zoomUnlocked). Off => pass the scroll delta through.
-                if (!unlocked) return;
+                    MelonLogger.Msg($"[DivineHands] Zoom: in={__0:0.#####} curZoom={currentZoom:0.###} " +
+                                    $"fine={fine:0.##} mult={multiplier:0.#####} out={__0 * multiplier:0.#####}");
 
                 __0 *= multiplier;
             }
