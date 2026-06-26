@@ -241,6 +241,13 @@ namespace DivineHands
                         "Tab swaps width/depth. Use e.g. 1×10 to carve a path. Default: 3.",
                         min: 1, max: 10, order: 204, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
+            Reg(GroupTerrain, Config.TerrainGridFineSnap,
+                NewMeta("Fine Grid Positioning",
+                        "Snaps the grid overlay to HALF-cell steps so you can square up free-build buildings " +
+                        "(TerrainHelper-style). Placement guide — the sculpt still resolves to whole cells on " +
+                        "apply, so leave off for crisp flat pads. Default: off.",
+                        order: 205, indent: 20,
+                        visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainApplyKey,
                 NewMeta("Apply Key",
                         "Key/button that applies the brush at the cursor. A Unity KeyCode name (Mouse2 = " +

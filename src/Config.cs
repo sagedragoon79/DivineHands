@@ -111,6 +111,11 @@ namespace DivineHands
         /// Up/Down arrows while the brush is armed. Tab swaps width and depth.</summary>
         public static MelonPreferences_Entry<int>    TerrainGridHeight { get; private set; } = null!;
 
+        /// <summary>Fine grid positioning: the grid overlay snaps to HALF-cell steps so you can square up
+        /// free-build buildings (TerrainHelper-style). Placement guide — the sculpt still resolves to the
+        /// nearest whole heightmap cells on apply. Default off.</summary>
+        public static MelonPreferences_Entry<bool>   TerrainGridFineSnap { get; private set; } = null!;
+
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
         public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
@@ -348,6 +353,14 @@ namespace DivineHands
                 description: "Brush footprint depth (Z / rows) in heightmap cells (1–10). Adjust live with " +
                              "Up/Down arrows while the brush is armed; Tab swaps width and depth. " +
                              "Use e.g. 1×10 to carve a path. Default: 3.");
+
+            TerrainGridFineSnap = _root.CreateEntry(
+                "TerrainGridFineSnap", false,
+                display_name: "Fine Grid Positioning",
+                description: "When on, the grid overlay snaps to HALF-cell steps so you can square up " +
+                             "free-build buildings (TerrainHelper-style). It's a placement guide — the " +
+                             "sculpt still resolves to the nearest whole heightmap cells on apply, so for " +
+                             "crisp flat pads leave this off. Default: off.");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",

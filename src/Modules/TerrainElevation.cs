@@ -150,10 +150,10 @@ namespace DivineHands.Modules
             // 1) World point under cursor (FF raycast onto the Terrain layer).
             if (!TryGetCursorWorldPoint(out Vector3 world)) return;
 
-            // 2) Cursor world XZ -> centre heightmap cell.  Index = floor(worldAxis / resolution)
-            //    (matches Terrain2Tools.GetHeightBrushBounds [493285-286]).
-            int cx = Mathf.FloorToInt(world.x / _resolution);
-            int cz = Mathf.FloorToInt(world.z / _resolution);
+            // 2) Cursor world XZ -> centre heightmap cell. Normally floor() (the cell the cursor is in);
+            //    with Fine Grid Positioning the grid snaps to half-cell steps and the sculpt rounds to the
+            //    nearest whole cell (see SculptCenter).
+            SculptCenter(world, out int cx, out int cz);
 
             // 3) Width × depth grid centred on the cursor cell (independent dimensions — e.g. a 1×10
             //    footprint to carve a path through a ridge). Clamped; bail if entirely off-map.
@@ -413,6 +413,59 @@ namespace DivineHands.Modules
 
         private static void BumpGrid(MelonLoader.MelonPreferences_Entry<int> entry, int delta)
             => entry.Value = Mathf.Clamp(entry.Value + delta, 1, 10);
+
+        // The integer centre cell the SCULPT writes around. Default = floor (cell under cursor). With Fine
+        // Grid Positioning the cursor first snaps to the nearest HALF-cell (so the overlay can sit between
+        // cells for aligning buildings), then rounds to the nearest whole cell for the actual heightmap
+        // write (the heightmap only has whole-cell vertices).
+        private static void SculptCenter(Vector3 world, out int cx, out int cz)
+        {
+            float fx = world.x / _resolution;
+            float fz = world.z / _resolution;
+            if (Config.TerrainGridFineSnap.Value)
+            {
+                cx = Mathf.RoundToInt(Mathf.Round(fx * 2f) / 2f);
+                cz = Mathf.RoundToInt(Mathf.Round(fz * 2f) / 2f);
+            }
+            else
+            {
+                cx = Mathf.FloorToInt(fx);
+                cz = Mathf.FloorToInt(fz);
+            }
+        }
+
+        /// <summary>Grid OVERLAY geometry for the preview: the bottom-left corner as a FRACTIONAL cell
+        /// coordinate (so Fine Grid Positioning can place it on half-cell steps) plus the cell counts.
+        /// The preview draws cells between the corner lattice [origin .. origin+cols] × [.. +rows]. The
+        /// sculpt rounds to whole cells (<see cref="SculptCenter"/>), so at a half-step the overlay sits up
+        /// to half a cell off the pad the brush flattens — intended (it's a placement guide). False until
+        /// terrain + cursor are ready.</summary>
+        public static bool TryGetGridGeometry(out float originX, out float originZ, out int cols, out int rows)
+        {
+            originX = originZ = 0f; cols = rows = 0;
+            if (!ResolveTerrain() || _heightmap == null) return false;
+            if (!TryGetCursorWorldPoint(out Vector3 world)) return false;
+
+            cols = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
+            rows = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+            SculptCenter(world, out int cx, out int cz); // integer base (matches the sculpt rect origin)
+
+            if (Config.TerrainGridFineSnap.Value)
+            {
+                float ccx = Mathf.Round(world.x / _resolution * 2f) / 2f; // half-cell centre
+                float ccz = Mathf.Round(world.z / _resolution * 2f) / 2f;
+                // Sculpt rect bottom-left is (cx - cols/2); shift the overlay by the half-cell delta so it
+                // visually tracks the cursor while the pad stays on whole cells.
+                originX = (cx - cols / 2) + (ccx - cx);
+                originZ = (cz - rows / 2) + (ccz - cz);
+            }
+            else
+            {
+                originX = cx - cols / 2;
+                originZ = cz - rows / 2;
+            }
+            return true;
+        }
 
         // =====================================================================
         // Refresh — call the engine's own full post-edit notify, Terrain2.SmoothHeightsNotify [491080].

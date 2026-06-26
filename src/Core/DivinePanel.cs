@@ -269,6 +269,9 @@ namespace DivineHands.Core
             Config.TerrainGridHeight.Value = gh;
             GUILayout.Label("Arrows resize (←→ width · ↑↓ depth) · Tab swaps", HintStyle);
 
+            Config.TerrainGridFineSnap.Value =
+                GUILayout.Toggle(Config.TerrainGridFineSnap.Value, "  Fine positioning (½-cell, align builds)");
+
             GUILayout.Label($"Apply: {Config.TerrainApplyKey.Value}   Undo: {Config.TerrainUndoKey.Value}" +
                             $"   (undo depth {DivineHands.Modules.TerrainElevation.UndoDepth})", HintStyle);
         }

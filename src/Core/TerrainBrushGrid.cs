@@ -49,24 +49,19 @@ namespace DivineHands.Core
                 return;
             }
 
-            if (!TerrainElevation.TryGetGridContext(out Heightmap hm, out int size, out float res))
+            if (!TerrainElevation.TryGetGridContext(out _, out _, out float res))
             {
                 SetVisible(false);
                 return;
             }
-            if (!TerrainElevation.TryGetBrushRect(out int minX, out int minZ, out int maxX, out int maxZ))
+            // Fractional bottom-left corner (cell units) + cell counts. originX/Z can be half-integer when
+            // Fine Grid Positioning is on, so the overlay can sit on half-cell steps for squaring up
+            // buildings; corners are drawn at the exact world positions and sampled bilinearly for height.
+            if (!TerrainElevation.TryGetGridGeometry(out float originX, out float originZ, out int cols, out int rows))
             {
                 SetVisible(false);
                 return;
             }
-
-            // The brush rect IS the corner/vertex lattice [minX..maxX] x [minZ..maxZ] (BrushRectFromCenter
-            // returns w+1 / h+1 vertices for a w×h cell brush). The cells are the quads between adjacent
-            // vertices, so cols/rows = the vertex span. Draws exactly the cells ApplyStroke flattens.
-            int x0 = minX, x1 = maxX;
-            int z0 = minZ, z1 = maxZ;
-            int cols = x1 - x0; // cells across
-            int rows = z1 - z0; // cells deep
 
             // Grid lines: (rows+1) horizontal + (cols+1) vertical lines.
             int needed = (rows + 1) + (cols + 1);
@@ -77,30 +72,26 @@ namespace DivineHands.Core
 
             int li = 0;
 
-            // Horizontal lines: constant z = z0..z1, sweeping x = x0..x1.
-            for (int z = z0; z <= z1; z++)
+            // Horizontal lines: constant z, sweeping x across the cols+1 corners.
+            for (int zi = 0; zi <= rows; zi++)
             {
+                float zf = originZ + zi;
                 var lr = _lines[li++];
                 lr.positionCount = cols + 1;
                 for (int xi = 0; xi <= cols; xi++)
-                {
-                    int x = x0 + xi;
-                    lr.SetPosition(xi, CornerWorld(hm, size, res, x, z));
-                }
+                    lr.SetPosition(xi, CornerWorldF(res, originX + xi, zf));
                 lr.startColor = lr.endColor = col;
                 lr.enabled = true;
             }
 
-            // Vertical lines: constant x = x0..x1, sweeping z = z0..z1.
-            for (int x = x0; x <= x1; x++)
+            // Vertical lines: constant x, sweeping z across the rows+1 corners.
+            for (int xi = 0; xi <= cols; xi++)
             {
+                float xf = originX + xi;
                 var lr = _lines[li++];
                 lr.positionCount = rows + 1;
                 for (int zi = 0; zi <= rows; zi++)
-                {
-                    int z = z0 + zi;
-                    lr.SetPosition(zi, CornerWorld(hm, size, res, x, z));
-                }
+                    lr.SetPosition(zi, CornerWorldF(res, xf, originZ + zi));
                 lr.startColor = lr.endColor = col;
                 lr.enabled = true;
             }
@@ -112,16 +103,15 @@ namespace DivineHands.Core
             _root.SetActive(true);
         }
 
-        // World position of heightmap CORNER (x,z). x/z are corner indices on the cell lattice.
-        // World XZ uses the SAME index*resolution mapping the brush math inverts
-        // (cx = floor(world.x / res)). Height sampled from the same heightmap; GetHeight clamps
-        // coords to [0,size-1] (decompile 489562) so sampling corner == size is safe.
-        private static Vector3 CornerWorld(Heightmap hm, int size, float res, int x, int z)
+        // World position of a grid corner at FRACTIONAL cell coords (xf, zf) — World XZ = coord*resolution
+        // (the same mapping the brush inverts). Height is bilinearly sampled at that world point via
+        // TerrainElevation.TryGetGroundHeight (which clamps to the map), so half-cell corners conform to
+        // the terrain too.
+        private static Vector3 CornerWorldF(float res, float xf, float zf)
         {
-            int sx = Mathf.Clamp(x, 0, size - 1);
-            int sz = Mathf.Clamp(z, 0, size - 1);
-            float h = hm.GetHeight(sx, sz);
-            return new Vector3(x * res, h + YOffset, z * res);
+            float wx = xf * res, wz = zf * res;
+            float h = TerrainElevation.TryGetGroundHeight(wx, wz, out float gh) ? gh : 0f;
+            return new Vector3(wx, h + YOffset, wz);
         }
 
         private static Color ColorForMode(TerrainElevation.Mode mode) => mode switch
