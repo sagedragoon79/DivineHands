@@ -295,10 +295,11 @@ namespace DivineHands
                         order: 305, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 2));
             Reg(GroupSpawning, Config.SpawnPersistent,
-                NewMeta("Persistent (Wolf/Boar dens)",
-                        "Animals only. When ON (default), Wolf/Boar create a self-respawning DEN at the cursor " +
-                        "(persists through save/load). When OFF, they spawn loose. Deer and Bear ALWAYS spawn " +
-                        "loose at the cursor — FF has no cursor-placeable deer/bear node. Default: ON.",
+                NewMeta("Persistent (nodes/dens)",
+                        "Animals only. When ON (default): Deer drop a self-respawning spawn-area node at the " +
+                        "cursor (circular marker); Wolf/Boar drop a den. When OFF, they spawn loose. Bear is " +
+                        "always loose. Dens persist through save/load; the deer node respawns this session but " +
+                        "isn't serialized (re-drop after a reload). Default: ON.",
                         order: 307, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 0));
             // NOTE: prefab-GUID prefs (SpawnWolfDenGuid, Spawn{Forageable,Tree,Rock,GiantRock}Guids,

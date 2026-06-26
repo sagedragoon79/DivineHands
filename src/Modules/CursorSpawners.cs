@@ -225,14 +225,10 @@ namespace DivineHands.Modules
                 return;
             }
 
-            // Bear, Deer, and the DLC kinds are ALWAYS loose, so they ignore the persistent toggle and
-            // spawn `count` at the cursor. Bear/Fox/Groundhog/Dog/Cat have no den/area population path.
-            // Deer DO have spawn-areas, but those are invisible, map-FIXED regions — the engine only
-            // offers GetRandomEmptySpawnArea (a RANDOM existing area, not the cursor), so a "persistent
-            // deer at the cursor with a visible node" doesn't exist in FF. Loose-at-cursor is the
-            // predictable behaviour (and makes count work). Only Wolf/Boar get cursor-placed dens.
-            if (kind == AnimalKind.Bear || kind == AnimalKind.Deer
-                || IsDlcAnimal(kind) || !Config.SpawnPersistent.Value)
+            // Bear and the DLC kinds are ALWAYS loose (ignore the persistent toggle) — no node/den path.
+            // Deer/Wolf/Boar honour the toggle: ON = a persistent node at the cursor (Deer = a registered
+            // spawn-area that self-respawns + shows a circular marker; Wolf/Boar = a den), OFF = loose.
+            if (kind == AnimalKind.Bear || IsDlcAnimal(kind) || !Config.SpawnPersistent.Value)
             {
                 SpawnAnimalsLoose(am, kind, world, count);
                 return;
@@ -242,6 +238,7 @@ namespace DivineHands.Modules
 
             bool ok = kind switch
             {
+                AnimalKind.Deer => SpawnDeerArea(am, world, count),
                 AnimalKind.Wolf => SpawnDen(am, GroupAnimalType_Wolf, count, world),
                 AnimalKind.Boar => SpawnDen(am, GroupAnimalType_Boar, count, world),
                 _ => false
@@ -630,60 +627,78 @@ namespace DivineHands.Modules
             InvokeSpawnAnimalsAtDen(inst);                    // [35587] populate the den
         }
 
-        // ---- PERSISTENT: Deer SPAWN-AREA node ----
-        // Modeled on CreateNewAnimalGroups [91780] / GetRandomEmptySpawnArea [92283]:
-        //   area = am.GetRandomEmptySpawnArea(group); area.CalculateSpawnPoints();
-        //   foreach point in area.allSpawnPointsRO: am.SpawnAnimal(group, area, point) (returns bool);
-        //   area.inUse = true. SpawnAnimal->AddAnimal sets the area's animalGroup, so it self-respawns.
-        // count = number of distinct spawn-area nodes to claim. Returns true if at least one was populated.
-        // CURRENTLY UNUSED: deer now route to loose-at-cursor (see SpawnAnimals) because FF deer
-        // spawn-areas are invisible / map-fixed and GetRandomEmptySpawnArea isn't cursor-based. Kept for
-        // reference / a possible future "repopulate the map's deer spawn-areas" feature.
-        private static bool SpawnDeerArea(object am, int areaCount)
+        // ---- PERSISTENT: Deer SPAWN-AREA node AT THE CURSOR ----
+        // Mirrors the engine's own SpawnDeer dev command [62750]: make a NEW AnimalSpawnArea centred on
+        // the cursor and spawn `count` deer tied to it. FF's version uses the cursor as the rect CORNER
+        // (node lands ~100 m off) and never registers the area, so it can't self-respawn — we centre on
+        // the cursor AND register the area in the manager's spawn grid (decompile 91789-91791 indexes
+        // through spawnAreaGridRandomizedIndexes -> spawnAreaGrid) so the node self-respawns deer over
+        // time and shows the circular spawn-area marker. Grid lists are protected -> reflected.
+        // NOTE: the area is NOT serialized, so a freshly-made node won't survive save/load — re-drop it.
+        private static FieldInfo? _spawnAreaGridField, _spawnAreaIndexesField;
+
+        private static bool SpawnDeerArea(AnimalManager am, Vector3 world, int count)
         {
             try
             {
-                var groupObj = FindGroup(GroupAnimalType_Deer, GroupSpawnPointType_SpawnArea);
-                if (groupObj == null)
+                var groups = am.GetAllAnimalGroupDefinitions(AnimalGroupDefinition.AnimalType.Deer);
+                if (groups == null || groups.Count == 0)
                 {
                     if (Config.DebugLog.Value)
-                        MelonLogger.Warning("[DivineHands] No spawn-area AnimalGroupDefinition for Deer");
+                        MelonLogger.Warning("[DivineHands] No Deer AnimalGroupDefinitions — can't make a spawn-area node");
                     return false;
                 }
-                var group = (AnimalGroupDefinition)groupObj;
 
-                var animalMgr = (AnimalManager)am;
-                int made = 0;
-                int attempts = Mathf.Max(1, areaCount) * 4;
-                for (int a = 0; a < attempts && made < areaCount; a++)
-                {
-                    var area = animalMgr.GetRandomEmptySpawnArea(group); // PUBLIC [92283]; null if none free
-                    if (area == null) break;                            // no more empty areas -> stop
+                // ~the map's own 64 m spawn grid; centred so the node/marker lands AT the click (FF's dev
+                // command uses the cursor as a corner). new Rect(x,y,w,h) takes a bottom-left origin.
+                const float areaSize = 60f;
+                var rect = new Rect(world.x - areaSize / 2f, world.z - areaSize / 2f, areaSize, areaSize);
+                var area = new AnimalSpawnArea(rect, am.animalSpawnAreaIdCounter++); // public ctor [36206] + counter [90518]
 
-                    // Populate the area's spawn-point list, then iterate it (allSpawnPointsRO is the safe view).
-                    area.CalculateSpawnPoints();                        // PUBLIC [36406]
-                    var points = GetSpawnAreaPoints(area);
-                    if (points == null || points.Count == 0) { area.inUse = true; continue; }
+                RegisterSpawnArea(am, area); // so the engine's respawn tick keeps it populated
 
-                    int spawned = 0;
-                    foreach (var p in points)
-                    {
-                        if (animalMgr.SpawnAnimal(group, area, p))       // PUBLIC [92069]; ties animal to the area
-                            spawned++;
-                    }
-                    area.inUse = true;                                  // claim the area so it persists/respawns
-                    if (spawned > 0) made++;
-                }
+                int spawned = 0;
+                for (int i = 0; i < count; i++)
+                    if (am.SpawnAnimal(groups, area, world)) spawned++; // [92059]; ties the deer to the area
 
                 if (Config.DebugLog.Value)
-                    MelonLogger.Msg($"[DivineHands] Created {made}/{areaCount} persistent deer spawn-area node(s). " +
-                                    "(Deer fill the area over time — give it a moment / reload to see them respawn.)");
-                return made > 0;
+                    MelonLogger.Msg($"[DivineHands] Deer spawn-area node @ {world} — {spawned}/{count} deer " +
+                                    "(persistent + self-respawning this session).");
+                return spawned > 0;
             }
             catch (Exception ex)
             {
                 MelonLogger.Warning($"[DivineHands] SpawnDeerArea failed: {ex.Message}");
                 return false;
+            }
+        }
+
+        // Register a runtime spawn-area in the manager's grid so the respawn tick picks it up. Both lists
+        // are protected; add to spawnAreaGrid AND spawnAreaGridRandomizedIndexes (the tick indexes through
+        // the latter) to keep them in sync. If reflection fails, the area still spawns its initial deer +
+        // marker — it just won't self-respawn.
+        private static void RegisterSpawnArea(AnimalManager am, AnimalSpawnArea area)
+        {
+            try
+            {
+                const BindingFlags F = BindingFlags.NonPublic | BindingFlags.Instance;
+                _spawnAreaGridField    ??= typeof(AnimalManager).GetField("spawnAreaGrid", F);
+                _spawnAreaIndexesField ??= typeof(AnimalManager).GetField("spawnAreaGridRandomizedIndexes", F);
+                var grid    = _spawnAreaGridField?.GetValue(am) as List<AnimalSpawnArea>;
+                var indexes = _spawnAreaIndexesField?.GetValue(am) as List<int>;
+                if (grid == null || indexes == null)
+                {
+                    if (Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] could not reflect spawn grid — deer node won't self-respawn");
+                    return;
+                }
+                grid.Add(area);
+                indexes.Add(grid.Count - 1);
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] RegisterSpawnArea failed: {ex.Message}");
             }
         }
 
