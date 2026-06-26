@@ -164,9 +164,9 @@ namespace DivineHands
                         order: 121, indent: 20,
                         visibleWhen: () => Config.EnableGodView.Value));
             Reg(GroupGodTools, Config.ZoomStepScale,
-                NewMeta("Zoom Fineness (close-in)",
-                        "Lower = finer steps near the ground (0.4 ≈ 2.5x finer). Far-out zoom is unaffected. " +
-                        "Default: 0.4.",
+                NewMeta("Zoom Fineness (God View)",
+                        "Scales the god-view zoom step at every zoom level (0.4 ≈ 2.5x finer; 1.0 = vanilla). " +
+                        "Lower = finer; close-in is an extra ~2x finer than far-out. Default: 0.4.",
                         min: 0.02f, max: 1.0f, order: 122, indent: 40,
                         visibleWhen: () => Config.EnableGodView.Value && Config.ProportionalZoom.Value));
             Reg(GroupGodTools, Config.EnableFreeCam,

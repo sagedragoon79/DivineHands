@@ -270,10 +270,10 @@ namespace DivineHands
 
             ZoomStepScale = _root.CreateEntry(
                 "ZoomStepScale", 0.4f,
-                display_name: "Zoom Fineness (close-in)",
-                description: "How fine the zoom steps get when zoomed in close, as a fraction of the vanilla " +
-                             "step (0.4 ≈ 40% = ~2.5x finer near the ground). Lower = finer. Far-out zoom is " +
-                             "unaffected. Range 0.02–1.0. Default: 0.4.");
+                display_name: "Zoom Fineness (God View)",
+                description: "Scales the god-view zoom step at EVERY zoom level, as a fraction of vanilla " +
+                             "(0.4 ≈ 40% = ~2.5x finer; 1.0 = vanilla god-view step). Lower = finer. Close-in " +
+                             "steps are an extra ~2x finer than far-out. Range 0.02–1.0. Default: 0.4.");
 
             EnableFreeCam = _root.CreateEntry(
                 "EnableFreeCam", false,

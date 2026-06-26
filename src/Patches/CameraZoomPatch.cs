@@ -89,12 +89,16 @@ namespace DivineHands.Patches
             {
                 bool unlocked = _zoomUnlockedField!.GetValue(__instance) is bool b && b;
 
-                // currentZoom: 0 (far) .. 1 (close). Steps should get finer toward 1.
+                // currentZoom: 0 (far) .. 1 (close).
                 float currentZoom = Mathf.Clamp01((float)_calculateZoomMethod!.Invoke(__instance, null)!);
 
-                // Close-in fineness floor; far-out (currentZoom→0) lerps back to 1 (~vanilla feel).
+                // `fine` (Zoom Fineness slider) scales the WHOLE god-view zoom step, so its effect is
+                // visible at ANY zoom level. The old lerp(fine,1,1-cz) collapsed to ~1 when far out, which
+                // hid the slider unless you were zoomed all the way in. A mild built-in taper keeps close-in
+                // steps a touch finer than far-out (closeBoost), but `fine` is the dominant control.
                 float fine = Mathf.Clamp(Config.ZoomStepScale.Value, 0.02f, 1f);
-                float multiplier = Mathf.Max(Mathf.Lerp(fine, 1f, 1f - currentZoom), 0.02f);
+                const float closeBoost = 0.5f; // close-in steps = 0.5x of far-out steps
+                float multiplier = Mathf.Max(fine * Mathf.Lerp(closeBoost, 1f, 1f - currentZoom), 0.01f);
 
                 // Diagnostic: every scroll while DebugLog is on, so a "zoom not working" report can be
                 // pinpointed (patch firing? God View flag set? what numbers?).
