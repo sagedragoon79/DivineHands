@@ -60,9 +60,11 @@ namespace DivineHands.Core
                 return;
             }
 
-            // Cell block [minX..maxX] -> corner lattice [minX..maxX+1] x [minZ..maxZ+1].
-            int x0 = minX, x1 = maxX + 1;
-            int z0 = minZ, z1 = maxZ + 1;
+            // The brush rect IS the corner/vertex lattice [minX..maxX] x [minZ..maxZ] (BrushRectFromCenter
+            // returns w+1 / h+1 vertices for a w×h cell brush). The cells are the quads between adjacent
+            // vertices, so cols/rows = the vertex span. Draws exactly the cells ApplyStroke flattens.
+            int x0 = minX, x1 = maxX;
+            int z0 = minZ, z1 = maxZ;
             int cols = x1 - x0; // cells across
             int rows = z1 - z0; // cells deep
 

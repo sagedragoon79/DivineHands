@@ -392,9 +392,12 @@ namespace DivineHands.Modules
             return minX <= maxX && minZ <= maxZ;
         }
 
-        // Width (X, columns) × depth (Z, rows) brush footprint centred on cell (cx, cz), clamped to the
-        // heightmap. Independent dimensions so the brush can be e.g. 1×10 (a trench) or 5×5 (a plateau).
-        // maxX/maxZ are taken from the UNclamped origin so a partially off-map brush still spans correctly.
+        // Width (X) × depth (Z) brush footprint in CELLS, centred on cell (cx, cz), clamped to the
+        // heightmap. Returns the corner/VERTEX lattice that bounds those cells: w cells need w+1 corner
+        // vertices, so maxX = origin + w (NOT w-1). FillElevation sets every vertex in [minX..maxX], which
+        // flattens exactly the w×h cells between them — matching the previewed grid (TerrainBrushGrid draws
+        // the same lattice). The earlier "+(w-1)" set one fewer vertex, leaving the last cell row/column
+        // unflattened. Independent dims so the brush can be 1×10 (a trench) or 5×5 (a plateau).
         private static void BrushRectFromCenter(int cx, int cz,
             out int minX, out int minZ, out int maxX, out int maxZ)
         {
@@ -404,8 +407,8 @@ namespace DivineHands.Modules
             int rawMinZ = cz - h / 2;
             minX = Mathf.Max(rawMinX, 0);
             minZ = Mathf.Max(rawMinZ, 0);
-            maxX = Mathf.Min(rawMinX + (w - 1), _size - 1);
-            maxZ = Mathf.Min(rawMinZ + (h - 1), _size - 1);
+            maxX = Mathf.Min(rawMinX + w, _size - 1);
+            maxZ = Mathf.Min(rawMinZ + h, _size - 1);
         }
 
         private static void BumpGrid(MelonLoader.MelonPreferences_Entry<int> entry, int delta)

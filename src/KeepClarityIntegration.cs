@@ -302,11 +302,15 @@ namespace DivineHands
                         "isn't serialized (re-drop after a reload). Default: ON.",
                         order: 307, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 0));
-            // NOTE: prefab-GUID prefs (SpawnWolfDenGuid, Spawn{Forageable,Tree,Rock,GiantRock}Guids,
-            // LivestockGuid{Cow,Chicken,Goat,Horse}) are intentionally NOT registered with Keep Clarity.
-            // They ship with working defaults, and a mistyped GUID silently breaks spawning — so they're
-            // hidden from the settings panel to prevent accidental breakage. Power users can still edit
-            // them directly in UserData/MelonPreferences.cfg.
+            // Prefab-GUID prefs: REGISTERED but always-hidden (visibleWhen=false). KC's "Other Settings"
+            // catch-all lists UNregistered MelonPreferences, so simply not registering them made them show
+            // up THERE — registering with a false predicate keeps them out of that dump AND off every
+            // visible page. They keep working defaults; edit in UserData/MelonPreferences.cfg if needed.
+            Reg(GroupSpawning, Config.SpawnWolfDenGuid,     NewMeta("Wolf Den GUID",     visibleWhen: () => false));
+            Reg(GroupSpawning, Config.SpawnForageableGuids, NewMeta("Forageable GUIDs",  visibleWhen: () => false));
+            Reg(GroupSpawning, Config.SpawnTreeGuids,       NewMeta("Tree GUIDs",        visibleWhen: () => false));
+            Reg(GroupSpawning, Config.SpawnRockGuids,       NewMeta("Rock GUIDs",        visibleWhen: () => false));
+            Reg(GroupSpawning, Config.SpawnGiantRockGuids,  NewMeta("Boulder GUIDs",     visibleWhen: () => false));
             Reg(GroupSpawning, Config.SpawnApplyKey,
                 NewMeta("Spawn Apply Key",
                         "Key/button that spawns at the cursor. Mouse2 = middle, Mouse0 = left, or a chord. " +
@@ -347,8 +351,11 @@ namespace DivineHands
                         "The selected building must match the animal. Default: Cow.",
                         min: 0, max: 3, order: 403, indent: 20,
                         visibleWhen: () => Config.InjectEnable.Value));
-            // (Cow/Chicken/Goat/Horse prefab-GUID prefs are hidden from KC — working defaults ship and a
-            // mistyped GUID breaks the add; edit them in UserData/MelonPreferences.cfg if ever needed.)
+            // Livestock prefab-GUID prefs: registered but always-hidden (see the spawner GUID note above).
+            Reg(GroupInject, Config.LivestockGuidCow,     NewMeta("Cow Prefab GUID",     visibleWhen: () => false));
+            Reg(GroupInject, Config.LivestockGuidChicken, NewMeta("Chicken Prefab GUID", visibleWhen: () => false));
+            Reg(GroupInject, Config.LivestockGuidGoat,    NewMeta("Goat Prefab GUID",    visibleWhen: () => false));
+            Reg(GroupInject, Config.LivestockGuidHorse,   NewMeta("Horse Prefab GUID",   visibleWhen: () => false));
         }
     }
 }
