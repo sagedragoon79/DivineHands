@@ -57,9 +57,9 @@ namespace DivineHands
         /// gated on the live zoomUnlocked flag, so vanilla zoom is untouched when God View is off.</summary>
         public static MelonPreferences_Entry<bool>   ProportionalZoom { get; private set; } = null!;
 
-        /// <summary>Close-in zoom fineness (0.02–1.0) as a fraction of the vanilla step. Lower = finer
-        /// steps near the ground; far-out zoom stays near vanilla. Used only with God View + Proportional Zoom.</summary>
-        public static MelonPreferences_Entry<float>  ZoomStepScale  { get; private set; } = null!;
+        /// <summary>God-View zoom step in CELLS per mouse-wheel notch (2–50; 1 cell ≈ 5 m). Higher = bigger
+        /// jumps per notch (coarser). Close-in steps taper ~2x finer than far-out. God View + Proportional Zoom only.</summary>
+        public static MelonPreferences_Entry<int>    ZoomCellsPerNotch { get; private set; } = null!;
 
         /// <summary>ENABLE/AVAILABLE switch for Free Cam. When true, the Free Cam control appears in
         /// the in-game panel and its sliders/hotkey reveal in KC. The live ON/OFF is a runtime flag
@@ -268,12 +268,13 @@ namespace DivineHands
                              "(the wide god-view range otherwise jumps from normal to too-close with nothing " +
                              "between). Far-out zoom stays near vanilla. Off = flat vanilla step. Default: on.");
 
-            ZoomStepScale = _root.CreateEntry(
-                "ZoomStepScale", 0.4f,
-                display_name: "Zoom Fineness (God View)",
-                description: "Scales the god-view zoom step at EVERY zoom level, as a fraction of vanilla " +
-                             "(0.4 ≈ 40% = ~2.5x finer; 1.0 = vanilla god-view step). Lower = finer. Close-in " +
-                             "steps are an extra ~2x finer than far-out. Range 0.02–1.0. Default: 0.4.");
+            ZoomCellsPerNotch = _root.CreateEntry(
+                "ZoomCellsPerNotch", 10,
+                display_name: "Zoom Step (God View)",
+                description: "How far one mouse-wheel notch moves the god-view camera, in CELLS (2–50; " +
+                             "1 cell ≈ 5 m, so 2 = ~10 m/notch, 50 = ~250 m/notch). Higher = bigger jumps " +
+                             "(coarser); lower = finer. Close-in notches taper ~2x finer than far-out. " +
+                             "Default: 10 (~50 m/notch, roughly vanilla).");
 
             EnableFreeCam = _root.CreateEntry(
                 "EnableFreeCam", false,

@@ -163,11 +163,12 @@ namespace DivineHands
                         "normal to too-close). Far-out zoom stays vanilla. Off = flat vanilla step. Default: ON.",
                         order: 121, indent: 20,
                         visibleWhen: () => Config.EnableGodView.Value));
-            Reg(GroupGodTools, Config.ZoomStepScale,
-                NewMeta("Zoom Fineness (God View)",
-                        "Scales the god-view zoom step at every zoom level (0.4 ≈ 2.5x finer; 1.0 = vanilla). " +
-                        "Lower = finer; close-in is an extra ~2x finer than far-out. Default: 0.4.",
-                        min: 0.02f, max: 1.0f, order: 122, indent: 40,
+            Reg(GroupGodTools, Config.ZoomCellsPerNotch,
+                NewMeta("Zoom Step (God View)",
+                        "Cells one wheel notch moves the god-view camera (2–50; 1 cell ≈ 5 m, so 2 ≈ 10 m, " +
+                        "50 ≈ 250 m). Higher = bigger jumps; lower = finer. Close-in tapers ~2x finer. " +
+                        "Default: 10 (~50 m/notch).",
+                        min: 2, max: 50, order: 122, indent: 40,
                         visibleWhen: () => Config.EnableGodView.Value && Config.ProportionalZoom.Value));
             Reg(GroupGodTools, Config.EnableFreeCam,
                 NewMeta("Free Cam",

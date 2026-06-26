@@ -7,11 +7,10 @@ using UnityEngine;
 namespace DivineHands.Patches
 {
     /// <summary>
-    /// Tames God View's mouse-scroll zoom: in God View the distance range is widened (1..1000), so a raw
-    /// scroll notch jumps a huge amount. A prefix on <c>CameraManager.AdjustZoom</c> rescales the zoom
-    /// delta by <c>fine × lerp(closeBoost,1,1-currentZoom) × baseStep</c> — <c>fine</c> (the Zoom Fineness
-    /// slider) scales the whole range so its effect is visible at any zoom level, a mild taper keeps
-    /// close-in a touch finer, and <c>baseStep</c> supplies the overall damping.
+    /// Tames God View's mouse-scroll zoom: in God View the distance range is widened (~6..900 m), so a raw
+    /// scroll notch jumps a huge amount. A prefix on <c>CameraManager.AdjustZoom</c> SETS the zoom delta so
+    /// one notch moves a FIXED distance — <c>ZoomCellsPerNotch</c> (2–50) × ~5 m far-out, tapered ~2x finer
+    /// close-in. Because zoom is normalised 0..1 across the distance span, the normalised step = metres/span.
     ///
     /// HISTORY / why it's built this way: the original design gated on the live <c>CameraManager.zoomUnlocked</c>
     /// field (and had God View set it so the game's own 5% damping applied). In practice that field — and
@@ -78,20 +77,23 @@ namespace DivineHands.Patches
                     catch { currentZoom = 0f; }
                 }
 
-                // `fine` (Zoom Fineness slider) scales the whole god-view step (visible at any zoom level),
-                // with a mild close-in taper. baseStep tames the widened god-view range — it replaces the
-                // game's 5% zoom damping, which DH's God View no longer relies on (that path was reflection-
-                // fragile). fine=1 ≈ the old vanilla-god-view feel; lower = finer.
-                float fine = Mathf.Clamp(Config.ZoomStepScale.Value, 0.02f, 1f);
-                const float closeBoost = 0.5f; // close-in steps = 0.5x of far-out steps
-                const float baseStep = 0.05f;  // overall tame factor for the widened god-view zoom range
-                float multiplier = Mathf.Max(fine * Mathf.Lerp(closeBoost, 1f, 1f - currentZoom) * baseStep, 0.001f);
+                // SET (not scale) the zoom delta so one wheel notch moves a FIXED distance regardless of the
+                // raw scroll magnitude: cells × ~5 m per notch far-out, tapered ~2x finer close-in. zoom is
+                // normalised 0..1 across the god-view distance span, so the normalised step = metres / span.
+                // (Mouse wheel = one call per notch -> one step; smooth/trackpad scroll would feel notchy.)
+                int cells = Mathf.Clamp(Config.ZoomCellsPerNotch.Value, 2, 50);
+                const float metresPerCell = 5f;
+                const float gvSpan = 900f - 6f;  // GV_MaxDistance - GV_MinDistance (CameraTools god-view range)
+                const float closeBoost = 0.5f;   // close-in notches = 0.5x of far-out
+                float taper = Mathf.Lerp(closeBoost, 1f, 1f - currentZoom);
+                float stepMetres = cells * metresPerCell * taper;
+                float dz = Mathf.Sign(__0) * (stepMetres / gvSpan);
 
                 if (Config.DebugLog.Value)
                     MelonLogger.Msg($"[DivineHands] Zoom: in={__0:0.#####} curZoom={currentZoom:0.###} " +
-                                    $"fine={fine:0.##} mult={multiplier:0.#####} out={__0 * multiplier:0.#####}");
+                                    $"cells={cells} stepM={stepMetres:0.#} out(dz)={dz:0.#####}");
 
-                __0 *= multiplier;
+                __0 = dz;
             }
             catch (Exception ex)
             {
