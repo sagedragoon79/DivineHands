@@ -78,12 +78,16 @@ namespace DivineHands.Patches
             if (!Config.MasterEnable.Value || !Config.ProportionalZoom.Value) return;
 
             Resolve();
-            if (!_resolved) return;
+            if (!_resolved)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg("[DivineHands] Zoom prefix: reflection not resolved — passing through");
+                return;
+            }
 
             try
             {
-                // Only act while God View is on. Off => pass the scroll delta through untouched.
-                if (_zoomUnlockedField!.GetValue(__instance) is not bool unlocked || !unlocked) return;
+                bool unlocked = _zoomUnlockedField!.GetValue(__instance) is bool b && b;
 
                 // currentZoom: 0 (far) .. 1 (close). Steps should get finer toward 1.
                 float currentZoom = Mathf.Clamp01((float)_calculateZoomMethod!.Invoke(__instance, null)!);
@@ -91,6 +95,15 @@ namespace DivineHands.Patches
                 // Close-in fineness floor; far-out (currentZoom→0) lerps back to 1 (~vanilla feel).
                 float fine = Mathf.Clamp(Config.ZoomStepScale.Value, 0.02f, 1f);
                 float multiplier = Mathf.Max(Mathf.Lerp(fine, 1f, 1f - currentZoom), 0.02f);
+
+                // Diagnostic: every scroll while DebugLog is on, so a "zoom not working" report can be
+                // pinpointed (patch firing? God View flag set? what numbers?).
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] Zoom prefix: in={__0:0.#####} godView(zoomUnlocked)={unlocked} " +
+                                    $"curZoom={currentZoom:0.###} fine={fine:0.##} mult={multiplier:0.###}");
+
+                // Only act while God View is on (zoomUnlocked). Off => pass the scroll delta through.
+                if (!unlocked) return;
 
                 __0 *= multiplier;
             }
