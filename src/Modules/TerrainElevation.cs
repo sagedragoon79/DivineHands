@@ -353,6 +353,18 @@ namespace DivineHands.Modules
         /// <summary>World point under the cursor via FF's terrain raycast (same call ApplyStroke uses).</summary>
         public static bool TryGetCursorWorld(out Vector3 world) => TryGetCursorWorldPoint(out world);
 
+        /// <summary>The resolved Terrain2 instance (boxed), or null if terrain isn't ready. Exposed so the
+        /// lake stamp can drive the engine's WaterPlane/WaterChunk build off the same terrain DH carves.</summary>
+        public static object? ResolvedTerrain2 { get { return ResolveTerrain() ? _terrain : null; } }
+
+        /// <summary>Public wrapper for the engine post-edit notify (mesh + colliders + NavMesh + tree
+        /// re-anchor) over a heightmap rect, so other tools (lake stamp) can rebuild after writing heights
+        /// via the shared Heightmap from <see cref="TryGetGridContext"/>. No-op until terrain resolves.</summary>
+        public static void RefreshTerrainRect(int minX, int minZ, int maxX, int maxZ)
+        {
+            if (ResolveTerrain()) RefreshRect(minX, minZ, maxX, maxZ);
+        }
+
         /// <summary>Terrain surface height (world-space Y, metres) at an arbitrary world XZ, bilinearly
         /// sampled from the heightmap so it varies smoothly between cells. Heightmap values ARE world Y
         /// (ApplyStroke writes <c>world.y</c> directly via SetHeight). Used by Free Cam's ground floor.

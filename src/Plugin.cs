@@ -65,6 +65,7 @@ namespace DivineHands
                 GodTools.OnSceneExit();
                 CameraTools.OnSceneExit();
                 TerrainElevation.OnSceneExit();
+                LakeStamp.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
                 CursorSpawners.OnSceneExit();
                 ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
@@ -77,6 +78,7 @@ namespace DivineHands
             GodTools.OnMapLoaded();
             CameraTools.OnMapLoaded();
             TerrainElevation.OnMapLoaded();
+            LakeStamp.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
             ItemInjection.OnMapLoaded();
@@ -103,10 +105,12 @@ namespace DivineHands
                 // Arm Terrain / Spawner straight from the keyboard (no tab click) — re-press disarms.
                 if (Hotkey.Pressed(Config.TerrainArmHotkey.Value)) DivinePanel.ToggleArmTerrain();
                 if (Hotkey.Pressed(Config.SpawnerArmHotkey.Value)) DivinePanel.ToggleArmSpawner();
+                if (Hotkey.Pressed(Config.LakeArmHotkey.Value))    DivinePanel.ToggleArmLake();
 
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
                 TerrainElevation.OnUpdate();
+                LakeStamp.OnUpdate();
                 CursorSpawners.OnUpdate();
                 ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state

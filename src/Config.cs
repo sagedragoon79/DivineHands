@@ -116,6 +116,18 @@ namespace DivineHands
         /// nearest whole heightmap cells on apply. Default off.</summary>
         public static MelonPreferences_Entry<bool>   TerrainGridFineSnap { get; private set; } = null!;
 
+        // ===== Lake / Pond stamp (mirrors Pangu) =====
+        public static MelonPreferences_Entry<bool>   LakeEnable     { get; private set; } = null!;
+        public static MelonPreferences_Entry<int>    LakeShape      { get; private set; } = null!; // 0 = Rectangle, 1 = Circle
+        public static MelonPreferences_Entry<int>    LakeGridWidth  { get; private set; } = null!; // core brush half-extent X (cells)
+        public static MelonPreferences_Entry<int>    LakeGridHeight { get; private set; } = null!; // core brush half-extent Z (cells)
+        public static MelonPreferences_Entry<float>  LakeFillRatio  { get; private set; } = null!;
+        public static MelonPreferences_Entry<float>  LakeCarveDepth { get; private set; } = null!;
+        public static MelonPreferences_Entry<float>  LakeShoreWidth { get; private set; } = null!;
+        public static MelonPreferences_Entry<float>  LakeNoGoWidth  { get; private set; } = null!;
+        public static MelonPreferences_Entry<string> LakeArmHotkey  { get; private set; } = null!;
+        public static MelonPreferences_Entry<string> LakeApplyKey   { get; private set; } = null!;
+
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
         public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
@@ -362,6 +374,30 @@ namespace DivineHands
                              "free-build buildings (TerrainHelper-style). It's a placement guide — the " +
                              "sculpt still resolves to the nearest whole heightmap cells on apply, so for " +
                              "crisp flat pads leave this off. Default: off.");
+
+            // ===== Lake / Pond stamp =====
+            LakeEnable = _root.CreateEntry("LakeEnable", false,
+                display_name: "Lake / Pond Stamp",
+                description: "Make the Lake stamp available (adds its tab to the in-game panel). Stamps a " +
+                             "carved, water-filled lake at the cursor (mirrors Pangu). Default: off.");
+            LakeShape = _root.CreateEntry("LakeShape", 0,
+                display_name: "Lake Shape", description: "0 = Rectangle, 1 = Circle.");
+            LakeGridWidth = _root.CreateEntry("LakeGridWidth", 5,
+                display_name: "Lake Width", description: "Core footprint half-width (X) in cells (1–10). Arrow keys resize while armed.");
+            LakeGridHeight = _root.CreateEntry("LakeGridHeight", 5,
+                display_name: "Lake Depth (cells)", description: "Core footprint half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
+            LakeFillRatio = _root.CreateEntry("LakeFillRatio", 1.3f,
+                display_name: "Fill Ratio", description: "Multiplies the footprint half-extents (1.0–2.0). Default: 1.3.");
+            LakeCarveDepth = _root.CreateEntry("LakeCarveDepth", 4.6f,
+                display_name: "Carve Depth", description: "How far the lake bed sits below the water plane, world metres (0.4–12). Default: 4.6.");
+            LakeShoreWidth = _root.CreateEntry("LakeShoreWidth", 16f,
+                display_name: "Shore Blend", description: "Outer-blend ring width that ramps the banks back up to land (2–40). Default: 16.");
+            LakeNoGoWidth = _root.CreateEntry("LakeNoGoWidth", 7f,
+                display_name: "No-Go Width", description: "Flat pad added around the footprint (0–24). Default: 7.");
+            LakeArmHotkey = _root.CreateEntry("LakeArmHotkey", "Insert",
+                display_name: "Lake Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.");
+            LakeApplyKey = _root.CreateEntry("LakeApplyKey", "Ctrl+Mouse1",
+                display_name: "Lake Apply Key", description: "Key/button that stamps the lake at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",

@@ -33,6 +33,7 @@ namespace DivineHands
         internal const string GroupTerrain  = "Terrain Sculpting";
         internal const string GroupSpawning = "Cursor Spawners";
         internal const string GroupInject   = "Selected Building";
+        internal const string GroupLake     = "Lake Stamp";
 
         public static void TryRegisterAll()
         {
@@ -332,6 +333,40 @@ namespace DivineHands
                         order: 307, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
             // (Forageable/Tree/Rock/Boulder prefab-GUID prefs are hidden from KC — see note above.)
+
+            // ===== Lake / Pond stamp =====
+            Reg(GroupLake, Config.LakeEnable,
+                NewMeta("Lake / Pond Stamp",
+                        "Adds the Lake tab to the in-game panel. Stamps a carved, water-filled lake at the " +
+                        "cursor (mirrors Pangu) — persists natively. Default: OFF.",
+                        order: 500));
+            Reg(GroupLake, Config.LakeShape,
+                NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
+                        min: 0, max: 1, order: 501, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeGridWidth,
+                NewMeta("Width (cells)", "Core footprint half-width in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 502, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeGridHeight,
+                NewMeta("Depth (cells)", "Core footprint half-depth in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 503, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeCarveDepth,
+                NewMeta("Carve Depth", "Lake bed depth below the water plane, metres (0.4–12). Default: 4.6.",
+                        min: 0.45f, max: 12f, order: 504, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeFillRatio,
+                NewMeta("Fill Ratio", "Multiplies the footprint half-extents (1.0–2.0). Default: 1.3.",
+                        min: 1f, max: 2f, order: 505, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeShoreWidth,
+                NewMeta("Shore Blend", "Bank ring width that ramps back up to land (2–40). Default: 16.",
+                        min: 2f, max: 40f, order: 506, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeNoGoWidth,
+                NewMeta("No-Go Width", "Flat pad added around the footprint, cells (0–24). Default: 7.",
+                        min: 0f, max: 24f, order: 507, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeArmHotkey,
+                NewMeta("Lake Arm Hotkey", "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.",
+                        order: 508, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeApplyKey,
+                NewMeta("Lake Apply Key", "Key/button that stamps the lake at the cursor. Default: Ctrl+Mouse1.",
+                        order: 509, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
 
             // ===== Selected Building (Item Injection) =====
             Reg(GroupInject, Config.InjectEnable,

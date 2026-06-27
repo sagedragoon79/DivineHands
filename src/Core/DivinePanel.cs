@@ -36,7 +36,7 @@ namespace DivineHands.Core
 
         /// <summary>Which god-power (if any) is currently armed. Only ONE tool is armed at a time —
         /// arming spawners disarms terrain and vice-versa — so the apply key is never ambiguous.</summary>
-        private enum ArmedTool { None, Terrain, Spawner }
+        private enum ArmedTool { None, Terrain, Spawner, Lake }
         private static ArmedTool _armedTool = ArmedTool.None;
 
         /// <summary>True when the panel is open AND the Terrain tool is the armed mode — read by
@@ -51,6 +51,12 @@ namespace DivineHands.Core
         public static bool SpawnerModeActive =>
             _visible && Config.MasterEnable.Value && Config.SpawnEnable.Value
             && _armedTool == ArmedTool.Spawner;
+
+        /// <summary>True when the panel is open AND the Lake stamp is the armed mode — read by
+        /// <see cref="DivineHands.Modules.LakeStamp"/> to gate stamping on the apply key.</summary>
+        public static bool LakeModeActive =>
+            _visible && Config.MasterEnable.Value && Config.LakeEnable.Value
+            && _armedTool == ArmedTool.Lake;
 
         /// <summary>True when the cursor is over the visible panel — read by the input guard
         /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
@@ -72,6 +78,9 @@ namespace DivineHands.Core
 
         /// <summary>Toggle-arm the Spawner tool from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
         public static void ToggleArmSpawner() => HotkeyArm(ArmedTool.Spawner, Config.SpawnEnable.Value);
+
+        /// <summary>Toggle-arm the Lake stamp from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
+        public static void ToggleArmLake() => HotkeyArm(ArmedTool.Lake, Config.LakeEnable.Value);
 
         private static void HotkeyArm(ArmedTool tool, bool enabled)
         {
@@ -183,13 +192,14 @@ namespace DivineHands.Core
         {
             bool terrainEnabled = Config.TerrainEnable.Value;
             bool spawnerEnabled = Config.SpawnEnable.Value;
+            bool lakeEnabled    = Config.LakeEnable.Value;
 
-            GUILayout.Label("Terrain & Spawner", SectionStyle);
+            GUILayout.Label("Terrain / Spawner / Lake", SectionStyle);
 
-            if (!terrainEnabled && !spawnerEnabled)
+            if (!terrainEnabled && !spawnerEnabled && !lakeEnabled)
             {
                 _armedTool = ArmedTool.None;
-                GUILayout.Label("(enable Terrain editing or Cursor spawners in the Keep Clarity settings)",
+                GUILayout.Label("(enable Terrain / Cursor spawners / Lake stamp in the Keep Clarity settings)",
                                 HintStyle);
                 return;
             }
@@ -197,9 +207,10 @@ namespace DivineHands.Core
             // Drop a stale arm if its tool was disabled in config since it was armed.
             if (_armedTool == ArmedTool.Terrain && !terrainEnabled) _armedTool = ArmedTool.None;
             if (_armedTool == ArmedTool.Spawner && !spawnerEnabled) _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Lake    && !lakeEnabled)    _armedTool = ArmedTool.None;
 
             // Tab row — each tab is a toggle-button whose pressed state == that tool being armed.
-            // Re-clicking the active tab clears the arm (None); clicking the other tab switches.
+            // Re-clicking the active tab clears the arm (None); clicking another tab switches.
             GUILayout.BeginHorizontal();
             if (terrainEnabled)
             {
@@ -213,6 +224,12 @@ namespace DivineHands.Core
                 bool now = GUILayout.Toggle(armed, "Spawner", GUI.skin.button);
                 if (now != armed) _armedTool = now ? ArmedTool.Spawner : ArmedTool.None;
             }
+            if (lakeEnabled)
+            {
+                bool armed = _armedTool == ArmedTool.Lake;
+                bool now = GUILayout.Toggle(armed, "Lake", GUI.skin.button);
+                if (now != armed) _armedTool = now ? ArmedTool.Lake : ArmedTool.None;
+            }
             GUILayout.EndHorizontal();
 
             // Options for whichever tab is armed (shared area). Nothing armed => prompt.
@@ -220,11 +237,42 @@ namespace DivineHands.Core
             {
                 case ArmedTool.Terrain: DrawTerrainOptions(); break;
                 case ArmedTool.Spawner: DrawSpawnerOptions(); break;
+                case ArmedTool.Lake:    DrawLakeOptions(); break;
                 default:
-                    GUILayout.Label($"Click a tab — or press {Config.TerrainArmHotkey.Value} (Terrain) / " +
-                                    $"{Config.SpawnerArmHotkey.Value} (Spawner) — to arm a tool.", HintStyle);
+                    GUILayout.Label("Click a tab to arm a tool — it applies on its key while armed.", HintStyle);
                     break;
             }
+        }
+
+        // Lake stamp options — shape + the Pangu-style sliders. Tab arms it; applies on the apply key.
+        private static void DrawLakeOptions()
+        {
+            GUILayout.BeginHorizontal();
+            bool rect = Config.LakeShape.Value == 0;
+            if (GUILayout.Toggle(rect, "Rectangle", GUI.skin.button)) Config.LakeShape.Value = 0;
+            if (GUILayout.Toggle(!rect, "Circle", GUI.skin.button)) Config.LakeShape.Value = 1;
+            GUILayout.EndHorizontal();
+
+            int gw = Mathf.Clamp(Config.LakeGridWidth.Value, 1, 10);
+            int gh = Mathf.Clamp(Config.LakeGridHeight.Value, 1, 10);
+            float cell = DivineHands.Modules.TerrainElevation.CellMeters;
+            string size = cell > 0f ? $"Size: {gw} x {gh} cells ({gw * cell:0.#} x {gh * cell:0.#} m core)"
+                                    : $"Size: {gw} x {gh} cells";
+            GUILayout.Label(size, HintStyle);
+            GUILayout.Label("Width", HintStyle);
+            Config.LakeGridWidth.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gw, 1f, 10f));
+            GUILayout.Label("Depth", HintStyle);
+            Config.LakeGridHeight.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gh, 1f, 10f));
+            GUILayout.Label("Arrows resize (←→ width · ↑↓ depth)", HintStyle);
+
+            GUILayout.Label($"Carve Depth: {Config.LakeCarveDepth.Value:0.0} m", HintStyle);
+            Config.LakeCarveDepth.Value = GUILayout.HorizontalSlider(Config.LakeCarveDepth.Value, 0.45f, 12f);
+            GUILayout.Label($"Fill Ratio: {Config.LakeFillRatio.Value:0.0}", HintStyle);
+            Config.LakeFillRatio.Value = GUILayout.HorizontalSlider(Config.LakeFillRatio.Value, 1f, 2f);
+            GUILayout.Label($"Shore Blend: {Mathf.RoundToInt(Config.LakeShoreWidth.Value)}", HintStyle);
+            Config.LakeShoreWidth.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(Config.LakeShoreWidth.Value, 2f, 40f));
+
+            GUILayout.Label($"Apply: {Config.LakeApplyKey.Value}   (more sliders: Keep Clarity panel)", HintStyle);
         }
 
         private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten", "Average" };
