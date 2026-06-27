@@ -310,6 +310,11 @@ namespace DivineHands.Core
             GUILayout.Label($"Fertility: {Mathf.RoundToInt(Config.FertilityAmount.Value)}%", HintStyle);
             Config.FertilityAmount.Value = GUILayout.HorizontalSlider(Config.FertilityAmount.Value, 0f, 100f);
 
+            Config.FertilityConditionSoil.Value =
+                GUILayout.Toggle(Config.FertilityConditionSoil.Value, " Condition soil for orchards");
+            if (Config.FertilityConditionSoil.Value)
+                GUILayout.Label("   also sets soil texture + water to the fruit-tree ideal", HintStyle);
+
             GUILayout.Label($"Apply: {Config.FertilityApplyKey.Value}   (effectiveness slider: Keep Clarity panel)", HintStyle);
         }
 

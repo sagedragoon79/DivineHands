@@ -393,12 +393,18 @@ namespace DivineHands
             Reg(GroupFertility, Config.FertilityMult,
                 NewMeta("Fertilizer Effectiveness %", "Per-cell fertilizer/compost effectiveness the brush sets (0–100%). Default: 100.",
                         min: 0f, max: 100f, order: 525, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+            Reg(GroupFertility, Config.FertilityConditionSoil,
+                NewMeta("Condition Soil for Orchards",
+                        "Also set soil texture (sand/clay) + water to the fruit-tree ideal (read from the game's own " +
+                        "penalty curves) so orchards aren't dragged down by poor soil. Great for fruit trees, possibly " +
+                        "less ideal for crops. Default: off.",
+                        order: 526, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityArmHotkey,
                 NewMeta("Fertility Arm Hotkey", "Key/chord that arms (re-press disarms) the Fertility painter. Default: Delete.",
-                        order: 526, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+                        order: 527, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityApplyKey,
                 NewMeta("Fertility Apply Key", "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1.",
-                        order: 527, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+                        order: 528, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
 
             // ===== Selected Building (Item Injection) =====
             Reg(GroupInject, Config.InjectEnable,

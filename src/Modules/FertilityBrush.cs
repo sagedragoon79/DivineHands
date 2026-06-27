@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using UnityEngine;
 using MelonLoader;
 
@@ -20,8 +21,12 @@ namespace DivineHands.Modules
     /// </summary>
     public static class FertilityBrush
     {
-        public static void OnMapLoaded() { }
-        public static void OnSceneExit() { }
+        // Orchard-ideal soil texture/water, found by sampling FF's own fruit-tree penalty curves (cached/map).
+        private static bool _idealResolved;
+        private static float _idealSandClay = 0.5f, _idealWater = 0.5f;
+
+        public static void OnMapLoaded() { _idealResolved = false; }
+        public static void OnSceneExit() { _idealResolved = false; }
 
         public static void OnUpdate()
         {
@@ -91,6 +96,18 @@ namespace DivineHands.Modules
 
             float target = Mathf.Clamp01(Config.FertilityAmount.Value * 0.01f);
             float multTarget = Mathf.Clamp01(Config.FertilityMult.Value * 0.01f);
+
+            // "Condition soil for orchards": also set soil texture (sand/clay) + water to the fruit-tree ideal,
+            // zeroing the sand/clay + water penalties FF subtracts from fruit-tree fertility. Ideals are read
+            // from the game's own penalty curves so they track the real tuning.
+            bool condition = Config.FertilityConditionSoil.Value;
+            float[,]? sand = condition ? am.cachedSandClayData : null;
+            float[,]? water = condition ? am.cachedWaterData : null;
+            bool hasSand  = sand  != null && sand.GetLength(0)  == lenX && sand.GetLength(1)  == lenZ;
+            bool hasWater = water != null && water.GetLength(0) == lenX && water.GetLength(1) == lenZ;
+            float idealSC = 0.5f, idealW = 0.5f;
+            if (condition) ResolveOrchardIdeal(am, out idealSC, out idealW);
+
             int changed = 0;
             for (int i = iMin; i <= iMax; i++)
             {
@@ -104,14 +121,55 @@ namespace DivineHands.Modules
                         if (nx * nx + nz * nz > 1f) continue;
                     }
                     fert[j, i] = target;
-                    if (hasMult) mult![j, i] = multTarget;
+                    if (hasMult)  mult![j, i]  = multTarget;
+                    if (hasSand)  sand![j, i]  = idealSC;
+                    if (hasWater) water![j, i] = idealW;
                     changed++;
                 }
             }
 
             if (Config.DebugLog.Value)
                 MelonLogger.Msg($"[DivineHands] Fertility painted @ ({cwx:0},{cwz:0}) — {changed} cells -> " +
-                                $"{target * 100f:0}% (mult {multTarget * 100f:0}%).");
+                                $"{target * 100f:0}% (mult {multTarget * 100f:0}%)" +
+                                (condition ? $", orchard soil: sand/clay {idealSC:0.00}, water {idealW:0.00}." : "."));
+        }
+
+        // Find the orchard-ideal soil texture (sand/clay) + water by sampling FF's own fruit-tree penalty
+        // curves for the value that minimizes the subtraction (the curve can go negative = a bonus). The
+        // curves are private AnimationCurves on AgricultureManager; cached per map. Fallback 0.5 (neutral).
+        private static void ResolveOrchardIdeal(object am, out float sandClay, out float water)
+        {
+            if (!_idealResolved)
+            {
+                _idealResolved = true;
+                try
+                {
+                    var t = am.GetType();
+                    var sc = t.GetField("sandClayFruitTreeFertilitySubtractor", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(am) as AnimationCurve;
+                    var wc = t.GetField("waterFruitTreeFertilitySubtractor",   BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(am) as AnimationCurve;
+                    _idealSandClay = MinPenaltyX(sc, 0.5f);
+                    _idealWater    = MinPenaltyX(wc, 0.5f);
+                }
+                catch (Exception ex)
+                {
+                    if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] Fertility orchard-ideal resolve: {ex.Message}");
+                }
+            }
+            sandClay = _idealSandClay;
+            water = _idealWater;
+        }
+
+        // The X in [0,1] that minimizes the penalty curve's Y (= least subtraction / biggest bonus).
+        private static float MinPenaltyX(AnimationCurve? c, float fallback)
+        {
+            if (c == null || c.length == 0) return fallback;
+            float bestX = fallback, bestY = float.MaxValue;
+            for (int i = 0; i <= 100; i++)
+            {
+                float x = i / 100f, y = c.Evaluate(x);
+                if (y < bestY) { bestY = y; bestX = x; }
+            }
+            return bestX;
         }
     }
 }

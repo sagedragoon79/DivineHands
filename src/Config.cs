@@ -136,6 +136,7 @@ namespace DivineHands
         public static MelonPreferences_Entry<int>    FertilityGridHeight { get; private set; } = null!; // half-extent Z (cells)
         public static MelonPreferences_Entry<float>  FertilityAmount     { get; private set; } = null!; // target soil fertility %
         public static MelonPreferences_Entry<float>  FertilityMult       { get; private set; } = null!; // per-cell fertilizer effectiveness %
+        public static MelonPreferences_Entry<bool>   FertilityConditionSoil { get; private set; } = null!; // also set sand/clay + water to orchard-ideal
         public static MelonPreferences_Entry<string> FertilityArmHotkey  { get; private set; } = null!;
         public static MelonPreferences_Entry<string> FertilityApplyKey   { get; private set; } = null!;
 
@@ -427,6 +428,13 @@ namespace DivineHands
                 display_name: "Fertility %", description: "Target soil fertility the brush paints (0–100%). Default: 80.");
             FertilityMult = _root.CreateEntry("FertilityMult", 100f,
                 display_name: "Fertilizer Effectiveness %", description: "Per-cell fertilizer/compost effectiveness the brush sets (0–100%). Default: 100.");
+            FertilityConditionSoil = _root.CreateEntry("FertilityConditionSoil", false,
+                display_name: "Condition Soil for Orchards",
+                description: "Also set soil texture (sand/clay) + water content to the fruit-tree ideal, so orchards " +
+                             "aren't penalized by poor soil. Fruit-tree fertility = a curve of crop fertility MINUS " +
+                             "sand/clay + water penalties — this zeroes those penalties (the ideals are read from the " +
+                             "game's own curves). Makes the spot great for fruit trees (and possibly less ideal for " +
+                             "crops). Default: off.");
             FertilityArmHotkey = _root.CreateEntry("FertilityArmHotkey", "Delete",
                 display_name: "Fertility Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Fertility painter. Default: Delete.");
             FertilityApplyKey = _root.CreateEntry("FertilityApplyKey", "Ctrl+Mouse1",
