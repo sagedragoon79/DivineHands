@@ -61,6 +61,15 @@ namespace DivineHands
         /// jumps per notch (coarser). Close-in steps taper ~2x finer than far-out. God View + Proportional Zoom only.</summary>
         public static MelonPreferences_Entry<int>    ZoomCellsPerNotch { get; private set; } = null!;
 
+        /// <summary>God-View max zoom-out distance in metres (200–900). The big perf lever: at 900 the frustum
+        /// holds nearly the whole map (every tree/unit drawn) and can stutter/hang. Pangu caps at 600. Lower
+        /// it if god view is heavy on your machine.</summary>
+        public static MelonPreferences_Entry<int>    GodViewMaxZoom { get; private set; } = null!;
+
+        /// <summary>God View: disable Unity's environmental distance fog (the haze) while active. On = crisp,
+        /// Pangu-style. Off = keep the atmospheric fog. (Separate from FF's fog-of-war / Reveal Map.)</summary>
+        public static MelonPreferences_Entry<bool>   GodViewDisableFog { get; private set; } = null!;
+
         /// <summary>ENABLE/AVAILABLE switch for Free Cam. When true, the Free Cam control appears in
         /// the in-game panel and its sliders/hotkey reveal in KC. The live ON/OFF is a runtime flag
         /// (<see cref="Modules.CameraTools.FreeCamActive"/>), reset to false on every map load and
@@ -299,6 +308,20 @@ namespace DivineHands
                              "1 cell ≈ 5 m, so 2 = ~10 m/notch, 50 = ~250 m/notch). Higher = bigger jumps " +
                              "(coarser); lower = finer. Close-in notches taper ~2x finer than far-out. " +
                              "Default: 10 (~50 m/notch, roughly vanilla).");
+
+            GodViewMaxZoom = _root.CreateEntry(
+                "GodViewMaxZoom", 600,
+                display_name: "God View Max Zoom (m)",
+                description: "Farthest god-view zoom-out, in metres (200–900). The main performance lever: at " +
+                             "900 the camera can see nearly the whole map at once and may stutter or hang. " +
+                             "Pangu caps at 600 (default). Lower it if god view is heavy on your machine.");
+
+            GodViewDisableFog = _root.CreateEntry(
+                "GodViewDisableFog", true,
+                display_name: "God View: Disable Fog",
+                description: "Turn off Unity's environmental distance fog (the haze) while God View is active, " +
+                             "for a crisp Pangu-style survey. Restored on exit. This is the atmospheric fog, " +
+                             "NOT FF's fog-of-war (Reveal Map). Turn off to keep the haze. Default: on.");
 
             EnableFreeCam = _root.CreateEntry(
                 "EnableFreeCam", false,

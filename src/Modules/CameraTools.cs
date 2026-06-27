@@ -215,21 +215,26 @@ namespace DivineHands.Modules
         // =====================================================================================
 
         // Relaxed presets. Distances/FOV widen the survey envelope; angles allow flat->overhead.
+        // Max zoom-out is the GodViewMaxZoom pref (the perf lever) — see GodViewMaxDistance.
         private const float GV_MinDistance =   6f;   // keep a sane floor
-        private const float GV_MaxDistance = 900f;   // far out — whole-map survey
         private const float GV_MinAngle    =  10f;   // low/flat
         private const float GV_MaxAngle    =  89f;   // near-overhead (avoid exact 90 gimbal)
         private const float GV_MinFOV      =  20f;
         private const float GV_MaxFOV      =  70f;
         private const float GV_ShadowMin   = 150f;
-        private const float GV_ShadowMax   = 600f;
+        private const float GV_ShadowMax   = 450f;   // match Pangu — shadows past this are negligible at altitude + costly
+
+        /// <summary>Effective god-view max zoom-out distance (metres) from the GodViewMaxZoom pref, clamped.
+        /// Read by the zoom patch to size the per-notch step span so notches stay accurate when the cap moves.</summary>
+        public static float GodViewMaxDistance => Mathf.Clamp(Config.GodViewMaxZoom.Value, 200f, 900f);
 
         private static bool _godViewApplied;
 
         // captured originals
         private static float _ovMinDist, _ovMaxDist, _ovMinAngle, _ovMaxAngle,
                              _ovMinFOV, _ovMaxFOV, _ovShadowMin, _ovShadowMax;
-        private static bool  _ovRenderFog;   // original RenderSettings.fog (env haze), restored on exit
+        private static bool  _ovRenderFog;     // original RenderSettings.fog (env haze)
+        private static bool  _fogDisabledByUs; // true only if we actually turned fog off (so restore is exact)
 
         private static void SyncGodView()
         {
@@ -262,11 +267,10 @@ namespace DivineHands.Modules
                 _ovMaxFOV    = ReadField(_maxFovField,    cam,  50f);
                 _ovShadowMin = ReadField(_shadowMinField, cam, 100f);
                 _ovShadowMax = ReadField(_shadowMaxField, cam, 350f);
-                _ovRenderFog = RenderSettings.fog;
 
                 // Apply relaxed envelope (never narrow below what the map already allows).
                 WriteField(_minDistField,   cam, Mathf.Min(_ovMinDist, GV_MinDistance));
-                WriteField(_maxDistField,   cam, Mathf.Max(_ovMaxDist, GV_MaxDistance));
+                WriteField(_maxDistField,   cam, Mathf.Max(_ovMaxDist, GodViewMaxDistance));
                 WriteField(_minAngleField,  cam, Mathf.Min(_ovMinAngle, GV_MinAngle));
                 WriteField(_maxAngleField,  cam, Mathf.Max(_ovMaxAngle, GV_MaxAngle));
                 WriteField(_minFovField,    cam, Mathf.Min(_ovMinFOV, GV_MinFOV));
@@ -275,10 +279,15 @@ namespace DivineHands.Modules
                 WriteField(_shadowMaxField, cam, Mathf.Max(_ovShadowMax, GV_ShadowMax));
 
                 // Kill the environmental distance fog while surveying from altitude — that's the haze that
-                // made god view look murky vs Pangu. This is Unity's RenderSettings.fog (atmospheric), which
-                // is SEPARATE from FF's fog-of-war (FOWImageEffect, what Reveal Map touches), so there's no
-                // collision. Restored exactly on exit.
-                RenderSettings.fog = false;
+                // made god view look murky vs Pangu. This is Unity's RenderSettings.fog (atmospheric),
+                // SEPARATE from FF's fog-of-war (FOWImageEffect, what Reveal Map touches), so no collision.
+                // Tracked so restore only touches fog we actually changed; opt-out via GodViewDisableFog.
+                if (Config.GodViewDisableFog.Value)
+                {
+                    _ovRenderFog = RenderSettings.fog;
+                    RenderSettings.fog = false;
+                    _fogDisabledByUs = true;
+                }
 
                 // (We no longer touch CameraManager.zoomUnlocked — its reflection was unreliable across
                 // game versions, so DH's proportional-zoom patch now owns the god-view zoom damping and
@@ -310,7 +319,7 @@ namespace DivineHands.Modules
                     WriteField(_maxFovField,    cam, _ovMaxFOV);
                     WriteField(_shadowMinField, cam, _ovShadowMin);
                     WriteField(_shadowMaxField, cam, _ovShadowMax);
-                    RenderSettings.fog = _ovRenderFog;
+                    if (_fogDisabledByUs) { RenderSettings.fog = _ovRenderFog; _fogDisabledByUs = false; }
                 }
                 catch (Exception ex)
                 {

@@ -172,6 +172,19 @@ namespace DivineHands
                         "Default: 10 (~50 m/notch).",
                         min: 2, max: 50, order: 122, indent: 40,
                         visibleWhen: () => Config.EnableGodView.Value && Config.ProportionalZoom.Value));
+            Reg(GroupGodTools, Config.GodViewMaxZoom,
+                NewMeta("Max Zoom-Out (m)",
+                        "Farthest god-view zoom, metres (200–900). The main PERFORMANCE lever — at 900 the camera " +
+                        "sees nearly the whole map and can stutter/hang. Pangu caps at 600 (default). Lower it if " +
+                        "god view is heavy.",
+                        min: 200, max: 900, order: 123, indent: 20,
+                        visibleWhen: () => Config.EnableGodView.Value));
+            Reg(GroupGodTools, Config.GodViewDisableFog,
+                NewMeta("Disable Fog (God View)",
+                        "Turn off the environmental distance haze while God View is active (crisp, Pangu-style). " +
+                        "Restored on exit. Separate from fog-of-war / Reveal Map. Default: ON.",
+                        order: 124, indent: 20,
+                        visibleWhen: () => Config.EnableGodView.Value));
             Reg(GroupGodTools, Config.EnableFreeCam,
                 NewMeta("Free Cam",
                         "Makes Free Cam available in the in-game panel — you activate it there, not here. " +

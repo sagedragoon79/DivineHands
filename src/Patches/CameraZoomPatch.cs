@@ -83,7 +83,9 @@ namespace DivineHands.Patches
                 // (Mouse wheel = one call per notch -> one step; smooth/trackpad scroll would feel notchy.)
                 int cells = Mathf.Clamp(Config.ZoomCellsPerNotch.Value, 2, 50);
                 const float metresPerCell = 5f;
-                const float gvSpan = 900f - 6f;  // GV_MaxDistance - GV_MinDistance (CameraTools god-view range)
+                // GodViewMaxDistance (the GodViewMaxZoom pref) - GV_MinDistance(6): the live god-view span, so
+                // a notch stays the same metres when the user changes the max-zoom cap.
+                float gvSpan = Mathf.Max(50f, DivineHands.Modules.CameraTools.GodViewMaxDistance - 6f);
                 const float closeBoost = 0.5f;   // close-in notches = 0.5x of far-out
                 float taper = Mathf.Lerp(closeBoost, 1f, 1f - currentZoom);
                 float stepMetres = cells * metresPerCell * taper;
