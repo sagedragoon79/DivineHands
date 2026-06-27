@@ -22,8 +22,10 @@ namespace DivineHands.Modules
     ///   public float minFieldOfView / maxFieldOfView            [59174 / 59176]  FOV clamp
     ///   public float minDistanceFromTarget / maxDistanceFromTarget [59178 / 59180]  zoom distance clamp
     ///   private float shadowDistMin / shadowDistMax             [59156 / 59159]  shadow draw distance
-    /// We do NOT touch RenderSettings.fog: FF's fog of war rides a separate FOWImageEffect, and
-    /// disabling environmental fog risks colliding with GodTools' Reveal Map. Pure constraint relax only.
+    /// We also disable RenderSettings.fog (Unity's environmental distance haze) while god view is active and
+    /// restore it on exit — that's the haze that made god view look murky vs Pangu, which does the same.
+    /// This is SEPARATE from FF's fog of war (a FOWImageEffect, what GodTools' Reveal Map manipulates), so
+    /// the two don't collide. Everything else is a pure capture-relax-restore of the camera constraints.
     ///
     /// =====================================================================================
     /// FREE CAM — detach from RTS control and fly the camera manually.
@@ -227,6 +229,7 @@ namespace DivineHands.Modules
         // captured originals
         private static float _ovMinDist, _ovMaxDist, _ovMinAngle, _ovMaxAngle,
                              _ovMinFOV, _ovMaxFOV, _ovShadowMin, _ovShadowMax;
+        private static bool  _ovRenderFog;   // original RenderSettings.fog (env haze), restored on exit
 
         private static void SyncGodView()
         {
@@ -259,6 +262,7 @@ namespace DivineHands.Modules
                 _ovMaxFOV    = ReadField(_maxFovField,    cam,  50f);
                 _ovShadowMin = ReadField(_shadowMinField, cam, 100f);
                 _ovShadowMax = ReadField(_shadowMaxField, cam, 350f);
+                _ovRenderFog = RenderSettings.fog;
 
                 // Apply relaxed envelope (never narrow below what the map already allows).
                 WriteField(_minDistField,   cam, Mathf.Min(_ovMinDist, GV_MinDistance));
@@ -269,6 +273,12 @@ namespace DivineHands.Modules
                 WriteField(_maxFovField,    cam, Mathf.Max(_ovMaxFOV, GV_MaxFOV));
                 WriteField(_shadowMinField, cam, Mathf.Max(_ovShadowMin, GV_ShadowMin));
                 WriteField(_shadowMaxField, cam, Mathf.Max(_ovShadowMax, GV_ShadowMax));
+
+                // Kill the environmental distance fog while surveying from altitude — that's the haze that
+                // made god view look murky vs Pangu. This is Unity's RenderSettings.fog (atmospheric), which
+                // is SEPARATE from FF's fog-of-war (FOWImageEffect, what Reveal Map touches), so there's no
+                // collision. Restored exactly on exit.
+                RenderSettings.fog = false;
 
                 // (We no longer touch CameraManager.zoomUnlocked — its reflection was unreliable across
                 // game versions, so DH's proportional-zoom patch now owns the god-view zoom damping and
@@ -300,6 +310,7 @@ namespace DivineHands.Modules
                     WriteField(_maxFovField,    cam, _ovMaxFOV);
                     WriteField(_shadowMinField, cam, _ovShadowMin);
                     WriteField(_shadowMaxField, cam, _ovShadowMax);
+                    RenderSettings.fog = _ovRenderFog;
                 }
                 catch (Exception ex)
                 {
