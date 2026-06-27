@@ -353,13 +353,13 @@ namespace DivineHands
                 NewMeta("Carve Depth", "Lake bed depth below the water plane, metres (0.45–12). Default: 4.6.",
                         min: 0.45f, max: 12f, order: 504, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeFillRatio,
-                NewMeta("Fill Ratio", "Multiplies the footprint half-extents (1.0–2.0). Default: 1.3.",
+                NewMeta("Fill Ratio", "Grows the lake — multiplies Width/Depth (1.0–2.0). Default: 1.0 (no growth).",
                         min: 1f, max: 2f, order: 505, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeShoreWidth,
                 NewMeta("Shore Blend", "Bank ring width that ramps back up to land (2–40). Default: 16.",
                         min: 2f, max: 40f, order: 506, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeNoGoWidth,
-                NewMeta("No-Go Width", "Flat pad added around the footprint, cells (0–24). Default: 7.",
+                NewMeta("Extra Size", "Extra cells added to the lake footprint on every side (0–24). Default: 0.",
                         min: 0f, max: 24f, order: 507, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeArmHotkey,
                 NewMeta("Lake Arm Hotkey", "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.",

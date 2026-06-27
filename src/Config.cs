@@ -386,14 +386,14 @@ namespace DivineHands
                 display_name: "Lake Width", description: "Core footprint half-width (X) in cells (1–10). Arrow keys resize while armed.");
             LakeGridHeight = _root.CreateEntry("LakeGridHeight", 5,
                 display_name: "Lake Depth (cells)", description: "Core footprint half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
-            LakeFillRatio = _root.CreateEntry("LakeFillRatio", 1.3f,
-                display_name: "Fill Ratio", description: "Multiplies the footprint half-extents (1.0–2.0). Default: 1.3.");
+            LakeFillRatio = _root.CreateEntry("LakeFillRatio", 1.0f,
+                display_name: "Fill Ratio", description: "Grows the lake size — multiplies the Width/Depth (1.0–2.0). Default: 1.0 (no growth).");
             LakeCarveDepth = _root.CreateEntry("LakeCarveDepth", 4.6f,
                 display_name: "Carve Depth", description: "How far the lake bed sits below the water plane, world metres (0.45–12). Default: 4.6.");
             LakeShoreWidth = _root.CreateEntry("LakeShoreWidth", 16f,
                 display_name: "Shore Blend", description: "Outer-blend ring width that ramps the banks back up to land (2–40). Default: 16.");
-            LakeNoGoWidth = _root.CreateEntry("LakeNoGoWidth", 7f,
-                display_name: "No-Go Width", description: "Flat pad added around the footprint (0–24). Default: 7.");
+            LakeNoGoWidth = _root.CreateEntry("LakeNoGoWidth", 0f,
+                display_name: "Extra Size", description: "Extra cells added to the lake footprint on every side (0–24). Default: 0.");
             LakeArmHotkey = _root.CreateEntry("LakeArmHotkey", "Insert",
                 display_name: "Lake Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.");
             LakeApplyKey = _root.CreateEntry("LakeApplyKey", "Ctrl+Mouse1",

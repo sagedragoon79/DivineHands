@@ -255,9 +255,11 @@ namespace DivineHands.Core
 
             int gw = Mathf.Clamp(Config.LakeGridWidth.Value, 1, 10);
             int gh = Mathf.Clamp(Config.LakeGridHeight.Value, 1, 10);
+            // Show the ACTUAL footprint (after Fill/Extra) in metres so the readout matches the cursor ring.
+            DivineHands.Modules.LakeStamp.FootprintExtents(out int lfw, out int lfh);
             float cell = DivineHands.Modules.TerrainElevation.CellMeters;
-            string size = cell > 0f ? $"Size: {gw} x {gh} cells ({gw * cell:0.#} x {gh * cell:0.#} m core)"
-                                    : $"Size: {gw} x {gh} cells";
+            string size = cell > 0f ? $"Lake size: ~{2 * lfw * cell:0} x {2 * lfh * cell:0} m"
+                                    : $"Lake half-extent: {lfw} x {lfh} cells";
             GUILayout.Label(size, HintStyle);
             GUILayout.Label("Width", HintStyle);
             Config.LakeGridWidth.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gw, 1f, 10f));

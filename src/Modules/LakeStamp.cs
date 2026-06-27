@@ -103,15 +103,23 @@ namespace DivineHands.Modules
             return true;
         }
 
+        /// <summary>Water footprint half-extents (cells) from the prefs ONLY (no terrain/cursor needed) —
+        /// so the panel readout shows the same size the cursor draws. At the default Fill 1.0 / Extra 0 this
+        /// equals the Width/Depth sliders, so slider 1 ⇒ a genuine 1×1 half-extent (small pond).</summary>
+        public static void FootprintExtents(out int fhw, out int fhh)
+        {
+            float fill = Mathf.Clamp(Config.LakeFillRatio.Value, 1f, 2f);
+            float extra = Mathf.Clamp(Config.LakeNoGoWidth.Value, 0f, 24f);
+            fhw = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridWidth.Value * fill + extra));
+            fhh = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridHeight.Value * fill + extra));
+        }
+
         private static void FootprintFromWorld(Vector3 world, float res,
             out int cx, out int cz, out int fhw, out int fhh, out bool circle)
         {
             cx = Mathf.FloorToInt(world.x / res);
             cz = Mathf.FloorToInt(world.z / res);
-            float fill = Mathf.Clamp(Config.LakeFillRatio.Value, 1f, 2f);
-            float noGo = Mathf.Clamp(Config.LakeNoGoWidth.Value, 0f, 24f);
-            fhw = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridWidth.Value * fill + noGo));
-            fhh = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridHeight.Value * fill + noGo));
+            FootprintExtents(out fhw, out fhh);
             circle = Config.LakeShape.Value == 1;
         }
 
@@ -149,7 +157,7 @@ namespace DivineHands.Modules
                         mask[x - fMinX, z - fMinZ] = true;
                         filled++;
                     }
-            if (filled < 24) { if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Lake too small ({filled} cells); enlarge the footprint."); return; }
+            if (filled < 5) { if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Lake too small ({filled} cells); enlarge the footprint."); return; }
 
             float floorH = waterH - depth;        // deepest (core)
             float edgeH  = waterH - 0.10f;         // just below water at the footprint edge
@@ -260,7 +268,7 @@ namespace DivineHands.Modules
                         shores.Add(_pairCtor!.Invoke(new object[] { n, m }));
                     }
                 }
-                if (edges.Count < 8) { MelonLogger.Warning("[DivineHands] Lake: edge trace too small"); return null; }
+                if (edges.Count < 4) { MelonLogger.Warning("[DivineHands] Lake: edge trace too small"); return null; }
 
                 var edgeArr = Array.CreateInstance(_waterEdgeType!, edges.Count);
                 for (int i = 0; i < edges.Count; i++) edgeArr.SetValue(edges[i], i);
