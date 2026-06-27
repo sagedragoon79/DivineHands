@@ -127,6 +127,7 @@ namespace DivineHands
         public static MelonPreferences_Entry<float>  LakeNoGoWidth  { get; private set; } = null!;
         public static MelonPreferences_Entry<string> LakeArmHotkey  { get; private set; } = null!;
         public static MelonPreferences_Entry<string> LakeApplyKey   { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   LakeStockFish  { get; private set; } = null!;
 
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
@@ -398,6 +399,8 @@ namespace DivineHands
                 display_name: "Lake Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.");
             LakeApplyKey = _root.CreateEntry("LakeApplyKey", "Ctrl+Mouse1",
                 display_name: "Lake Apply Key", description: "Key/button that stamps the lake at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
+            LakeStockFish = _root.CreateEntry("LakeStockFish", true,
+                display_name: "Stock Fish", description: "Populate the new lake with fish + visible shoals (sized to the lake area), so it's fishable. Default: on.");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",

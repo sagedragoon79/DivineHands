@@ -48,6 +48,13 @@ namespace DivineHands.Modules
         private static MethodInfo? _buildWaterShared, _chunkRebuild;
         private static UnityEngine.Object? _cachedWaterType;
 
+        // Fishing (v2) — resolved lazily, separately, so a fish-add failure can't break the lake itself.
+        private static bool _fishResolved, _fishResolveFailed;
+        private static Type? _fishAreaType, _waterAreaInfoType;
+        private static MethodInfo? _getAllWaterAreas, _getFishData;
+        private static FieldInfo? _genCachedAreas, _fmFishAreas, _fmWaterAreaIdToId, _waiId, _waiArea;
+        private static ConstructorInfo? _fishAreaCtor;
+
         // =====================================================================
         // Lifecycle (called from Plugin)
         // =====================================================================
@@ -56,6 +63,8 @@ namespace DivineHands.Modules
             _resolved = false;
             _resolveFailed = false;
             _resolveOk = false;
+            _fishResolved = false;
+            _fishResolveFailed = false;
             _generator = null;
             _cachedWaterType = null;
         }
@@ -216,9 +225,14 @@ namespace DivineHands.Modules
             if (areaId < 0) { MelonLogger.Warning("[DivineHands] Lake: could not append to waterAreas (basin carved, no water)."); return; }
 
             bool surfaced = BuildWaterSurface(area, areaId);
+
+            // Stock the lake with fish + visible shoals (best-effort; never blocks the lake itself).
+            int fish = Config.LakeStockFish.Value ? AddFishToLake(areaId) : -1;
+
             if (Config.DebugLog.Value)
                 MelonLogger.Msg($"[DivineHands] Lake stamped @ {world} — {filled} cells, depth {depth:0.#}m, " +
-                                $"areaId {areaId}, surface {(surfaced ? "live" : "after-reload")}.");
+                                $"areaId {areaId}, surface {(surfaced ? "live" : "after-reload")}, " +
+                                $"fish {(fish < 0 ? "off" : fish.ToString())}.");
         }
 
         private static bool InFootprint(int dx, int dz, int hw, int hh, bool circle)
@@ -344,6 +358,99 @@ namespace DivineHands.Modules
                 return true;
             }
             catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] Lake BuildWaterSurface: {ex.Message}"); return false; }
+        }
+
+        // =====================================================================
+        // Fishing (v2) — register a FishArea for the new lake so it has fish + visible shoals, exactly
+        // like Pangu's AddFishingAreaForWater + InvalidateWaterCaches: invalidate the WaterAreaInfo caches
+        // (TerrainGenerator + Terrain2Manager) so GetAllWaterAreas() rebuilds and includes our appended area,
+        // size the fish with FishingManager.GetFishDataForWaterArea(area), then `new FishArea(...)` (its ctor
+        // spawns the schools) and register in fishAreas + waterAreaIdToId. Returns fish count, or -1 on no-op.
+        // =====================================================================
+        private static int AddFishToLake(int areaId)
+        {
+            try
+            {
+                if (!ResolveFish()) return -1;
+                var gm = GameManager.Instance;
+                var fm = gm != null ? gm.fishingManager : null;
+                var tm = gm != null ? gm.terrainManager : null;
+                if (fm == null || _generator == null) return -1;
+
+                // Invalidate cached WaterAreaInfo lists so the rebuild includes our appended WaterArea.
+                _genCachedAreas?.SetValue(_generator, null);
+                if (tm != null) (_tmCachedAreas ??= tm.GetType().GetField("cachedAreas",
+                    BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance))?.SetValue(tm, null);
+
+                var infos = _getAllWaterAreas!.Invoke(_generator, null) as IList;
+                if (infos == null) return -1;
+                object? info = null;
+                foreach (var wi in infos)
+                    if (wi != null && (int)_waiId!.GetValue(wi) == areaId) { info = wi; break; }
+                if (info == null) { if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake fish: WaterAreaInfo not found"); return -1; }
+
+                var fishAreas = _fmFishAreas!.GetValue(fm) as IDictionary;
+                var waterToId = _fmWaterAreaIdToId!.GetValue(fm) as IDictionary;
+                if (fishAreas == null || waterToId == null) return -1;
+                if (waterToId.Contains(areaId)) return 0; // already has a fish area
+
+                int newId = 0;
+                foreach (var k in fishAreas.Keys) { int ki = (int)k; if (ki >= newId) newId = ki + 1; }
+
+                float area = (float)_waiArea!.GetValue(info);
+                object[] fd = { area, 0, 0, 0, 0 };
+                _getFishData!.Invoke(fm, fd);
+                int startFish = (int)fd[1], maxFish = (int)fd[2], schools = (int)fd[3], shoreFish = (int)fd[4];
+
+                // ctor order: (fm, id, info, fishCount, numFishSchools, maxFish, numShorelineFish, ui)
+                object fishArea = _fishAreaCtor!.Invoke(new object?[]
+                    { fm, newId, info, startFish, schools, maxFish, shoreFish, null });
+                fishAreas[newId] = fishArea;
+                waterToId[areaId] = newId;
+                return Math.Max(startFish, 0);
+            }
+            catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] Lake AddFishToLake: {ex.Message}"); return -1; }
+        }
+
+        private static FieldInfo? _tmCachedAreas;
+
+        private static bool ResolveFish()
+        {
+            if (_fishResolved) return !_fishResolveFailed;
+            _fishResolved = true;
+            try
+            {
+                if (_genType == null) { _fishResolveFailed = true; return false; }
+                _getAllWaterAreas = _genType.GetMethod("GetAllWaterAreas",
+                    BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                _genCachedAreas = _genType.GetField("cachedAreas", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+                var fmType = AccessTools.TypeByName("FishingManager");
+                _fishAreaType = AccessTools.TypeByName("FishArea");
+                _waterAreaInfoType = AccessTools.TypeByName("TerrainGen.TerrainGenerator+WaterAreaInfo");
+                if (fmType == null || _fishAreaType == null || _waterAreaInfoType == null) { _fishResolveFailed = true; return false; }
+
+                _fmFishAreas = fmType.GetField("fishAreas", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+                _fmWaterAreaIdToId = fmType.GetField("waterAreaIdToId", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+                _getFishData = fmType.GetMethod("GetFishDataForWaterArea", BindingFlags.Public | BindingFlags.Instance);
+                _waiId = _waterAreaInfoType.GetField("id");
+                _waiArea = _waterAreaInfoType.GetField("area");
+
+                // The 8-arg ctor whose 3rd param is WaterAreaInfo (the other 8-arg overload takes Bounds).
+                foreach (var c in _fishAreaType.GetConstructors())
+                {
+                    var ps = c.GetParameters();
+                    if (ps.Length == 8 && ps[2].ParameterType == _waterAreaInfoType) { _fishAreaCtor = c; break; }
+                }
+
+                bool ok = _getAllWaterAreas != null && _genCachedAreas != null && _fmFishAreas != null
+                          && _fmWaterAreaIdToId != null && _getFishData != null && _waiId != null
+                          && _waiArea != null && _fishAreaCtor != null;
+                _fishResolveFailed = !ok;
+                if (!ok) MelonLogger.Warning("[DivineHands] Lake fish: reflection incomplete — fish stocking disabled");
+                return ok;
+            }
+            catch (Exception ex) { _fishResolveFailed = true; MelonLogger.Warning($"[DivineHands] Lake ResolveFish: {ex.Message}"); return false; }
         }
 
         // =====================================================================

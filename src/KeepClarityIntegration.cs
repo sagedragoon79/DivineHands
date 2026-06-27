@@ -367,6 +367,9 @@ namespace DivineHands
             Reg(GroupLake, Config.LakeApplyKey,
                 NewMeta("Lake Apply Key", "Key/button that stamps the lake at the cursor. Default: Ctrl+Mouse1.",
                         order: 509, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakeStockFish,
+                NewMeta("Stock Fish", "Populate the new lake with fish + visible shoals (sized to the lake), so it's fishable. Default: on.",
+                        order: 510, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
 
             // ===== Selected Building (Item Injection) =====
             Reg(GroupInject, Config.InjectEnable,
