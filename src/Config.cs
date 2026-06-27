@@ -435,8 +435,11 @@ namespace DivineHands
                              "sand/clay + water penalties — this zeroes those penalties (the ideals are read from the " +
                              "game's own curves). Makes the spot great for fruit trees (and possibly less ideal for " +
                              "crops). Default: off.");
-            FertilityArmHotkey = _root.CreateEntry("FertilityArmHotkey", "PageDown",
-                display_name: "Fertility Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Fertility painter. Default: PageDown.");
+            FertilityArmHotkey = _root.CreateEntry("FertilityArmHotkey", "",
+                display_name: "Fertility Arm Hotkey",
+                description: "Optional key/chord that arms (re-press disarms) the Fertility painter. Unbound by " +
+                             "default (the nav-key cluster is taken / used by camera zoom) — arm it from the " +
+                             "Fertility tab, or set a key/chord here (e.g. Ctrl+F).");
             FertilityApplyKey = _root.CreateEntry("FertilityApplyKey", "Ctrl+Mouse1",
                 display_name: "Fertility Apply Key", description: "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
 

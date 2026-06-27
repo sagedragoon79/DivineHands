@@ -400,7 +400,8 @@ namespace DivineHands
                         "less ideal for crops. Default: off.",
                         order: 526, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityArmHotkey,
-                NewMeta("Fertility Arm Hotkey", "Key/chord that arms (re-press disarms) the Fertility painter. Default: PageDown.",
+                NewMeta("Fertility Arm Hotkey", "Optional key/chord to arm (re-press disarms) the Fertility painter. " +
+                        "Unbound by default — use the Fertility tab, or set a key/chord (e.g. Ctrl+F).",
                         order: 527, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityApplyKey,
                 NewMeta("Fertility Apply Key", "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1.",
