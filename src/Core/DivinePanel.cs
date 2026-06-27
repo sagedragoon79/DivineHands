@@ -291,6 +291,21 @@ namespace DivineHands.Core
         // Fertility painter options — shape + adjustable area + target fertility. Tab arms it; applies on key.
         private static void DrawFertilityOptions()
         {
+            // Live soil readout for the cell under the cursor — the values vanilla never shows.
+            if (DivineHands.Modules.SoilReadout.TryRead(out var soil))
+            {
+                GUILayout.Label("— Soil under cursor —", HintStyle);
+                GUILayout.Label($"  Crop fertility: {soil.crop * 100f:0}%", HintStyle);
+                GUILayout.Label($"  Sand/clay: {soil.sandClay:0.00} ({DivineHands.Modules.SoilReadout.SandClayLabel(soil.sandClay)})", HintStyle);
+                GUILayout.Label($"  Water: {soil.water * 100f:0}%", HintStyle);
+                GUILayout.Label($"  Fruit-tree fertility: {soil.fruitTree * 100f:0}%", HintStyle);
+            }
+            else
+            {
+                GUILayout.Label("— Soil readout: hover over the map —", HintStyle);
+            }
+            GUILayout.Space(4);
+
             int shape = Mathf.Clamp(Config.FertilityShape.Value, 0, 1);
             int newShape = GUILayout.Toolbar(shape, _lakeShapes);
             if (newShape != shape) Config.FertilityShape.Value = newShape;
