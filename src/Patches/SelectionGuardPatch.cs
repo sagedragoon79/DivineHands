@@ -47,4 +47,19 @@ namespace DivineHands.Patches
         // Return false to skip the original deselection handler while the panel owns the click.
         private static bool Prefix() => !DivinePanel.BlocksGameInput;
     }
+
+    /// <summary>
+    /// The minimap is a uGUI element (<c>MiniMapInteraction</c> : IPointerClickHandler/IDragHandler) whose
+    /// click AND drag both route through the private <c>HandlePointer</c> (decompile 128232), which converts
+    /// the cursor to a world point and calls <c>cameraManager.SetLookLocation</c> + <c>inputManager
+    /// .MinimapClicked()</c>. It does NOT consult <c>pointerIsOverUI</c>, so a click on a Divine Hands panel
+    /// button that happens to sit over the minimap (top-right) falls through and snaps the camera to that map
+    /// corner. Skip <c>HandlePointer</c> while the cursor is over the panel so panel clicks can't move the
+    /// camera. Same lifetime as the guards above — unneeded once the panel is a uGUI raycast-target surface.
+    /// </summary>
+    [HarmonyPatch(typeof(MiniMapInteraction), "HandlePointer")]
+    internal static class MinimapGuardPatch
+    {
+        private static bool Prefix() => !DivinePanel.BlocksGameInput;
+    }
 }
