@@ -389,7 +389,7 @@ namespace DivineHands
             LakeFillRatio = _root.CreateEntry("LakeFillRatio", 1.3f,
                 display_name: "Fill Ratio", description: "Multiplies the footprint half-extents (1.0–2.0). Default: 1.3.");
             LakeCarveDepth = _root.CreateEntry("LakeCarveDepth", 4.6f,
-                display_name: "Carve Depth", description: "How far the lake bed sits below the water plane, world metres (0.4–12). Default: 4.6.");
+                display_name: "Carve Depth", description: "How far the lake bed sits below the water plane, world metres (0.45–12). Default: 4.6.");
             LakeShoreWidth = _root.CreateEntry("LakeShoreWidth", 16f,
                 display_name: "Shore Blend", description: "Outer-blend ring width that ramps the banks back up to land (2–40). Default: 16.");
             LakeNoGoWidth = _root.CreateEntry("LakeNoGoWidth", 7f,

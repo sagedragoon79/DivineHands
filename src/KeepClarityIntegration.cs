@@ -350,7 +350,7 @@ namespace DivineHands
                 NewMeta("Depth (cells)", "Core footprint half-depth in cells (1–10). Arrow keys resize while armed.",
                         min: 1, max: 10, order: 503, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeCarveDepth,
-                NewMeta("Carve Depth", "Lake bed depth below the water plane, metres (0.4–12). Default: 4.6.",
+                NewMeta("Carve Depth", "Lake bed depth below the water plane, metres (0.45–12). Default: 4.6.",
                         min: 0.45f, max: 12f, order: 504, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeFillRatio,
                 NewMeta("Fill Ratio", "Multiplies the footprint half-extents (1.0–2.0). Default: 1.3.",

@@ -28,6 +28,7 @@ namespace DivineHands.Modules
         // ---- reflection cache (resolved once per map; reset in OnMapLoaded) ----
         private static bool _resolved;
         private static bool _resolveFailed;
+        private static bool _resolveOk;   // all members bound (cached so later stamps honor a partial-resolve)
 
         private static Type? _genType;        // TerrainGen.TerrainGenerator
         private static object? _generator;    // live TerrainGenerator (re-found if null)
@@ -54,6 +55,7 @@ namespace DivineHands.Modules
         {
             _resolved = false;
             _resolveFailed = false;
+            _resolveOk = false;
             _generator = null;
             _cachedWaterType = null;
         }
@@ -176,10 +178,14 @@ namespace DivineHands.Modules
                     }
                     else
                     {
-                        // shore ring: how far beyond the footprint edge (in cells), ramp water->land
-                        float outDist = circle
-                            ? (Mathf.Sqrt((dx * (float)dx) / (fhw * (float)fhw) + (dz * (float)dz) / (fhh * (float)fhh)) - 1f) * Mathf.Min(fhw, fhh)
-                            : Mathf.Max(Mathf.Abs(dx) - fhw, Mathf.Abs(dz) - fhh);
+                        // shore ring: how far beyond the footprint edge (in cells), ramp water->land.
+                        // Per-axis overshoot so the band is a CONSTANT cell width on every axis — the old
+                        // radial-fraction form scaled by min(fhw,fhh) left elongated circles never reaching
+                        // land on the long axis (one-sided gouge + cliff). Circle = rounded (Euclidean),
+                        // Rectangle = square (Chebyshev).
+                        float ox = Mathf.Max(0f, Mathf.Abs(dx) - fhw);
+                        float oz = Mathf.Max(0f, Mathf.Abs(dz) - fhh);
+                        float outDist = circle ? Mathf.Sqrt(ox * ox + oz * oz) : Mathf.Max(ox, oz);
                         if (outDist > shore) continue;
                         float t = Mathf.Clamp01(outDist / shore);
                         target = Mathf.Lerp(waterH, orig, Mathf.SmoothStep(0f, 1f, t));
@@ -303,7 +309,10 @@ namespace DivineHands.Modules
             try
             {
                 var terrain2 = TerrainElevation.ResolvedTerrain2;
-                if (terrain2 == null || _buildWaterShared == null) return false;
+                // Rebuild is MANDATORY: BuildWaterShared only creates the GameObject+WaterChunk component;
+                // the mesh comes solely from WaterChunk.Rebuild (FF + Pangu both call it unconditionally).
+                // Treat a null handle as a hard failure so the caller honestly logs "after-reload", not "live".
+                if (terrain2 == null || _buildWaterShared == null || _chunkRebuild == null) return false;
 
                 var seaLayer = ((Component)terrain2).transform.Find("Sea Layer");
                 if (seaLayer == null) return false;
@@ -314,19 +323,16 @@ namespace DivineHands.Modules
                 var chunk = _buildWaterShared.Invoke(waterPlane, new object[] { terrain2, area, areaId });
                 if (chunk == null) return false;
 
-                if (_chunkRebuild != null)
+                var pts = _faPoints!.GetValue(area);
+                var shore = _faShore!.GetValue(area);
+                var edge = _faEdge!.GetValue(area);
+                _chunkRebuild.Invoke(chunk, new object[]
                 {
-                    var pts = _faPoints!.GetValue(area);
-                    var shore = _faShore!.GetValue(area);
-                    var edge = _faEdge!.GetValue(area);
-                    _chunkRebuild.Invoke(chunk, new object[]
-                    {
-                        terrain2,
-                        _faMinX!.GetValue(area), _faMinZ!.GetValue(area),
-                        _faMaxX!.GetValue(area), _faMaxZ!.GetValue(area),
-                        pts, shore, edge
-                    });
-                }
+                    terrain2,
+                    _faMinX!.GetValue(area), _faMinZ!.GetValue(area),
+                    _faMaxX!.GetValue(area), _faMaxZ!.GetValue(area),
+                    pts, shore, edge
+                });
                 return true;
             }
             catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] Lake BuildWaterSurface: {ex.Message}"); return false; }
@@ -337,7 +343,7 @@ namespace DivineHands.Modules
         // =====================================================================
         private static bool Resolve()
         {
-            if (_resolved) return _generator != null || ReacquireGenerator();
+            if (_resolved) return _resolveOk && (_generator != null || ReacquireGenerator());
             if (_resolveFailed) return false;
             try
             {
@@ -390,6 +396,7 @@ namespace DivineHands.Modules
                           && _faMinX != null && _faMinZ != null && _faMaxX != null && _faMaxZ != null
                           && _feX != null && _feZ != null && _feNx != null && _feNz != null && _pairCtor != null;
                 _resolved = true;
+                _resolveOk = ok;
                 if (!ok) MelonLogger.Warning("[DivineHands] Lake: some reflection members missing — stamp may no-op");
                 return ReacquireGenerator() && ok;
             }
