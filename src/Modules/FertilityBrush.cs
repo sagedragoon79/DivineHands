@@ -80,10 +80,13 @@ namespace DivineHands.Modules
             float fcell = Mathf.Max(0.25f, AgricultureManager.resourceCellSize);
             float cwx = cx * res, cwz = cz * res;
             float hwW = fhw * res, hhW = fhh * res;
+            // High edge: nudge in by an epsilon before flooring (mirrors Pangu's -1f on its metre rect) so a
+            // footprint edge landing exactly on a fertility-cell boundary doesn't pull in the next cell —
+            // which would paint a row/column past the green preview ring (Rectangle shape).
             int jMin = Mathf.Clamp((int)((cwx - hwW) / fcell), 0, lenX - 1);
-            int jMax = Mathf.Clamp((int)((cwx + hwW) / fcell), 0, lenX - 1);
+            int jMax = Mathf.Clamp((int)((cwx + hwW - 0.001f) / fcell), 0, lenX - 1);
             int iMin = Mathf.Clamp((int)((cwz - hhW) / fcell), 0, lenZ - 1);
-            int iMax = Mathf.Clamp((int)((cwz + hhW) / fcell), 0, lenZ - 1);
+            int iMax = Mathf.Clamp((int)((cwz + hhW - 0.001f) / fcell), 0, lenZ - 1);
             if (jMax < jMin || iMax < iMin) return;
 
             float target = Mathf.Clamp01(Config.FertilityAmount.Value * 0.01f);

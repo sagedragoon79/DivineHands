@@ -101,7 +101,7 @@ namespace DivineHands.Modules
         // =====================================================================
 
         /// <summary>Cursor-driven water footprint: centre cell + half-extents (cells) + shape. The cursor
-        /// preview (<see cref="DivineHands.Core.LakeBrushPreview"/>) and the carve both call this so the
+        /// preview (<see cref="DivineHands.Core.BrushPreview"/>) and the carve both call this so the
         /// outline always matches where water lands. Returns false if terrain/cursor aren't ready.</summary>
         public static bool TryGetFootprint(out int cx, out int cz, out int fhw, out int fhh, out bool circle, out float res)
         {
