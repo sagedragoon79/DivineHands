@@ -129,6 +129,16 @@ namespace DivineHands
         public static MelonPreferences_Entry<string> LakeApplyKey   { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   LakeStockFish  { get; private set; } = null!;
 
+        // ===== Fertility painter =====
+        public static MelonPreferences_Entry<bool>   FertilityEnable     { get; private set; } = null!;
+        public static MelonPreferences_Entry<int>    FertilityShape      { get; private set; } = null!; // 0 = Rectangle, 1 = Circle
+        public static MelonPreferences_Entry<int>    FertilityGridWidth  { get; private set; } = null!; // half-extent X (cells)
+        public static MelonPreferences_Entry<int>    FertilityGridHeight { get; private set; } = null!; // half-extent Z (cells)
+        public static MelonPreferences_Entry<float>  FertilityAmount     { get; private set; } = null!; // target soil fertility %
+        public static MelonPreferences_Entry<float>  FertilityMult       { get; private set; } = null!; // per-cell fertilizer effectiveness %
+        public static MelonPreferences_Entry<string> FertilityArmHotkey  { get; private set; } = null!;
+        public static MelonPreferences_Entry<string> FertilityApplyKey   { get; private set; } = null!;
+
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
         public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
@@ -401,6 +411,26 @@ namespace DivineHands
                 display_name: "Lake Apply Key", description: "Key/button that stamps the lake at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
             LakeStockFish = _root.CreateEntry("LakeStockFish", true,
                 display_name: "Stock Fish", description: "Populate the new lake with fish + visible shoals (sized to the lake area), so it's fishable. Default: on.");
+
+            // ===== Fertility painter =====
+            FertilityEnable = _root.CreateEntry("FertilityEnable", false,
+                display_name: "Fertility Painter",
+                description: "Make the Fertility painter available (adds its tab to the in-game panel). Paints soil " +
+                             "fertility over an adjustable area — persists with the save. Default: off.");
+            FertilityShape = _root.CreateEntry("FertilityShape", 0,
+                display_name: "Fertility Shape", description: "0 = Rectangle, 1 = Circle.");
+            FertilityGridWidth = _root.CreateEntry("FertilityGridWidth", 5,
+                display_name: "Fertility Width", description: "Brush half-width (X) in cells (1–10). Arrow keys resize while armed.");
+            FertilityGridHeight = _root.CreateEntry("FertilityGridHeight", 5,
+                display_name: "Fertility Depth", description: "Brush half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
+            FertilityAmount = _root.CreateEntry("FertilityAmount", 80f,
+                display_name: "Fertility %", description: "Target soil fertility the brush paints (0–100%). Default: 80.");
+            FertilityMult = _root.CreateEntry("FertilityMult", 100f,
+                display_name: "Fertilizer Effectiveness %", description: "Per-cell fertilizer/compost effectiveness the brush sets (0–100%). Default: 100.");
+            FertilityArmHotkey = _root.CreateEntry("FertilityArmHotkey", "Delete",
+                display_name: "Fertility Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Fertility painter. Default: Delete.");
+            FertilityApplyKey = _root.CreateEntry("FertilityApplyKey", "Ctrl+Mouse1",
+                display_name: "Fertility Apply Key", description: "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",

@@ -33,7 +33,8 @@ namespace DivineHands
         internal const string GroupTerrain  = "Terrain Sculpting";
         internal const string GroupSpawning = "Cursor Spawners";
         internal const string GroupInject   = "Selected Building";
-        internal const string GroupLake     = "Lake Stamp";
+        internal const string GroupLake      = "Lake Stamp";
+        internal const string GroupFertility = "Fertility Painter";
 
         public static void TryRegisterAll()
         {
@@ -370,6 +371,34 @@ namespace DivineHands
             Reg(GroupLake, Config.LakeStockFish,
                 NewMeta("Stock Fish", "Populate the new lake with fish + visible shoals (sized to the lake), so it's fishable. Default: on.",
                         order: 510, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+
+            // ===== Fertility painter =====
+            Reg(GroupFertility, Config.FertilityEnable,
+                NewMeta("Fertility Painter",
+                        "Adds the Fertility tab to the in-game panel. Paints soil fertility over an adjustable " +
+                        "area (persists with the save). Default: OFF.",
+                        order: 520));
+            Reg(GroupFertility, Config.FertilityShape,
+                NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
+                        min: 0, max: 1, order: 521, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+            Reg(GroupFertility, Config.FertilityGridWidth,
+                NewMeta("Width (cells)", "Brush half-width in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 522, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+            Reg(GroupFertility, Config.FertilityGridHeight,
+                NewMeta("Depth (cells)", "Brush half-depth in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 523, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+            Reg(GroupFertility, Config.FertilityAmount,
+                NewMeta("Fertility %", "Target soil fertility the brush paints (0–100%). Default: 80.",
+                        min: 0f, max: 100f, order: 524, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+            Reg(GroupFertility, Config.FertilityMult,
+                NewMeta("Fertilizer Effectiveness %", "Per-cell fertilizer/compost effectiveness the brush sets (0–100%). Default: 100.",
+                        min: 0f, max: 100f, order: 525, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+            Reg(GroupFertility, Config.FertilityArmHotkey,
+                NewMeta("Fertility Arm Hotkey", "Key/chord that arms (re-press disarms) the Fertility painter. Default: Delete.",
+                        order: 526, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+            Reg(GroupFertility, Config.FertilityApplyKey,
+                NewMeta("Fertility Apply Key", "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1.",
+                        order: 527, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
 
             // ===== Selected Building (Item Injection) =====
             Reg(GroupInject, Config.InjectEnable,

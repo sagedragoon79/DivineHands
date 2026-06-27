@@ -66,8 +66,9 @@ namespace DivineHands
                 CameraTools.OnSceneExit();
                 TerrainElevation.OnSceneExit();
                 LakeStamp.OnSceneExit();
+                FertilityBrush.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
-                LakeBrushPreview.OnSceneExit();
+                BrushPreview.OnSceneExit();
                 CursorSpawners.OnSceneExit();
                 ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
                 return;
@@ -80,8 +81,9 @@ namespace DivineHands
             CameraTools.OnMapLoaded();
             TerrainElevation.OnMapLoaded();
             LakeStamp.OnMapLoaded();
+            FertilityBrush.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
-            LakeBrushPreview.OnMapLoaded();
+            BrushPreview.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
             ItemInjection.OnMapLoaded();
         }
@@ -105,18 +107,20 @@ namespace DivineHands
             if (InGame)
             {
                 // Arm Terrain / Spawner straight from the keyboard (no tab click) — re-press disarms.
-                if (Hotkey.Pressed(Config.TerrainArmHotkey.Value)) DivinePanel.ToggleArmTerrain();
-                if (Hotkey.Pressed(Config.SpawnerArmHotkey.Value)) DivinePanel.ToggleArmSpawner();
-                if (Hotkey.Pressed(Config.LakeArmHotkey.Value))    DivinePanel.ToggleArmLake();
+                if (Hotkey.Pressed(Config.TerrainArmHotkey.Value))   DivinePanel.ToggleArmTerrain();
+                if (Hotkey.Pressed(Config.SpawnerArmHotkey.Value))   DivinePanel.ToggleArmSpawner();
+                if (Hotkey.Pressed(Config.LakeArmHotkey.Value))      DivinePanel.ToggleArmLake();
+                if (Hotkey.Pressed(Config.FertilityArmHotkey.Value)) DivinePanel.ToggleArmFertility();
 
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
                 TerrainElevation.OnUpdate();
                 LakeStamp.OnUpdate();
+                FertilityBrush.OnUpdate();
                 CursorSpawners.OnUpdate();
                 ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
-                LakeBrushPreview.Render(); // lake footprint outline at the cursor
+                BrushPreview.Render();     // lake/fertility footprint outline at the cursor
             }
         }
 

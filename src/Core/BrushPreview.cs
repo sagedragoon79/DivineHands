@@ -7,19 +7,16 @@ using DivineHands.Modules;
 namespace DivineHands.Core
 {
     /// <summary>
-    /// Cursor footprint preview for the Lake stamp — the visual indicator the user asked for (Pangu /
-    /// TerrainHelper style). Draws a single closed outline of the WATER footprint (ellipse for Circle,
-    /// rectangle for Rectangle) at the cursor, conforming to the current terrain height, in water-blue.
+    /// Cursor footprint outline shared by the adjustable brushes (Lake stamp, Fertility painter) — the
+    /// Pangu/TerrainHelper-style indicator. Draws one closed outline of the active tool's footprint (ellipse
+    /// for Circle, rectangle for Rectangle) at the cursor, conforming to the current terrain, coloured per
+    /// tool. Only one brush is ever armed at a time, so a single renderer dispatches on the armed tool.
     ///
-    /// Geometry comes from <see cref="LakeStamp.TryGetFootprint"/> — the SAME call the carve uses — so
-    /// the outline always lands exactly where water will. Shown only while the Lake tool is armed
-    /// (<see cref="DivinePanel.LakeModeActive"/>) and the cursor isn't over the panel.
-    ///
-    /// Rendering mirrors <see cref="TerrainBrushGrid"/>: one pooled LineRenderer (loop), built-in
-    /// "Sprites/Default" shader (untextured, vertex-coloured, no AssetBundle), positions refreshed each
-    /// frame to follow the cursor + terrain.
+    /// Geometry comes from each tool's TryGetFootprint — the SAME call its apply uses — so the ring always
+    /// lands where the action will. Rendering: one pooled LineRenderer (loop), built-in "Sprites/Default"
+    /// shader (untextured, vertex-coloured, no AssetBundle), positions refreshed each frame.
     /// </summary>
-    public static class LakeBrushPreview
+    public static class BrushPreview
     {
         private const float YOffset = 0.35f;   // metres above terrain
         private const float LineWidth = 0.40f; // world metres
@@ -32,16 +29,22 @@ namespace DivineHands.Core
 
         private static readonly List<Vector3> _pts = new List<Vector3>(128);
         private static readonly Color WaterBlue = new Color(0.25f, 0.7f, 1f, 0.95f);
+        private static readonly Color FertGreen = new Color(0.35f, 0.95f, 0.30f, 0.95f);
 
         public static void OnMapLoaded() { /* lazily rebuilt on first Render */ }
         public static void OnSceneExit() => Teardown();
 
-        /// <summary>Called every frame (Plugin.OnUpdate, after LakeStamp.OnUpdate).</summary>
+        /// <summary>Called every frame (Plugin.OnUpdate, after the brush modules' OnUpdate).</summary>
         public static void Render()
         {
-            if (!DivinePanel.LakeModeActive || DivinePanel.BlocksGameInput) { SetVisible(false); return; }
-            if (!LakeStamp.TryGetFootprint(out int cx, out int cz, out int fhw, out int fhh, out bool circle, out float res))
-            { SetVisible(false); return; }
+            if (DivinePanel.BlocksGameInput) { SetVisible(false); return; }
+
+            int cx = 0, cz = 0, fhw = 1, fhh = 1; bool circle = false; float res = 0f; Color col;
+            if (DivinePanel.LakeModeActive && LakeStamp.TryGetFootprint(out cx, out cz, out fhw, out fhh, out circle, out res))
+                col = WaterBlue;
+            else if (DivinePanel.FertilityModeActive && FertilityBrush.TryGetFootprint(out cx, out cz, out fhw, out fhh, out circle, out res))
+                col = FertGreen;
+            else { SetVisible(false); return; }
 
             BuildPerimeter(cx, cz, fhw, fhh, circle, res);
             if (_pts.Count < 3) { SetVisible(false); return; }
@@ -51,7 +54,7 @@ namespace DivineHands.Core
             _line.loop = true;
             _line.positionCount = _pts.Count;
             for (int i = 0; i < _pts.Count; i++) _line.SetPosition(i, _pts[i]);
-            _line.startColor = _line.endColor = WaterBlue;
+            _line.startColor = _line.endColor = col;
             _line.enabled = true;
             _root!.SetActive(true);
         }
@@ -89,11 +92,11 @@ namespace DivineHands.Core
         {
             if (_root == null)
             {
-                _root = new GameObject("DivineHands_LakeBrushPreview");
+                _root = new GameObject("DivineHands_BrushPreview");
                 UnityEngine.Object.DontDestroyOnLoad(_root);
             }
             if (_line != null) return;
-            var go = new GameObject("lakeoutline");
+            var go = new GameObject("brushoutline");
             go.transform.SetParent(_root.transform, worldPositionStays: false);
             _line = go.AddComponent<LineRenderer>();
             _line.useWorldSpace = true;
@@ -119,7 +122,7 @@ namespace DivineHands.Core
             catch (Exception ex)
             {
                 if (!_shaderFailed && Config.DebugLog.Value)
-                    MelonLogger.Warning($"[DivineHands] lake preview shader resolve failed: {ex.Message}");
+                    MelonLogger.Warning($"[DivineHands] brush preview shader resolve failed: {ex.Message}");
                 _shaderFailed = true;
                 _mat = new Material(Shader.Find("Hidden/Internal-Colored"));
             }

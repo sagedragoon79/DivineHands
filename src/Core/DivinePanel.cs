@@ -36,7 +36,7 @@ namespace DivineHands.Core
 
         /// <summary>Which god-power (if any) is currently armed. Only ONE tool is armed at a time —
         /// arming spawners disarms terrain and vice-versa — so the apply key is never ambiguous.</summary>
-        private enum ArmedTool { None, Terrain, Spawner, Lake }
+        private enum ArmedTool { None, Terrain, Spawner, Lake, Fertility }
         private static ArmedTool _armedTool = ArmedTool.None;
 
         /// <summary>True when the panel is open AND the Terrain tool is the armed mode — read by
@@ -57,6 +57,12 @@ namespace DivineHands.Core
         public static bool LakeModeActive =>
             _visible && Config.MasterEnable.Value && Config.LakeEnable.Value
             && _armedTool == ArmedTool.Lake;
+
+        /// <summary>True when the panel is open AND the Fertility painter is the armed mode — read by
+        /// <see cref="DivineHands.Modules.FertilityBrush"/> to gate painting on the apply key.</summary>
+        public static bool FertilityModeActive =>
+            _visible && Config.MasterEnable.Value && Config.FertilityEnable.Value
+            && _armedTool == ArmedTool.Fertility;
 
         /// <summary>True when the cursor is over the visible panel — read by the input guard
         /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
@@ -81,6 +87,9 @@ namespace DivineHands.Core
 
         /// <summary>Toggle-arm the Lake stamp from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
         public static void ToggleArmLake() => HotkeyArm(ArmedTool.Lake, Config.LakeEnable.Value);
+
+        /// <summary>Toggle-arm the Fertility painter from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
+        public static void ToggleArmFertility() => HotkeyArm(ArmedTool.Fertility, Config.FertilityEnable.Value);
 
         private static void HotkeyArm(ArmedTool tool, bool enabled)
         {
@@ -190,58 +199,60 @@ namespace DivineHands.Core
         // activate(panel) split as God Tools — there's no separate in-panel "Enable" toggle anymore.
         private static void DrawToolsSection()
         {
-            bool terrainEnabled = Config.TerrainEnable.Value;
-            bool spawnerEnabled = Config.SpawnEnable.Value;
-            bool lakeEnabled    = Config.LakeEnable.Value;
+            bool terrainEnabled   = Config.TerrainEnable.Value;
+            bool spawnerEnabled   = Config.SpawnEnable.Value;
+            bool lakeEnabled      = Config.LakeEnable.Value;
+            bool fertilityEnabled = Config.FertilityEnable.Value;
 
-            GUILayout.Label("Terrain / Spawner / Lake", SectionStyle);
+            GUILayout.Label("Terrain / Spawner / Lake / Fertility", SectionStyle);
 
-            if (!terrainEnabled && !spawnerEnabled && !lakeEnabled)
+            if (!terrainEnabled && !spawnerEnabled && !lakeEnabled && !fertilityEnabled)
             {
                 _armedTool = ArmedTool.None;
-                GUILayout.Label("(enable Terrain / Cursor spawners / Lake stamp in the Keep Clarity settings)",
+                GUILayout.Label("(enable Terrain / Cursor spawners / Lake stamp / Fertility painter in the Keep Clarity settings)",
                                 HintStyle);
                 return;
             }
 
             // Drop a stale arm if its tool was disabled in config since it was armed.
-            if (_armedTool == ArmedTool.Terrain && !terrainEnabled) _armedTool = ArmedTool.None;
-            if (_armedTool == ArmedTool.Spawner && !spawnerEnabled) _armedTool = ArmedTool.None;
-            if (_armedTool == ArmedTool.Lake    && !lakeEnabled)    _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Terrain   && !terrainEnabled)   _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Spawner   && !spawnerEnabled)   _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Lake      && !lakeEnabled)      _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Fertility && !fertilityEnabled) _armedTool = ArmedTool.None;
 
             // Tab row — each tab is a toggle-button whose pressed state == that tool being armed.
             // Re-clicking the active tab clears the arm (None); clicking another tab switches.
-            GUILayout.BeginHorizontal();
-            if (terrainEnabled)
-            {
-                bool armed = _armedTool == ArmedTool.Terrain;
-                bool now = GUILayout.Toggle(armed, "Terrain", GUI.skin.button);
-                if (now != armed) _armedTool = now ? ArmedTool.Terrain : ArmedTool.None;
-            }
-            if (spawnerEnabled)
-            {
-                bool armed = _armedTool == ArmedTool.Spawner;
-                bool now = GUILayout.Toggle(armed, "Spawner", GUI.skin.button);
-                if (now != armed) _armedTool = now ? ArmedTool.Spawner : ArmedTool.None;
-            }
-            if (lakeEnabled)
-            {
-                bool armed = _armedTool == ArmedTool.Lake;
-                bool now = GUILayout.Toggle(armed, "Lake", GUI.skin.button);
-                if (now != armed) _armedTool = now ? ArmedTool.Lake : ArmedTool.None;
-            }
-            GUILayout.EndHorizontal();
+            _tabCol = 0;
+            DrawToolTab(terrainEnabled,   ArmedTool.Terrain,   "Terrain");
+            DrawToolTab(spawnerEnabled,   ArmedTool.Spawner,   "Spawner");
+            DrawToolTab(lakeEnabled,      ArmedTool.Lake,      "Lake");
+            DrawToolTab(fertilityEnabled, ArmedTool.Fertility, "Fertility");
+            if (_tabCol != 0) { GUILayout.EndHorizontal(); _tabCol = 0; } // close a half-filled final row
 
             // Options for whichever tab is armed (shared area). Nothing armed => prompt.
             switch (_armedTool)
             {
-                case ArmedTool.Terrain: DrawTerrainOptions(); break;
-                case ArmedTool.Spawner: DrawSpawnerOptions(); break;
-                case ArmedTool.Lake:    DrawLakeOptions(); break;
+                case ArmedTool.Terrain:   DrawTerrainOptions(); break;
+                case ArmedTool.Spawner:   DrawSpawnerOptions(); break;
+                case ArmedTool.Lake:      DrawLakeOptions(); break;
+                case ArmedTool.Fertility: DrawFertilityOptions(); break;
                 default:
                     GUILayout.Label("Click a tab to arm a tool — it applies on its key while armed.", HintStyle);
                     break;
             }
+        }
+
+        // One tab button per enabled tool, wrapped two-per-row so 4 tabs don't overflow the panel width.
+        private static int _tabCol;
+        private static void DrawToolTab(bool enabled, ArmedTool tool, string label)
+        {
+            if (!enabled) return;
+            if (_tabCol == 0) GUILayout.BeginHorizontal();
+            bool armed = _armedTool == tool;
+            bool now = GUILayout.Toggle(armed, label, GUI.skin.button);
+            if (now != armed) _armedTool = now ? tool : ArmedTool.None;
+            _tabCol++;
+            if (_tabCol >= 2) { GUILayout.EndHorizontal(); _tabCol = 0; }
         }
 
         // Lake stamp options — shape + the Pangu-style sliders. Tab arms it; applies on the apply key.
@@ -275,6 +286,31 @@ namespace DivineHands.Core
             Config.LakeShoreWidth.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(Config.LakeShoreWidth.Value, 2f, 40f));
 
             GUILayout.Label($"Apply: {Config.LakeApplyKey.Value}   (more sliders: Keep Clarity panel)", HintStyle);
+        }
+
+        // Fertility painter options — shape + adjustable area + target fertility. Tab arms it; applies on key.
+        private static void DrawFertilityOptions()
+        {
+            int shape = Mathf.Clamp(Config.FertilityShape.Value, 0, 1);
+            int newShape = GUILayout.Toolbar(shape, _lakeShapes);
+            if (newShape != shape) Config.FertilityShape.Value = newShape;
+
+            int gw = Mathf.Clamp(Config.FertilityGridWidth.Value, 1, 10);
+            int gh = Mathf.Clamp(Config.FertilityGridHeight.Value, 1, 10);
+            float cell = DivineHands.Modules.TerrainElevation.CellMeters;
+            string size = cell > 0f ? $"Area: ~{2 * gw * cell:0} x {2 * gh * cell:0} m"
+                                    : $"Area: {gw} x {gh} cells";
+            GUILayout.Label(size, HintStyle);
+            GUILayout.Label("Width", HintStyle);
+            Config.FertilityGridWidth.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gw, 1f, 10f));
+            GUILayout.Label("Depth", HintStyle);
+            Config.FertilityGridHeight.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gh, 1f, 10f));
+            GUILayout.Label("Arrows resize (←→ width · ↑↓ depth)", HintStyle);
+
+            GUILayout.Label($"Fertility: {Mathf.RoundToInt(Config.FertilityAmount.Value)}%", HintStyle);
+            Config.FertilityAmount.Value = GUILayout.HorizontalSlider(Config.FertilityAmount.Value, 0f, 100f);
+
+            GUILayout.Label($"Apply: {Config.FertilityApplyKey.Value}   (effectiveness slider: Keep Clarity panel)", HintStyle);
         }
 
         private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten", "Average" };
