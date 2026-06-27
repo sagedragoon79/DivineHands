@@ -247,11 +247,11 @@ namespace DivineHands.Core
         // Lake stamp options — shape + the Pangu-style sliders. Tab arms it; applies on the apply key.
         private static void DrawLakeOptions()
         {
-            GUILayout.BeginHorizontal();
-            bool rect = Config.LakeShape.Value == 0;
-            if (GUILayout.Toggle(rect, "Rectangle", GUI.skin.button)) Config.LakeShape.Value = 0;
-            if (GUILayout.Toggle(!rect, "Circle", GUI.skin.button)) Config.LakeShape.Value = 1;
-            GUILayout.EndHorizontal();
+            // Mutually-exclusive shape picker. Toolbar (not two Toggles) — two independent toggles racing
+            // on a once-per-frame flag let the second one stomp the first (Rectangle never stuck).
+            int shape = Mathf.Clamp(Config.LakeShape.Value, 0, 1);
+            int newShape = GUILayout.Toolbar(shape, _lakeShapes);
+            if (newShape != shape) Config.LakeShape.Value = newShape;
 
             int gw = Mathf.Clamp(Config.LakeGridWidth.Value, 1, 10);
             int gh = Mathf.Clamp(Config.LakeGridHeight.Value, 1, 10);
@@ -276,6 +276,7 @@ namespace DivineHands.Core
         }
 
         private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten", "Average" };
+        private static readonly string[] _lakeShapes   = { "Rectangle", "Circle" };
 
         // Terrain options (mode/strength/grid). The section header, the config-enable, and the arm now
         // live in DrawToolsSection — the Terrain tab is the arm — so this just draws the controls.

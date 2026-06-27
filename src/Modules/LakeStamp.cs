@@ -86,6 +86,34 @@ namespace DivineHands.Modules
             => e.Value = Mathf.Clamp(e.Value + d, 1, 10);
 
         // =====================================================================
+        // Footprint geometry — single source of truth for the carve AND the cursor preview.
+        // =====================================================================
+
+        /// <summary>Cursor-driven water footprint: centre cell + half-extents (cells) + shape. The cursor
+        /// preview (<see cref="DivineHands.Core.LakeBrushPreview"/>) and the carve both call this so the
+        /// outline always matches where water lands. Returns false if terrain/cursor aren't ready.</summary>
+        public static bool TryGetFootprint(out int cx, out int cz, out int fhw, out int fhh, out bool circle, out float res)
+        {
+            cx = cz = 0; fhw = fhh = 1; circle = false; res = 0f;
+            if (!TerrainElevation.TryGetGridContext(out _, out _, out res)) return false;
+            if (!TerrainElevation.TryGetCursorWorld(out Vector3 world)) return false;
+            FootprintFromWorld(world, res, out cx, out cz, out fhw, out fhh, out circle);
+            return true;
+        }
+
+        private static void FootprintFromWorld(Vector3 world, float res,
+            out int cx, out int cz, out int fhw, out int fhh, out bool circle)
+        {
+            cx = Mathf.FloorToInt(world.x / res);
+            cz = Mathf.FloorToInt(world.z / res);
+            float fill = Mathf.Clamp(Config.LakeFillRatio.Value, 1f, 2f);
+            float noGo = Mathf.Clamp(Config.LakeNoGoWidth.Value, 0f, 24f);
+            fhw = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridWidth.Value * fill + noGo));
+            fhh = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridHeight.Value * fill + noGo));
+            circle = Config.LakeShape.Value == 1;
+        }
+
+        // =====================================================================
         // Apply
         // =====================================================================
         private static void ApplyLake()
@@ -97,16 +125,10 @@ namespace DivineHands.Modules
             float waterH = GetWaterHeight();
             if (waterH <= 0f) { if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake: water height unavailable"); return; }
 
-            int cx = Mathf.FloorToInt(world.x / res);
-            int cz = Mathf.FloorToInt(world.z / res);
-
-            float fill = Mathf.Clamp(Config.LakeFillRatio.Value, 1f, 2f);
-            float noGo = Mathf.Clamp(Config.LakeNoGoWidth.Value, 0f, 24f);
-            int fhw = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridWidth.Value * fill + noGo));
-            int fhh = Mathf.Max(1, Mathf.RoundToInt(Config.LakeGridHeight.Value * fill + noGo));
+            // Footprint geometry shared with the cursor preview so the outline lands where water lands.
+            FootprintFromWorld(world, res, out int cx, out int cz, out int fhw, out int fhh, out bool circle);
             int shore = Mathf.Clamp(Mathf.RoundToInt(Config.LakeShoreWidth.Value), 1, 40);
             float depth = Mathf.Clamp(Config.LakeCarveDepth.Value, 0.45f, 12f);
-            bool circle = Config.LakeShape.Value == 1;
 
             // --- footprint bbox (the WaterArea cells), clamped to the map ---
             int fMinX = Mathf.Clamp(cx - fhw, 0, size - 1);

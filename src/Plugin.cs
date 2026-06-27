@@ -67,6 +67,7 @@ namespace DivineHands
                 TerrainElevation.OnSceneExit();
                 LakeStamp.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
+                LakeBrushPreview.OnSceneExit();
                 CursorSpawners.OnSceneExit();
                 ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
                 return;
@@ -80,6 +81,7 @@ namespace DivineHands
             TerrainElevation.OnMapLoaded();
             LakeStamp.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
+            LakeBrushPreview.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
             ItemInjection.OnMapLoaded();
         }
@@ -114,6 +116,7 @@ namespace DivineHands
                 CursorSpawners.OnUpdate();
                 ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
+                LakeBrushPreview.Render(); // lake footprint outline at the cursor
             }
         }
 
