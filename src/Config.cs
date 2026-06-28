@@ -310,18 +310,18 @@ namespace DivineHands
                              "Default: 10 (~50 m/notch, roughly vanilla).");
 
             GodViewMaxZoom = _root.CreateEntry(
-                "GodViewMaxZoom", 600,
+                "GodViewMaxZoom", 450,
                 display_name: "God View Max Zoom (m)",
                 description: "Farthest god-view zoom-out, in metres (200–900). The main performance lever: at " +
                              "900 the camera can see nearly the whole map at once and may stutter or hang. " +
-                             "Pangu caps at 600 (default). Lower it if god view is heavy on your machine.");
+                             "Default 450 (conservative); Pangu caps at 600. Raise for a wider survey, lower if heavy.");
 
             GodViewDisableFog = _root.CreateEntry(
-                "GodViewDisableFog", true,
+                "GodViewDisableFog", false,
                 display_name: "God View: Disable Fog",
                 description: "Turn off Unity's environmental distance fog (the haze) while God View is active, " +
                              "for a crisp Pangu-style survey. Restored on exit. This is the atmospheric fog, " +
-                             "NOT FF's fog-of-war (Reveal Map). Turn off to keep the haze. Default: on.");
+                             "NOT FF's fog-of-war (Reveal Map). Default: off (keep the haze — lighter on frames).");
 
             EnableFreeCam = _root.CreateEntry(
                 "EnableFreeCam", false,

@@ -22,10 +22,10 @@ namespace DivineHands.Modules
     ///   public float minFieldOfView / maxFieldOfView            [59174 / 59176]  FOV clamp
     ///   public float minDistanceFromTarget / maxDistanceFromTarget [59178 / 59180]  zoom distance clamp
     ///   private float shadowDistMin / shadowDistMax             [59156 / 59159]  shadow draw distance
-    /// We also disable RenderSettings.fog (Unity's environmental distance haze) while god view is active and
-    /// restore it on exit — that's the haze that made god view look murky vs Pangu, which does the same.
-    /// This is SEPARATE from FF's fog of war (a FOWImageEffect, what GodTools' Reveal Map manipulates), so
-    /// the two don't collide. Everything else is a pure capture-relax-restore of the camera constraints.
+    /// We CAN also disable RenderSettings.fog (Unity's environmental distance haze) while god view is active
+    /// and restore it on exit — the GodViewDisableFog pref (default OFF: keep the haze, lighter on frames;
+    /// on = crisp Pangu-style). This is SEPARATE from FF's fog of war (a FOWImageEffect, what GodTools'
+    /// Reveal Map manipulates), so the two don't collide. Else it's a pure capture-relax-restore.
     ///
     /// =====================================================================================
     /// FREE CAM — detach from RTS control and fly the camera manually.
