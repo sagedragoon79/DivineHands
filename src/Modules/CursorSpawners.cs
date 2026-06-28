@@ -290,42 +290,96 @@ namespace DivineHands.Modules
         }
 
         // DLC pets (Dog/Cat) are HERD animals housed in a Dog/Cat Kennel — Dog/Cat : Pet : LivestockAnimal.
-        // A loose Instantiate (what we did before) makes a pet with NO herd, so FF's job system and the
-        // kennel UI never see it. Spawn into the NEAREST kennel's herd instead via FF's own
-        // Herd.SpawnLivestockAdults(count) [39373] — it instantiates each pet at the kennel + registers it in
-        // animalsInHerd + raises LivestockAnimalBornEvent (same path the kennel breeds through), so they're
-        // housed, listed in the kennel UI, and job-eligible. Pets appear AT that kennel (the cursor just
-        // picks the nearest one); requires a BUILT kennel of that type.
+        // Two paths, mirroring how FF itself handles the starting pet:
+        //   • A kennel of that type EXISTS → spawn into the NEAREST kennel's herd via FF's own
+        //     Herd.SpawnLivestockAdults(count) [39373] (instantiates at the kennel + registers in
+        //     animalsInHerd + raises LivestockAnimalBornEvent). Housed + listed in UI + job-eligible now.
+        //   • NO kennel yet → spawn LOOSE (into resourceManager.dogsRO/catsRO), exactly like the vanilla
+        //     starting pet. The FIRST kennel ever built sweeps all loose dogs/cats into its herd
+        //     (ResourceManager.AddOrRemove{Dog,Cat}Kennel, gated by hasAddedAtLeastOne{Dog,Cat}Kennel
+        //     [168517/168537]) — so they get adopted then. Lets you pre-place pets before building.
         private static void SpawnPets(AnimalManager am, bool dog, Vector3 world, int count)
         {
             count = Mathf.Clamp(count, 1, 50);
             try
             {
                 var kennel = FindNearestKennel(dog, world);
-                if (kennel == null)
+                if (kennel != null)
                 {
-                    MelonLogger.Msg($"[DivineHands] No {(dog ? "Dog" : "Cat")} Kennel found — build one first " +
-                                    "(pets live in a kennel, so they can be housed + take jobs).");
-                    return;
-                }
-                var herd  = GetHerd(kennel);
-                var spawn = ResolveHerdSpawn(herd);
-                if (herd == null || spawn == null)
-                {
+                    var herd  = GetHerd(kennel);
+                    var spawn = ResolveHerdSpawn(herd);
+                    if (herd != null && spawn != null)
+                    {
+                        spawn.Invoke(herd, new object[] { count });
+                        if (Config.DebugLog.Value)
+                            MelonLogger.Msg($"[DivineHands] Added {count} {(dog ? "dog" : "cat")}(s) to the nearest kennel.");
+                        return;
+                    }
                     if (Config.DebugLog.Value)
-                        MelonLogger.Warning("[DivineHands] Pets: kennel herd / SpawnLivestockAdults unresolved");
-                    return;
+                        MelonLogger.Warning("[DivineHands] Pets: kennel herd/SpawnLivestockAdults unresolved — spawning loose.");
                 }
-                spawn.Invoke(herd, new object[] { count });
-                if (Config.DebugLog.Value)
-                    MelonLogger.Msg($"[DivineHands] Added {count} {(dog ? "dog" : "cat")}(s) to the nearest kennel.");
+
+                // No kennel (or herd unresolved): loose spawn, adopted by the first kennel built.
+                SpawnPetsLoose(am, dog, world, count);
             }
             catch (Exception ex) { MelonLogger.Warning($"[DivineHands] SpawnPets failed: {ex.Message}"); }
         }
 
-        private static PropertyInfo? _rmDogKennels, _rmCatKennels;
+        // Loose spawn (no kennel yet) — matches FF's starting pet. The first kennel's one-time sweep adopts
+        // them. If a kennel was ALREADY built once (flag set, even if since demolished), that sweep won't run
+        // again, so warn that a new kennel won't auto-adopt these.
+        private static void SpawnPetsLoose(AnimalManager am, bool dog, Vector3 world, int count)
+        {
+            var prefabs = dog ? am.dogPrefabs : am.catPrefabs;
+            if (prefabs == null || prefabs.Count == 0)
+            {
+                MelonLogger.Msg($"[DivineHands] No {(dog ? "dog" : "cat")} prefabs available (DLC not owned?) — can't spawn.");
+                return;
+            }
+            for (int i = 0; i < count; i++)
+            {
+                var prefab = prefabs[UnityEngine.Random.Range(0, prefabs.Count)];
+                if (prefab == null) continue;
+                UnityEngine.Object.Instantiate(prefab, ScatterAround(world, i, count, spacing: 4f), Quaternion.identity);
+            }
+            string kind = dog ? "dog" : "cat", Kennel = dog ? "Dog" : "Cat";
+            MelonLogger.Msg(HasBuiltAnyKennel(dog)
+                ? $"[DivineHands] Spawned {count} loose {kind}(s). ⚠ A {Kennel} Kennel was already built once, so a " +
+                  "new one won't auto-adopt these — keep a kennel up and spawn near it to house pets."
+                : $"[DivineHands] Spawned {count} loose {kind}(s) — your first {Kennel} Kennel will adopt them into its herd.");
+        }
+
+        private static PropertyInfo? _rmDogKennels, _rmCatKennels, _rmHasDogKennel, _rmHasCatKennel;
         private static bool _kennelPropsResolved;
         private static MethodInfo? _herdSpawnAdults;
+
+        // Has a kennel of that type ever been built? (resourceManager.hasAddedAtLeastOne{Dog,Cat}Kennel, the
+        // gate on the one-time loose-pet adoption sweep [166797]. Serialized, so it persists across reload.)
+        private static bool HasBuiltAnyKennel(bool dog)
+        {
+            try
+            {
+                var gm = GameManager.Instance;
+                var rm = gm != null ? gm.resourceManager : null;
+                if (rm == null) return false;
+                EnsureKennelProps(rm);
+                var p = dog ? _rmHasDogKennel : _rmHasCatKennel;
+                return p?.GetValue(rm) is bool b && b;
+            }
+            catch { return false; }
+        }
+
+        private static void EnsureKennelProps(object rm)
+        {
+            if (_kennelPropsResolved) return;
+            const BindingFlags F = BindingFlags.Public | BindingFlags.Instance;
+            var t = rm.GetType();
+            _rmDogKennels   = t.GetProperty("dogKennelsRO", F);
+            _rmCatKennels   = t.GetProperty("catKennelsRO", F);
+            _rmHasDogKennel = t.GetProperty("hasAddedAtLeastOneDogKennel", F);
+            _rmHasCatKennel = t.GetProperty("hasAddedAtLeastOneCatKennel", F);
+            _kennelPropsResolved = true;
+        }
 
         // Nearest built Dog/Cat Kennel to the cursor (by XZ distance), via resourceManager.dogKennelsRO /
         // catKennelsRO [166087]. Returns null if none built / resourceManager not up.
@@ -334,14 +388,7 @@ namespace DivineHands.Modules
             var gm = GameManager.Instance;
             var rm = gm != null ? gm.resourceManager : null;
             if (rm == null) return null;
-            if (!_kennelPropsResolved)
-            {
-                const BindingFlags F = BindingFlags.Public | BindingFlags.Instance;
-                var t = rm.GetType();
-                _rmDogKennels = t.GetProperty("dogKennelsRO", F);
-                _rmCatKennels = t.GetProperty("catKennelsRO", F);
-                _kennelPropsResolved = true;
-            }
+            EnsureKennelProps(rm);
             var prop = dog ? _rmDogKennels : _rmCatKennels;
             if (!(prop?.GetValue(rm) is System.Collections.IEnumerable list)) return null;
 
