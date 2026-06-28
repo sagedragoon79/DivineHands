@@ -289,21 +289,94 @@ namespace DivineHands.Modules
                 am.SpawnAnimal(groups, ScatterAround(world, i, count, spacing: 6f));
         }
 
-        // DLC pets (Dog/Cat): no SpawnPet/PetManager exists. The base game's starting-pet path just
-        // Instantiates from animalManager.dogPrefabs/catPrefabs [90532/90534] (populated only when the
-        // DLC is owned) and lets the pet self-register in its own Start() via ResourceManager. We mirror
-        // that. Lists are empty without the DLC, so this is a clean no-op then.
+        // DLC pets (Dog/Cat) are HERD animals housed in a Dog/Cat Kennel — Dog/Cat : Pet : LivestockAnimal.
+        // A loose Instantiate (what we did before) makes a pet with NO herd, so FF's job system and the
+        // kennel UI never see it. Spawn into the NEAREST kennel's herd instead via FF's own
+        // Herd.SpawnLivestockAdults(count) [39373] — it instantiates each pet at the kennel + registers it in
+        // animalsInHerd + raises LivestockAnimalBornEvent (same path the kennel breeds through), so they're
+        // housed, listed in the kennel UI, and job-eligible. Pets appear AT that kennel (the cursor just
+        // picks the nearest one); requires a BUILT kennel of that type.
         private static void SpawnPets(AnimalManager am, bool dog, Vector3 world, int count)
         {
-            var prefabs = dog ? am.dogPrefabs : am.catPrefabs;
-            if (prefabs == null || prefabs.Count == 0) return;
-            for (int i = 0; i < count; i++)
+            count = Mathf.Clamp(count, 1, 50);
+            try
             {
-                var prefab = prefabs[UnityEngine.Random.Range(0, prefabs.Count)];
-                if (prefab == null) continue;
-                UnityEngine.Object.Instantiate(prefab, ScatterAround(world, i, count, spacing: 4f),
-                                               Quaternion.identity);
+                var kennel = FindNearestKennel(dog, world);
+                if (kennel == null)
+                {
+                    MelonLogger.Msg($"[DivineHands] No {(dog ? "Dog" : "Cat")} Kennel found — build one first " +
+                                    "(pets live in a kennel, so they can be housed + take jobs).");
+                    return;
+                }
+                var herd  = GetHerd(kennel);
+                var spawn = ResolveHerdSpawn(herd);
+                if (herd == null || spawn == null)
+                {
+                    if (Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] Pets: kennel herd / SpawnLivestockAdults unresolved");
+                    return;
+                }
+                spawn.Invoke(herd, new object[] { count });
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] Added {count} {(dog ? "dog" : "cat")}(s) to the nearest kennel.");
             }
+            catch (Exception ex) { MelonLogger.Warning($"[DivineHands] SpawnPets failed: {ex.Message}"); }
+        }
+
+        private static PropertyInfo? _rmDogKennels, _rmCatKennels;
+        private static bool _kennelPropsResolved;
+        private static MethodInfo? _herdSpawnAdults;
+
+        // Nearest built Dog/Cat Kennel to the cursor (by XZ distance), via resourceManager.dogKennelsRO /
+        // catKennelsRO [166087]. Returns null if none built / resourceManager not up.
+        private static object? FindNearestKennel(bool dog, Vector3 world)
+        {
+            var gm = GameManager.Instance;
+            var rm = gm != null ? gm.resourceManager : null;
+            if (rm == null) return null;
+            if (!_kennelPropsResolved)
+            {
+                const BindingFlags F = BindingFlags.Public | BindingFlags.Instance;
+                var t = rm.GetType();
+                _rmDogKennels = t.GetProperty("dogKennelsRO", F);
+                _rmCatKennels = t.GetProperty("catKennelsRO", F);
+                _kennelPropsResolved = true;
+            }
+            var prop = dog ? _rmDogKennels : _rmCatKennels;
+            if (!(prop?.GetValue(rm) is System.Collections.IEnumerable list)) return null;
+
+            object? best = null; float bestSq = float.MaxValue;
+            var w = new Vector2(world.x, world.z);
+            foreach (var k in list)
+            {
+                if (!(k is Component c) || c == null) continue;
+                var p = c.transform.position;
+                float sq = (new Vector2(p.x, p.z) - w).sqrMagnitude;
+                if (sq < bestSq) { bestSq = sq; best = k; }
+            }
+            return best;
+        }
+
+        // The kennel's herd (public on DogKennel/CatKennel; reflected off the live instance so both work).
+        private static object? GetHerd(object kennel)
+        {
+            try
+            {
+                const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                var t = kennel.GetType();
+                var p = t.GetProperty("herd", F);
+                if (p != null) return p.GetValue(kennel);
+                return t.GetField("herd", F)?.GetValue(kennel);
+            }
+            catch { return null; }
+        }
+
+        private static MethodInfo? ResolveHerdSpawn(object? herd)
+        {
+            if (_herdSpawnAdults != null || herd == null) return _herdSpawnAdults;
+            _herdSpawnAdults = herd.GetType().GetMethod("SpawnLivestockAdults",
+                BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(int) }, null);
+            return _herdSpawnAdults;
         }
 
         // ---- DLC animal availability (probed once per map; robust to base-game-vs-DLC) ----
