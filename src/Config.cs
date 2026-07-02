@@ -154,6 +154,10 @@ namespace DivineHands
         public static MelonPreferences_Entry<string> DeleteHotkey { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   DeleteRefund { get; private set; } = null!;
 
+        // ===== Kill Selected (villager / animal — testing aid, god mod) =====
+        public static MelonPreferences_Entry<bool>   KillEnable { get; private set; } = null!;
+        public static MelonPreferences_Entry<string> KillHotkey { get; private set; } = null!;
+
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
         public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
@@ -486,6 +490,18 @@ namespace DivineHands
                 display_name: "Refund on Delete",
                 description: "When deleting a BUILDING, refund its materials + drop its stored items on the ground " +
                              "(vanilla demolish behaviour). Off = clean vaporize, no clutter. Default: off.");
+
+            // ===== Kill Selected =====
+            KillEnable = _root.CreateEntry("KillEnable", false,
+                display_name: "Kill Selected",
+                description: "Adds a 'Kill Selected' section to the in-game panel + a hotkey that instantly kills the " +
+                             "selected LIVING creature — a villager or any animal (wild, livestock, or pet). Runs the " +
+                             "game's own death path (proper removal + died-events). Mainly a testing aid, but this is a " +
+                             "god mod. Off by default.");
+            KillHotkey = _root.CreateEntry("KillHotkey", "Ctrl+K",
+                display_name: "Kill Hotkey",
+                description: "Key/chord that kills the selected creature. Default: Ctrl+K (a deliberate chord so it " +
+                             "can't fire by accident).");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",

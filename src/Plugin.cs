@@ -119,6 +119,11 @@ namespace DivineHands
                 if (Config.DeleteEnable.Value && Hotkey.Pressed(Config.DeleteHotkey.Value))
                     DeleteSelected.DeleteCurrent();
 
+                // Kill the selected villager/animal on its hotkey (testing aid). No-op unless a living
+                // creature is selected.
+                if (Config.KillEnable.Value && Hotkey.Pressed(Config.KillHotkey.Value))
+                    KillSelected.KillCurrent();
+
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
                 TerrainElevation.OnUpdate();

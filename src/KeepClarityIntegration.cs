@@ -36,6 +36,7 @@ namespace DivineHands
         internal const string GroupLake      = "Lake Stamp";
         internal const string GroupFertility = "Fertility Painter";
         internal const string GroupDelete    = "Delete Selected";
+        internal const string GroupKill       = "Kill Selected";
 
         public static void TryRegisterAll()
         {
@@ -439,6 +440,20 @@ namespace DivineHands
                         "Refund the building's construction materials when deleting (also drops stored items on " +
                         "the ground). Off = clean vaporize, no refund pile. Default: OFF.",
                         order: 542, indent: 20, visibleWhen: () => Config.DeleteEnable.Value));
+
+            // ===== Kill Selected =====
+            Reg(GroupKill, Config.KillEnable,
+                NewMeta("Kill Selected",
+                        "Adds a Kill Selected section to the in-game panel and enables the kill hotkey. Select a " +
+                        "villager or any animal (wild / livestock / pet) and kill it instantly via the game's own " +
+                        "death path (proper removal + died-events). Buildings/nodes are never touched (use Delete " +
+                        "Selected). Mainly a testing aid, but this is a god mod. Default: OFF.",
+                        order: 560));
+            Reg(GroupKill, Config.KillHotkey,
+                NewMeta("Kill Hotkey",
+                        "Key/chord that kills the current creature. A deliberate chord is safer than a bare key. " +
+                        "Default: Ctrl+K.",
+                        order: 561, indent: 20, visibleWhen: () => Config.KillEnable.Value));
 
             // ===== Selected Building (Item Injection) =====
             Reg(GroupInject, Config.InjectEnable,

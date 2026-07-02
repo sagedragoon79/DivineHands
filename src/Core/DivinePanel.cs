@@ -148,6 +148,12 @@ namespace DivineHands.Core
                     GUILayout.Space(6f);
                     DrawDeleteSection();
                 }
+
+                if (Config.KillEnable.Value)
+                {
+                    GUILayout.Space(6f);
+                    DrawKillSection();
+                }
             }
 
             GUILayout.Space(8f);
@@ -609,6 +615,29 @@ namespace DivineHands.Core
 
             if (!string.IsNullOrEmpty(_deleteStatus))
                 GUILayout.Label(_deleteStatus, HintStyle);
+        }
+
+        // ---- Kill Selected ----
+        // Instantly kills the selected villager/animal via the game's own death path. Testing aid; off
+        // by default. Gated to living creatures so it can't touch buildings (use Delete for those).
+        private static string _killStatus = "";
+        private static void DrawKillSection()
+        {
+            GUILayout.Label("Kill Selected", SectionStyle);
+
+            DivineHands.Modules.KillSelected.TryDescribe(out string label, out bool killable);
+            GUILayout.Label(label, HintStyle);
+
+            using (new GUIEnabledScope(killable))
+            {
+                if (GUILayout.Button("Kill selected"))
+                    _killStatus = DivineHands.Modules.KillSelected.KillCurrent();
+            }
+
+            GUILayout.Label($"Hotkey: {Config.KillHotkey.Value}", HintStyle);
+
+            if (!string.IsNullOrEmpty(_killStatus))
+                GUILayout.Label(_killStatus, HintStyle);
         }
 
         private static GUIStyle? _section;
