@@ -149,6 +149,11 @@ namespace DivineHands
         public static MelonPreferences_Entry<string> FertilityArmHotkey  { get; private set; } = null!;
         public static MelonPreferences_Entry<string> FertilityApplyKey   { get; private set; } = null!;
 
+        // ===== Delete Selected (resource nodes / mines / any building) =====
+        public static MelonPreferences_Entry<bool>   DeleteEnable { get; private set; } = null!;
+        public static MelonPreferences_Entry<string> DeleteHotkey { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   DeleteRefund { get; private set; } = null!;
+
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
         public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
@@ -465,6 +470,22 @@ namespace DivineHands
                              "Fertility tab, or set a key/chord here (e.g. Ctrl+F).");
             FertilityApplyKey = _root.CreateEntry("FertilityApplyKey", "Ctrl+Mouse1",
                 display_name: "Fertility Apply Key", description: "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
+
+            // ===== Delete Selected =====
+            DeleteEnable = _root.CreateEntry("DeleteEnable", false,
+                display_name: "Delete Selected",
+                description: "Adds a 'Selected Object' section to the in-game panel + a hotkey that instantly " +
+                             "deletes the SELECTED resource node (ore / clay-sand-stone patch) or building " +
+                             "(mine, quarry, pit, deep mine — or any building). Villagers/animals/crops are never " +
+                             "touched. Destructive + no undo — off by default.");
+            DeleteHotkey = _root.CreateEntry("DeleteHotkey", "Ctrl+Delete",
+                display_name: "Delete Hotkey",
+                description: "Key/chord that deletes the selected node/building. Default: Ctrl+Delete (a deliberate " +
+                             "chord so it can't fire by accident).");
+            DeleteRefund = _root.CreateEntry("DeleteRefund", false,
+                display_name: "Refund on Delete",
+                description: "When deleting a BUILDING, refund its materials + drop its stored items on the ground " +
+                             "(vanilla demolish behaviour). Off = clean vaporize, no clutter. Default: off.");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",

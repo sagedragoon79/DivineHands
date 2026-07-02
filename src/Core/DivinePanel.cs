@@ -142,6 +142,12 @@ namespace DivineHands.Core
 
                 GUILayout.Space(6f);
                 DrawInjectSection();
+
+                if (Config.DeleteEnable.Value)
+                {
+                    GUILayout.Space(6f);
+                    DrawDeleteSection();
+                }
             }
 
             GUILayout.Space(8f);
@@ -578,6 +584,31 @@ namespace DivineHands.Core
 
             if (!string.IsNullOrEmpty(_injectStatus))
                 GUILayout.Label(_injectStatus, HintStyle);
+        }
+
+        // ---- Delete Selected ----
+        // God-mode demolish for the current selection. No building-UI injection — this panel section is
+        // the whole surface. Deletes any Building (mines/quarries/pits/etc.) or a resource node (ore
+        // deposit / clay-sand-stone patch); everything else is a safe no-op. The hotkey does the same.
+        private static string _deleteStatus = "";
+        private static void DrawDeleteSection()
+        {
+            GUILayout.Label("Delete Selected", SectionStyle);
+
+            DivineHands.Modules.DeleteSelected.TryDescribe(out string label, out bool deletable);
+            GUILayout.Label(label, HintStyle);
+
+            using (new GUIEnabledScope(deletable))
+            {
+                if (GUILayout.Button("Delete selected"))
+                    _deleteStatus = DivineHands.Modules.DeleteSelected.DeleteCurrent();
+            }
+
+            GUILayout.Label($"Hotkey: {Config.DeleteHotkey.Value}" +
+                            (Config.DeleteRefund.Value ? "   (refunds materials)" : ""), HintStyle);
+
+            if (!string.IsNullOrEmpty(_deleteStatus))
+                GUILayout.Label(_deleteStatus, HintStyle);
         }
 
         private static GUIStyle? _section;

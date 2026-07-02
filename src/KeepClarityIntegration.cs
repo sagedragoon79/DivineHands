@@ -35,6 +35,7 @@ namespace DivineHands
         internal const string GroupInject   = "Selected Building";
         internal const string GroupLake      = "Lake Stamp";
         internal const string GroupFertility = "Fertility Painter";
+        internal const string GroupDelete    = "Delete Selected";
 
         public static void TryRegisterAll()
         {
@@ -419,6 +420,25 @@ namespace DivineHands
             Reg(GroupFertility, Config.FertilityApplyKey,
                 NewMeta("Fertility Apply Key", "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1.",
                         order: 528, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+
+            // ===== Delete Selected =====
+            Reg(GroupDelete, Config.DeleteEnable,
+                NewMeta("Delete Selected",
+                        "Adds a Delete Selected section to the in-game panel and enables the delete hotkey. " +
+                        "Select a mine / quarry / clay-sand pit / deep mine / any building — or a raw ore/clay/" +
+                        "sand/stone resource node — and delete it instantly. Everything else (villagers, animals, " +
+                        "fields) is a safe no-op. Ore-node deletion is a PERMANENT world edit. Default: OFF.",
+                        order: 540));
+            Reg(GroupDelete, Config.DeleteHotkey,
+                NewMeta("Delete Hotkey",
+                        "Key/chord that deletes the current selection. A deliberate chord is safer than a bare " +
+                        "key. Default: Ctrl+Delete.",
+                        order: 541, indent: 20, visibleWhen: () => Config.DeleteEnable.Value));
+            Reg(GroupDelete, Config.DeleteRefund,
+                NewMeta("Refund on Delete",
+                        "Refund the building's construction materials when deleting (also drops stored items on " +
+                        "the ground). Off = clean vaporize, no refund pile. Default: OFF.",
+                        order: 542, indent: 20, visibleWhen: () => Config.DeleteEnable.Value));
 
             // ===== Selected Building (Item Injection) =====
             Reg(GroupInject, Config.InjectEnable,

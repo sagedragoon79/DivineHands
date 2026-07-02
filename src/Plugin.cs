@@ -70,6 +70,7 @@ namespace DivineHands
                 TerrainBrushGrid.OnSceneExit();
                 BrushPreview.OnSceneExit();
                 CursorSpawners.OnSceneExit();
+                DeleteSelected.OnSceneExit();
                 ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
                 return;
             }
@@ -85,6 +86,7 @@ namespace DivineHands
             TerrainBrushGrid.OnMapLoaded();
             BrushPreview.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
+            DeleteSelected.OnMapLoaded();
             ItemInjection.OnMapLoaded();
         }
 
@@ -111,6 +113,11 @@ namespace DivineHands
                 if (Hotkey.Pressed(Config.SpawnerArmHotkey.Value))   DivinePanel.ToggleArmSpawner();
                 if (Hotkey.Pressed(Config.LakeArmHotkey.Value))      DivinePanel.ToggleArmLake();
                 if (Hotkey.Pressed(Config.FertilityArmHotkey.Value)) DivinePanel.ToggleArmFertility();
+
+                // Delete the current selection on its hotkey (mine/quarry/pit/deep-mine/ore node/any
+                // building). Gated on the feature enable; a no-op when nothing deletable is selected.
+                if (Config.DeleteEnable.Value && Hotkey.Pressed(Config.DeleteHotkey.Value))
+                    DeleteSelected.DeleteCurrent();
 
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
