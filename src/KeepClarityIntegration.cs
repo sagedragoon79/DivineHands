@@ -228,6 +228,13 @@ namespace DivineHands
                         min: 0f, max: 20f, order: 136, indent: 20,
                         visibleWhen: () => Config.EnableFreeCam.Value && Config.FreeCamGroundFloor.Value));
 
+            // Hidden persist prefs — registered with a false predicate so they stay OUT of KC's
+            // "Other Settings" catch-all (and off every visible page). They mirror the live power state
+            // for save/reload persistence; not meant to be edited by hand.
+            Reg(GroupGodTools, Config.PersistRevealActive,        NewMeta("Reveal Map (persisted state)",     visibleWhen: () => false));
+            Reg(GroupGodTools, Config.PersistBuildAnywhereActive, NewMeta("Build Anywhere (persisted state)", visibleWhen: () => false));
+            Reg(GroupGodTools, Config.PersistGodViewActive,       NewMeta("God View (persisted state)",        visibleWhen: () => false));
+
             // ===== Terrain Sculpting =====
             Reg(GroupTerrain, Config.TerrainEnable,
                 NewMeta("Terrain Sculpting",

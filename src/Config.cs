@@ -51,6 +51,13 @@ namespace DivineHands
         /// shadow draw distance), capturing the map's current values on enable and restoring on disable.</summary>
         public static MelonPreferences_Entry<bool>   EnableGodView        { get; private set; } = null!;
 
+        // Hidden persist prefs: mirror each power's live ON/OFF so it survives a save/reload. On map
+        // load the runtime Active flag is restored from these instead of forced off. Reveal Map / Build
+        // Anywhere / God View persist (per user request); Free Cam still always resets. Not user-facing.
+        public static MelonPreferences_Entry<bool>   PersistRevealActive       { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   PersistBuildAnywhereActive { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   PersistGodViewActive      { get; private set; } = null!;
+
         /// <summary>Proportional God-View zoom: while God View is on, make mouse-scroll zoom steps finer
         /// as you zoom in close (the wide god-view range otherwise makes each notch coarse near the
         /// ground). Off = vanilla flat step. Implemented as a Harmony prefix on CameraManager.AdjustZoom,
@@ -302,6 +309,11 @@ namespace DivineHands
                              "camera — you activate it in-game from the Divine Hands panel. When active it " +
                              "relaxes the RTS camera limits so you can zoom far out, tilt to a flat/overhead " +
                              "angle, and survey the whole map, restoring exactly when turned off. Default: off.");
+
+            // Hidden persist prefs (not registered in KC with a visible predicate — see KC integration).
+            PersistRevealActive        = _root.CreateEntry("PersistRevealActive", false);
+            PersistBuildAnywhereActive = _root.CreateEntry("PersistBuildAnywhereActive", false);
+            PersistGodViewActive       = _root.CreateEntry("PersistGodViewActive", false);
 
             ProportionalZoom = _root.CreateEntry(
                 "ProportionalZoom", true,

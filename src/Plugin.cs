@@ -88,9 +88,31 @@ namespace DivineHands
             CursorSpawners.OnMapLoaded();
             DeleteSelected.OnMapLoaded();
             ItemInjection.OnMapLoaded();
+
+            // Restore the persisted live state for the powers the user wants to survive a save/reload
+            // (Reveal Map / Build Anywhere / God View). Set AFTER each module's OnMapLoaded (which forces
+            // an off baseline) so the per-frame Sync applies them once the managers are ready. Gated on
+            // MasterEnable + each power's Enable pref. Free Cam intentionally stays off on load.
+            if (Config.MasterEnable.Value)
+            {
+                GodTools.RevealActive          = Config.EnableRevealMap.Value    && Config.PersistRevealActive.Value;
+                BuildAnywherePatches.Active     = Config.EnableBuildAnywhere.Value && Config.PersistBuildAnywhereActive.Value;
+                CameraTools.GodViewActive       = Config.EnableGodView.Value      && Config.PersistGodViewActive.Value;
+            }
         }
 
         private static bool _wasMasterEnabled = true;
+
+        // Last-mirrored persist values (seeded impossible so the first frame always writes).
+        private static int _persistRevealLast = -1, _persistBuildLast = -1, _persistGodViewLast = -1;
+
+        private static void MirrorPersist(MelonLoader.MelonPreferences_Entry<bool> pref, bool live, ref int last)
+        {
+            int now = live ? 1 : 0;
+            if (now == last) return;
+            last = now;
+            pref.Value = live;
+        }
 
         public override void OnUpdate()
         {
@@ -133,6 +155,13 @@ namespace DivineHands
                 ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
                 BrushPreview.Render();     // lake/fertility footprint outline at the cursor
+
+                // Mirror the live power state into the persist prefs (only in-game, only on change) so
+                // Reveal Map / Build Anywhere / God View come back after a save/reload. Change-guarded so
+                // we don't dirty MelonPreferences every frame.
+                MirrorPersist(Config.PersistRevealActive, GodTools.RevealActive, ref _persistRevealLast);
+                MirrorPersist(Config.PersistBuildAnywhereActive, BuildAnywherePatches.Active, ref _persistBuildLast);
+                MirrorPersist(Config.PersistGodViewActive, CameraTools.GodViewActive, ref _persistGodViewLast);
             }
         }
 
