@@ -29,6 +29,10 @@ namespace DivineHands
         /// <summary>Verbose diagnostic logging to MelonLoader.log.</summary>
         public static MelonPreferences_Entry<bool>   DebugLog       { get; private set; } = null!;
 
+        /// <summary>Fallback: render the original lightweight IMGUI panel instead of the
+        /// FF-styled uGUI panel. Also auto-set if the uGUI build ever fails.</summary>
+        public static MelonPreferences_Entry<bool>   ClassicPanel   { get; private set; } = null!;
+
         // ===== God Tools =====
 
         /// <summary>ENABLE/AVAILABLE switch for Reveal Map. When true, the Reveal Map control appears
@@ -287,6 +291,12 @@ namespace DivineHands
                 "DebugLog", false,
                 display_name: "Debug Logging",
                 description: "Verbose diagnostic output to MelonLoader.log. Default: off.");
+
+            ClassicPanel = _root.CreateEntry(
+                "ClassicPanel", false,
+                display_name: "Classic Panel",
+                description: "Use the original lightweight IMGUI panel instead of the FF-styled " +
+                             "one. Fallback if the styled panel misbehaves. Default: off.");
 
             EnableRevealMap = _root.CreateEntry(
                 "EnableRevealMap", false,

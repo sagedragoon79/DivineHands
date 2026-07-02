@@ -137,6 +137,11 @@ namespace DivineHands
                 NewMeta("Debug Logging",
                         "Verbose diagnostic output to MelonLoader.log. Default: OFF.",
                         order: 13, indent: 20));
+            Reg(GroupGeneral, Config.ClassicPanel,
+                NewMeta("Classic Panel",
+                        "Use the original lightweight IMGUI panel instead of the FF-styled one. " +
+                        "Fallback if the styled panel ever misbehaves. Default: OFF.",
+                        order: 14, indent: 20));
 
             // ===== God Tools =====
             // These Enable toggles make each power AVAILABLE in the in-game panel; you ACTIVATE it
@@ -330,9 +335,10 @@ namespace DivineHands
                         min: 1, max: 50, order: 303, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
             Reg(GroupSpawning, Config.SpawnIsDeep,
-                NewMeta("Deep Deposit (gold/iron/coal)",
-                        "Minerals only. Gold/iron/coal spawn as a deep (infinite) deposit when on. " +
-                        "Stone/clay/sand always spawn as infinite pits. Default: OFF.",
+                NewMeta("Deep Deposit",
+                        "Minerals only. When on, spawned deposits (all six kinds) are deep/infinite — " +
+                        "usable ONLY by the Deep Mine / Deep Pit buildings. When off they're finite " +
+                        "surface deposits for the regular mine/pit buildings. Default: OFF.",
                         order: 304, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 1));
             Reg(GroupSpawning, Config.SpawnAnnounceVillagers,

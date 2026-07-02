@@ -126,6 +126,10 @@ namespace DivineHands
                 ItemInjection.OnMasterDisabled();
             _wasMasterEnabled = Config.MasterEnable.Value;
 
+            // Drive the FF-styled uGUI panel BEFORE the master gate so flipping the master
+            // off still hides its canvas (Tick handles its own visibility conditions).
+            DivinePanelUgui.Tick();
+
             if (!Config.MasterEnable.Value) return;
 
             // Toggle the shared god-power panel on the configurable hotkey.
@@ -173,7 +177,10 @@ namespace DivineHands
         public override void OnGUI()
         {
             if (!Config.MasterEnable.Value) return;
-            DivinePanel.Render();
+            // The FF-styled uGUI panel (DivinePanelUgui, driven from OnUpdate) is the default;
+            // the IMGUI window remains as the ClassicPanel fallback.
+            if (Config.ClassicPanel.Value)
+                DivinePanel.Render();
         }
     }
 }

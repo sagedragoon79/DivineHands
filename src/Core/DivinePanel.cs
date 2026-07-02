@@ -39,6 +39,15 @@ namespace DivineHands.Core
         private enum ArmedTool { None, Terrain, Spawner, Lake, Fertility }
         private static ArmedTool _armedTool = ArmedTool.None;
 
+        /// <summary>Armed tool as an index (0 None · 1 Terrain · 2 Spawner · 3 Lake · 4 Fertility) —
+        /// the uGUI panel's read/write handle on the SAME state the hotkeys and modules use, so
+        /// arm hotkeys, tab chips, and the *ModeActive gates can never disagree.</summary>
+        internal static int ArmedIndex
+        {
+            get => (int)_armedTool;
+            set => _armedTool = (ArmedTool)Mathf.Clamp(value, 0, 4);
+        }
+
         /// <summary>True when the panel is open AND the Terrain tool is the armed mode — read by
         /// <see cref="DivineHands.Modules.TerrainElevation"/> to gate brush application so terrain only
         /// sculpts while the user has explicitly armed the tool. Requires the terrain feature enabled.</summary>
@@ -71,7 +80,9 @@ namespace DivineHands.Core
         public static bool BlocksGameInput =>
             _visible
             && Config.MasterEnable.Value
-            && _rect.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y));
+            && (Config.ClassicPanel.Value
+                ? _rect.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y))
+                : DivinePanelUgui.CursorOver);
 
         public static void Toggle() => _visible = !_visible;
         public static void Show() => _visible = true;
@@ -498,10 +509,11 @@ namespace DivineHands.Core
                     GUILayout.Toggle(Config.SpawnPersistent.Value,
                         "  Persistent (Deer area + Wolf/Boar dens — bear always loose)");
 
-            // Deep toggle (minerals only).
+            // Deep toggle (minerals only). Deep = infinite, usable ONLY by Deep Mine / Deep Pit
+            // buildings; off = finite, for the regular mine/pit buildings.
             if (family == 1)
                 Config.SpawnIsDeep.Value =
-                    GUILayout.Toggle(Config.SpawnIsDeep.Value, "  Deep deposit (gold/iron/coal — infinite)");
+                    GUILayout.Toggle(Config.SpawnIsDeep.Value, "  Deep deposit (infinite — needs Deep Mine/Pit)");
 
             GUILayout.Label($"Apply: {Config.SpawnApplyKey.Value}   (GUIDs & all settings: Keep Clarity panel)",
                             HintStyle);

@@ -38,13 +38,17 @@ namespace DivineHands.Modules
     ///       Persists: mineralSites + mineralSitePrefabData are serialized [158699/158709] and the prefab
     ///       is re-instantiated in OnGameFinishedLoading [158782-785].
     ///
-    ///     stone/clay/sand => INFINITE pit (the design's no-finite-stone rule). We call the PRIVATE
+    ///     stone/clay/sand => pit, finite OR Deep/infinite per the Deep toggle. ⚠ In the live build
+    ///     "infinite" IS the deep marker: Clay/Sand/StonePitBuilding binds its resource with
+    ///     `component.isInfinite == building.isDeep` (336577/351987), so an infinite pit is usable
+    ///     ONLY by the Deep Pit buildings and a finite one only by the regular pits. (The original
+    ///     always-infinite convenience made every spawned pit deep-only — fixed.) We call the PRIVATE
     ///     full-job creators via reflection (they add the Site wrapper to the serialized list):
     ///       - CreateClaySite (Vector2 loc, float radius, int clayCount, bool avoidWater)  [PRIVATE 159588]
     ///       - CreateSandSite (Vector2 loc, float radius, int sandCount, bool avoidWater)  [PRIVATE 159699]
     ///       - CreateStoneSite(Vector2 loc, float radius, int stoneCount, bool avoidWater) [PRIVATE 159774]
-    ///     invoked with avoidWater:false, then we grab the just-added Site (last list element) and set
-    ///     its live component's infiniteItems=true. Site.isInfinite is a READ-ONLY getter off that
+    ///     invoked with avoidWater:false. Deep only: grab the just-added Site (last list element) and
+    ///     set its live component's infiniteItems=true. Site.isInfinite is a READ-ONLY getter off that
     ///     component (159884/159952/160020); Save() reads it back (159904/...) so infinite persists.
     ///     NOTE clay/sand use Resource.storage.infiniteItems; stone's load path sets
     ///     StonePitResource.infiniteItems DIRECTLY (160062) — we set BOTH on stone.
@@ -107,7 +111,8 @@ namespace DivineHands.Modules
         private const int MineralFiniteCount = 5000;  // ore units for a non-Deep gold/iron/coal site
         private const int DeepMineCount = 99999;      // matches the engine's deep-deposit count [158664]
         private const float PitRadius = 8f;           // metres
-        private const int PitCount = 9999;            // starting items (infinite flag makes it endless anyway)
+        private const int PitCount = 9999;            // starting items for a DEEP pit (infinite flag makes it endless)
+        private const int PitFiniteCount = 2500;      // starting items for a regular (non-Deep) finite pit
         private const float TreeStartGrown = 0.85f;   // AddGrowingTree startPercentGrown (near-mature)
 
         // =====================================================================
@@ -982,7 +987,7 @@ namespace DivineHands.Modules
         }
 
         // ---------------------------------------------------------------------
-        // MINERAL  (infinite-pit rule for stone/clay/sand; finite+Deep for gold/iron/coal)
+        // MINERAL  (all six kinds: finite by default, Deep/infinite when the Deep toggle is on)
         // ---------------------------------------------------------------------
 
         private static void SpawnMineral(Vector3 world, int count)
@@ -1089,6 +1094,28 @@ namespace DivineHands.Modules
                         if (deep)
                             siteType.GetProperty("isInfinite")?.SetValue(site, true); // settable + serialized
                         sitesList.GetType().GetMethod("Add")?.Invoke(sitesList, new[] { site });
+
+                        if (Config.DebugLog.Value)
+                        {
+                            // Diagnostic: what will the visible deposit cache for this id? Any OTHER
+                            // site sharing the id (esp. an infinite one) makes the deposit read Deep.
+                            int shared = 0, sharedInfinite = 0;
+                            try
+                            {
+                                if (mmType.GetMethod("GetMineralSitesForId")?
+                                        .Invoke(mineralManager, new object[] { depositId })
+                                    is System.Collections.IEnumerable others)
+                                    foreach (var o in others)
+                                    {
+                                        shared++;
+                                        if (o != null && Equals(siteType.GetProperty("isInfinite")?.GetValue(o), true))
+                                            sharedInfinite++;
+                                    }
+                            }
+                            catch { }
+                            MelonLogger.Msg($"[DivineHands] Ore site id={depositId} deep={deep} count={count} " +
+                                            $"— sites sharing id: {shared} (infinite: {sharedInfinite})");
+                        }
                     }
                 }
             }
@@ -1117,13 +1144,21 @@ namespace DivineHands.Modules
             {
                 // CreateXSite(Vector2 loc, float radius, int count, bool avoidWater:false)
                 var loc = new Vector2(pos.x, pos.z);
-                creator.Invoke(mineralManager, new object[] { loc, PitRadius, PitCount, false });
+                bool deep = Config.SpawnIsDeep.Value;
+                creator.Invoke(mineralManager, new object[] { loc, PitRadius, deep ? PitCount : PitFiniteCount, false });
 
-                // Grab the freshly-added Site (last list element) and flip its component infinite.
-                var list = mmType.GetProperty(listName)?.GetValue(mineralManager) as System.Collections.IList;
-                if (list == null || list.Count == 0) return;
-                var site = list[list.Count - 1];
-                if (site != null) MakePitInfinite(site, kind);
+                // Deep only: flip the fresh site's component infinite. In the live build infinite IS
+                // the deep marker — Clay/Sand/StonePitBuilding binds its resource via
+                // `component.isInfinite == isDeep` (336577/351987), so an infinite pit is usable ONLY
+                // by the Deep Pit buildings and a finite one only by the regular pits. The old
+                // "always infinite" convenience made every spawned pit deep-only.
+                if (deep)
+                {
+                    var list = mmType.GetProperty(listName)?.GetValue(mineralManager) as System.Collections.IList;
+                    if (list == null || list.Count == 0) return;
+                    var site = list[list.Count - 1];
+                    if (site != null) MakePitInfinite(site, kind);
+                }
             }
             catch (Exception ex)
             {
