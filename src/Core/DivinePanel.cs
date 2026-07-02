@@ -175,7 +175,8 @@ namespace DivineHands.Core
             GUILayout.Label("God Tools", SectionStyle);
 
             bool anyEnabled = Config.EnableRevealMap.Value || Config.EnableBuildAnywhere.Value
-                           || Config.EnableGodView.Value || Config.EnableFreeCam.Value;
+                           || Config.EnableGodView.Value || Config.EnableFreeCam.Value
+                           || Config.InstantBuildEnable.Value;
 
             if (!anyEnabled)
             {
@@ -200,6 +201,19 @@ namespace DivineHands.Core
                 DivineHands.Modules.CameraTools.FreeCamActive =
                     GUILayout.Toggle(DivineHands.Modules.CameraTools.FreeCamActive, "  Free Cam");
                 GUILayout.Label("Ctrl+F toggles · WASD fly · mouse look · Shift fast", HintStyle);
+            }
+
+            if (Config.InstantBuildEnable.Value)
+            {
+                DivineHands.Modules.InstantBuild.Active =
+                    GUILayout.Toggle(DivineHands.Modules.InstantBuild.Active, "  Instant Build");
+                if (DivineHands.Modules.InstantBuild.Active)
+                {
+                    Config.InstantBuildUseMaterials.Value =
+                        GUILayout.Toggle(Config.InstantBuildUseMaterials.Value, "      Use materials (charge town storage)");
+                    if (!string.IsNullOrEmpty(DivineHands.Modules.InstantBuild.Status))
+                        GUILayout.Label(DivineHands.Modules.InstantBuild.Status, HintStyle);
+                }
             }
         }
 

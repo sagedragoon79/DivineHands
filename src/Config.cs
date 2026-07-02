@@ -165,6 +165,10 @@ namespace DivineHands
         public static MelonPreferences_Entry<bool>   KillEnable { get; private set; } = null!;
         public static MelonPreferences_Entry<string> KillHotkey { get; private set; } = null!;
 
+        // ===== Instant Build =====
+        public static MelonPreferences_Entry<bool> InstantBuildEnable       { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool> InstantBuildUseMaterials { get; private set; } = null!;
+
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
         public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
@@ -514,6 +518,18 @@ namespace DivineHands
                 display_name: "Kill Hotkey",
                 description: "Key/chord that kills the selected creature. Default: Ctrl+K (a deliberate chord so it " +
                              "can't fire by accident).");
+
+            // ===== Instant Build =====
+            InstantBuildEnable = _root.CreateEntry("InstantBuildEnable", false,
+                display_name: "Instant Build",
+                description: "Make Instant Build available in the in-game panel. When ACTIVATED there, every build " +
+                             "site — newly placed AND already pending — completes on the next frame via the game's " +
+                             "own completion path. Resets off on every map load. Default: off.");
+            InstantBuildUseMaterials = _root.CreateEntry("InstantBuildUseMaterials", true,
+                display_name: "Instant Build Uses Materials",
+                description: "Charge the required construction materials from town storage up-front when instantly " +
+                             "completing a building (labor is always free). Sites the town can't afford are left to " +
+                             "construct normally. Off = material-free god building. Default: on.");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",

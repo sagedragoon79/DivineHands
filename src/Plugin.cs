@@ -62,6 +62,8 @@ namespace DivineHands
                 GodTools.ResetActive();
                 CameraTools.ResetActive();
                 BuildAnywherePatches.Active = false;
+                InstantBuild.ResetActive();
+                InstantBuild.OnSceneExit();
                 GodTools.OnSceneExit();
                 CameraTools.OnSceneExit();
                 TerrainElevation.OnSceneExit();
@@ -78,6 +80,8 @@ namespace DivineHands
             GodTools.ResetActive();
             CameraTools.ResetActive();
             BuildAnywherePatches.Active = false;
+            InstantBuild.ResetActive();
+            InstantBuild.OnMapLoaded();
             GodTools.OnMapLoaded();
             CameraTools.OnMapLoaded();
             TerrainElevation.OnMapLoaded();
@@ -148,6 +152,7 @@ namespace DivineHands
 
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
+                InstantBuild.OnUpdate();
                 TerrainElevation.OnUpdate();
                 LakeStamp.OnUpdate();
                 FertilityBrush.OnUpdate();

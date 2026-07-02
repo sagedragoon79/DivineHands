@@ -228,6 +228,20 @@ namespace DivineHands
                         min: 0f, max: 20f, order: 136, indent: 20,
                         visibleWhen: () => Config.EnableFreeCam.Value && Config.FreeCamGroundFloor.Value));
 
+            Reg(GroupGodTools, Config.InstantBuildEnable,
+                NewMeta("Instant Build",
+                        "Makes Instant Build available in the in-game panel — you activate it there, not here. " +
+                        "While active, every build site (newly placed and already pending) completes on the next " +
+                        "frame via the game's own completion path. Resets off on every map load. Default: OFF.",
+                        order: 140));
+            Reg(GroupGodTools, Config.InstantBuildUseMaterials,
+                NewMeta("Instant Build Uses Materials",
+                        "Charge the required construction materials from town storage up-front when instantly " +
+                        "completing a building (labor is always free). Sites the town can't afford are left to " +
+                        "construct normally. Off = material-free god building. Default: ON.",
+                        order: 141, indent: 20,
+                        visibleWhen: () => Config.InstantBuildEnable.Value));
+
             // Hidden persist prefs — registered with a false predicate so they stay OUT of KC's
             // "Other Settings" catch-all (and off every visible page). They mirror the live power state
             // for save/reload persistence; not meant to be edited by hand.
