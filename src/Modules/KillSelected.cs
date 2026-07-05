@@ -13,11 +13,14 @@ namespace DivineHands.Modules
     /// (both <c>… : Character</c>) and any animal (wild / livestock / pet — all <c>… : LandAnimal</c>).
     /// Mainly a testing aid, but this is a god mod.
     ///
-    /// Two selection CHANNELS (this is why the first cut missed villagers/pets/raiders): wild animals
-    /// and world objects go into <c>inputManager.selectedObject</c> (a single GameObject), but villagers,
-    /// pets, and raiders select through <c>inputManager.SelectSelectable</c> into
-    /// <c>inputManager.selectedObjs</c> — an <c>ObservableHashSet&lt;ISelectable&gt;</c> [110702] — and never
-    /// touch <c>selectedObject</c>. We read BOTH and kill every creature found.
+    /// THREE selection CHANNELS (this is why earlier cuts missed things): (1) wild animals and world
+    /// objects go into <c>inputManager.selectedObject</c> (a single GameObject); (2) villagers and pets
+    /// select through <c>inputManager.SelectSelectable</c> into <c>inputManager.selectedObjs</c> — an
+    /// <c>ObservableHashSet&lt;ISelectable&gt;</c> [110702]; (3) RAIDERS are neither — <c>Raider</c> isn't
+    /// <c>ISelectable</c>, so <c>Input_SelectRaider</c> [118056] only flips the raider's
+    /// <c>SelectableComponent.IsSelected</c> (and holds it in a private state field). FF is single-select
+    /// and deselects cleanly on exit, so we only fall back to scanning <c>SelectableComponent.IsSelected</c>
+    /// (throttled) when channels 1 &amp; 2 are empty — the raider case.
     ///
     /// Recipe (verified): every creature carries a <c>DamageableComponent</c> (CombatComponent derives
     /// from it) whose <c>Kill(GameObject damageCauser, DamageType)</c> [74067] sets life to 0 and fires
@@ -34,9 +37,15 @@ namespace DivineHands.Modules
         private static MethodInfo? _mKill;
         private static object? _debugDamage; // boxed DamageType(Debug) — struct, built once
 
-        /// <summary>Every currently-selected creature GameObject, gathered from BOTH selection channels
-        /// (single <c>selectedObject</c> + the <c>selectedObjs</c> ISelectable set), de-duplicated.</summary>
-        private static List<GameObject> SelectedCreatures()
+        // Throttled cache for the channel-3 (raider) scan, so per-frame TryDescribe never scans the scene
+        // more than ~3x/sec.
+        private static readonly List<GameObject> _scanCache = new List<GameObject>();
+        private static float _lastScanTime = -999f;
+
+        /// <summary>Every currently-selected creature GameObject, de-duplicated. Channels 1 &amp; 2 are cheap
+        /// field reads; channel 3 (the raider scan) only runs when 1 &amp; 2 are empty. <paramref name="freshScan"/>
+        /// forces an immediate channel-3 scan (used by KillCurrent); otherwise it's throttled.</summary>
+        private static List<GameObject> SelectedCreatures(bool freshScan = false)
         {
             var result = new List<GameObject>();
             try
@@ -49,8 +58,8 @@ namespace DivineHands.Modules
                 var so = im.selectedObject;
                 if (so != null && IsCreature(so)) result.Add(so);
 
-                // Channel 2: the ISelectable set (villagers / pets / raiders). ObservableHashSet : HashSet,
-                // so it enumerates directly; each element is a MonoBehaviour, so cast to Component for its GO.
+                // Channel 2: the ISelectable set (villagers / pets). ObservableHashSet : HashSet, so it
+                // enumerates directly; each element is a MonoBehaviour, so cast to Component for its GO.
                 if (im.selectedObjs is IEnumerable set)
                 {
                     foreach (var s in set)
@@ -59,9 +68,32 @@ namespace DivineHands.Modules
                         if (go != null && IsCreature(go) && !result.Contains(go)) result.Add(go);
                     }
                 }
+
+                // Channel 3 (raiders): only when nothing else is selected — FF single-select means a
+                // selected raider leaves 1 & 2 empty. Throttled scene scan of SelectableComponent.IsSelected.
+                if (result.Count == 0)
+                {
+                    RefreshRaiderScan(freshScan);
+                    result.AddRange(_scanCache);
+                }
             }
             catch { }
             return result;
+        }
+
+        private static void RefreshRaiderScan(bool force)
+        {
+            if (!force && Time.realtimeSinceStartup - _lastScanTime < 0.30f) return;
+            _lastScanTime = Time.realtimeSinceStartup;
+            _scanCache.Clear();
+            try
+            {
+                // SelectableComponent.IsSelected is set on Select() and cleared on Deselect() (raider exit
+                // path calls Deselect), so a true flag reliably marks the current selection.
+                foreach (var sc in UnityEngine.Object.FindObjectsOfType<SelectableComponent>())
+                    if (sc != null && sc.IsSelected && IsCreature(sc.gameObject)) _scanCache.Add(sc.gameObject);
+            }
+            catch { }
         }
 
         /// <summary>For the panel: a label for the current selection + whether Kill would act on it.</summary>
@@ -80,7 +112,7 @@ namespace DivineHands.Modules
         public static string KillCurrent()
         {
             if (!Resolve()) return "Kill API unavailable";
-            var targets = SelectedCreatures();
+            var targets = SelectedCreatures(freshScan: true);
             if (targets.Count == 0) return "No living creature selected";
             int killed = 0;
             string last = "";
