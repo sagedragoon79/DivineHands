@@ -53,25 +53,25 @@ namespace DivineHands.Core
         /// sculpts while the user has explicitly armed the tool. Requires the terrain feature enabled.</summary>
         public static bool TerrainModeActive =>
             _visible && Config.MasterEnable.Value && Config.TerrainEnable.Value
-            && _armedTool == ArmedTool.Terrain;
+            && _armedTool == ArmedTool.Terrain && !UI.UiKit.AnyInputFocused;
 
         /// <summary>True when the panel is open AND the Spawner tool is the armed mode — read by
         /// <see cref="DivineHands.Modules.CursorSpawners"/> to gate spawning on the apply key.</summary>
         public static bool SpawnerModeActive =>
             _visible && Config.MasterEnable.Value && Config.SpawnEnable.Value
-            && _armedTool == ArmedTool.Spawner;
+            && _armedTool == ArmedTool.Spawner && !UI.UiKit.AnyInputFocused;
 
         /// <summary>True when the panel is open AND the Lake stamp is the armed mode — read by
         /// <see cref="DivineHands.Modules.LakeStamp"/> to gate stamping on the apply key.</summary>
         public static bool LakeModeActive =>
             _visible && Config.MasterEnable.Value && Config.LakeEnable.Value
-            && _armedTool == ArmedTool.Lake;
+            && _armedTool == ArmedTool.Lake && !UI.UiKit.AnyInputFocused;
 
         /// <summary>True when the panel is open AND the Fertility painter is the armed mode — read by
         /// <see cref="DivineHands.Modules.FertilityBrush"/> to gate painting on the apply key.</summary>
         public static bool FertilityModeActive =>
             _visible && Config.MasterEnable.Value && Config.FertilityEnable.Value
-            && _armedTool == ArmedTool.Fertility;
+            && _armedTool == ArmedTool.Fertility && !UI.UiKit.AnyInputFocused;
 
         /// <summary>True when the cursor is over the visible panel — read by the input guard
         /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
@@ -414,7 +414,7 @@ namespace DivineHands.Core
             GUILayout.Label("Arrows resize (←→ width · ↑↓ depth) · Tab swaps", HintStyle);
 
             Config.TerrainGridFineSnap.Value =
-                GUILayout.Toggle(Config.TerrainGridFineSnap.Value, "  Fine positioning (½-cell, align builds)");
+                GUILayout.Toggle(Config.TerrainGridFineSnap.Value, "  Free positioning (no snap, align builds)");
 
             GUILayout.Label($"Apply: {Config.TerrainApplyKey.Value}   Undo: {Config.TerrainUndoKey.Value}" +
                             $"   (undo depth {DivineHands.Modules.TerrainElevation.UndoDepth})", HintStyle);

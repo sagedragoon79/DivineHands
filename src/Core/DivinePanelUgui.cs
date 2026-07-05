@@ -152,7 +152,7 @@ namespace DivineHands.Core
             UiKit.Bind(() => SetActive(_dangerSection,
                 Plugin.InGame && (Config.DeleteEnable.Value || Config.KillEnable.Value)));
 
-            UiKit.NewHint(panelGo, () => "Hotkeys & every setting: Keep Clarity panel (F10).", wrap: false);
+            UiKit.NewHint(panelGo, () => $"v{Plugin.Version} · Hotkeys & every setting: Keep Clarity panel (F10).", wrap: false);
 
             _pendingInitialPos = true;
             Plugin.Log.Msg("[Panel] uGUI panel built.");
@@ -172,7 +172,9 @@ namespace DivineHands.Core
             _drag.TopMargin = 44f; // FF's top bar
 
             var hlg = header.AddComponent<HorizontalLayoutGroup>();
-            hlg.padding = new RectOffset(9, 5, 3, 3);
+            // Left padding clears the carved frame's ornate top-left corner sweep, which
+            // otherwise curves straight through the title (FF insets its titles the same way).
+            hlg.padding = new RectOffset(30, 5, 3, 3);
             hlg.spacing = 4;
             hlg.childAlignment = TextAnchor.MiddleLeft;
             hlg.childControlWidth = true;
@@ -184,9 +186,8 @@ namespace DivineHands.Core
             title.characterSpacing = 2.5f;
             title.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
 
-            var ver = UiKit.NewText(header, "Version", "v" + Plugin.Version, 9, FFAssets.TextMuted,
-                TextAlignmentOptions.MidlineRight);
-            ver.gameObject.AddComponent<LayoutElement>().preferredWidth = 34;
+            // (Version lives in the footer hint — the frame's top-right filigree owns this
+            // corner, and text meshed into it.)
 
             // FF's round X close button
             var closeGo = UiKit.NewChild(header, "Close");
@@ -350,7 +351,7 @@ namespace DivineHands.Core
                     : $"Grid {gw} × {gh} cells · arrows resize, Tab swaps";
             });
 
-            UiKit.NewToggleRow(box, "Fine positioning (½-cell, align builds)",
+            UiKit.NewToggleRow(box, "Free positioning (no snap, align builds)",
                 () => Config.TerrainGridFineSnap.Value, v => Config.TerrainGridFineSnap.Value = v);
 
             UiKit.NewHint(box, () =>

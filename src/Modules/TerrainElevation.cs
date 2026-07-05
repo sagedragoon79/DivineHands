@@ -427,17 +427,17 @@ namespace DivineHands.Modules
             => entry.Value = Mathf.Clamp(entry.Value + delta, 1, 10);
 
         // The integer centre cell the SCULPT writes around. Default = floor (cell under cursor). With Fine
-        // Grid Positioning the cursor first snaps to the nearest HALF-cell (so the overlay can sit between
-        // cells for aligning buildings), then rounds to the nearest whole cell for the actual heightmap
-        // write (the heightmap only has whole-cell vertices).
+        // Grid Positioning the overlay follows the cursor CONTINUOUSLY (TerrainHelper-style — FF free-build
+        // placement doesn't snap at all, so the guide must be freely alignable, not stepped); the write
+        // still resolves to the nearest whole cell (the heightmap only has whole-cell vertices).
         private static void SculptCenter(Vector3 world, out int cx, out int cz)
         {
             float fx = world.x / _resolution;
             float fz = world.z / _resolution;
             if (Config.TerrainGridFineSnap.Value)
             {
-                cx = Mathf.RoundToInt(Mathf.Round(fx * 2f) / 2f);
-                cz = Mathf.RoundToInt(Mathf.Round(fz * 2f) / 2f);
+                cx = Mathf.RoundToInt(fx);
+                cz = Mathf.RoundToInt(fz);
             }
             else
             {
@@ -447,11 +447,12 @@ namespace DivineHands.Modules
         }
 
         /// <summary>Grid OVERLAY geometry for the preview: the bottom-left corner as a FRACTIONAL cell
-        /// coordinate (so Fine Grid Positioning can place it on half-cell steps) plus the cell counts.
-        /// The preview draws cells between the corner lattice [origin .. origin+cols] × [.. +rows]. The
-        /// sculpt rounds to whole cells (<see cref="SculptCenter"/>), so at a half-step the overlay sits up
-        /// to half a cell off the pad the brush flattens — intended (it's a placement guide). False until
-        /// terrain + cursor are ready.</summary>
+        /// coordinate plus the cell counts. The preview draws cells between the corner lattice
+        /// [origin .. origin+cols] × [.. +rows]. With Fine Grid Positioning the origin tracks the cursor
+        /// CONTINUOUSLY (no snap — mirrors TerrainHelper's free grid: cursor − halfExtent, so the user can
+        /// line the guide up with un-snapped free-build placement exactly). The sculpt still rounds to
+        /// whole cells (<see cref="SculptCenter"/>), so the overlay can sit up to half a cell off the pad
+        /// the brush flattens — intended (it's a placement guide). False until terrain + cursor are ready.</summary>
         public static bool TryGetGridGeometry(out float originX, out float originZ, out int cols, out int rows)
         {
             originX = originZ = 0f; cols = rows = 0;
@@ -460,19 +461,16 @@ namespace DivineHands.Modules
 
             cols = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
             rows = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
-            SculptCenter(world, out int cx, out int cz); // integer base (matches the sculpt rect origin)
 
             if (Config.TerrainGridFineSnap.Value)
             {
-                float ccx = Mathf.Round(world.x / _resolution * 2f) / 2f; // half-cell centre
-                float ccz = Mathf.Round(world.z / _resolution * 2f) / 2f;
-                // Sculpt rect bottom-left is (cx - cols/2); shift the overlay by the half-cell delta so it
-                // visually tracks the cursor while the pad stays on whole cells.
-                originX = (cx - cols / 2) + (ccx - cx);
-                originZ = (cz - rows / 2) + (ccz - cz);
+                // Free positioning: grid centred on the exact cursor point, no stepping.
+                originX = world.x / _resolution - cols * 0.5f;
+                originZ = world.z / _resolution - rows * 0.5f;
             }
             else
             {
+                SculptCenter(world, out int cx, out int cz); // integer base (matches the sculpt rect origin)
                 originX = cx - cols / 2;
                 originZ = cz - rows / 2;
             }
