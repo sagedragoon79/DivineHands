@@ -17,10 +17,10 @@ namespace DivineHands.Modules
     /// objects go into <c>inputManager.selectedObject</c> (a single GameObject); (2) villagers and pets
     /// select through <c>inputManager.SelectSelectable</c> into <c>inputManager.selectedObjs</c> — an
     /// <c>ObservableHashSet&lt;ISelectable&gt;</c> [110702]; (3) RAIDERS are neither — <c>Raider</c> isn't
-    /// <c>ISelectable</c>, so <c>Input_SelectRaider</c> [118056] only flips the raider's
-    /// <c>SelectableComponent.IsSelected</c> (and holds it in a private state field). FF is single-select
-    /// and deselects cleanly on exit, so we only fall back to scanning <c>SelectableComponent.IsSelected</c>
-    /// (throttled) when channels 1 &amp; 2 are empty — the raider case.
+    /// <c>ISelectable</c>, so <c>Input_SelectRaider</c> [118056] holds the selected raider in a private
+    /// state field. We reach it by walking the input state machine
+    /// (<c>InputManager.inputStateMachine → StateMachine.currentState → StackState.pushedState…</c>) — O(depth),
+    /// no scene scan (an earlier FindObjectsOfType approach lagged the whole game while the panel was open).
     ///
     /// Recipe (verified): every creature carries a <c>DamageableComponent</c> (CombatComponent derives
     /// from it) whose <c>Kill(GameObject damageCauser, DamageType)</c> [74067] sets life to 0 and fires
@@ -37,15 +37,13 @@ namespace DivineHands.Modules
         private static MethodInfo? _mKill;
         private static object? _debugDamage; // boxed DamageType(Debug) — struct, built once
 
-        // Throttled cache for the channel-3 (raider) scan, so per-frame TryDescribe never scans the scene
-        // more than ~3x/sec.
-        private static readonly List<GameObject> _scanCache = new List<GameObject>();
-        private static float _lastScanTime = -999f;
+        // Channel-3 (raider) state-machine walk handles — all private FF fields, resolved once.
+        private static Type? _tStackState, _tInputSelectRaider;
+        private static FieldInfo? _fInputStateMachine, _fCurrentState, _fPushedState, _fRaider;
 
-        /// <summary>Every currently-selected creature GameObject, de-duplicated. Channels 1 &amp; 2 are cheap
-        /// field reads; channel 3 (the raider scan) only runs when 1 &amp; 2 are empty. <paramref name="freshScan"/>
-        /// forces an immediate channel-3 scan (used by KillCurrent); otherwise it's throttled.</summary>
-        private static List<GameObject> SelectedCreatures(bool freshScan = false)
+        /// <summary>Every currently-selected creature GameObject, de-duplicated. All three channels are
+        /// cheap: field reads + an O(depth) walk of the input state stack for the raider. No scene scan.</summary>
+        private static List<GameObject> SelectedCreatures()
         {
             var result = new List<GameObject>();
             try
@@ -70,30 +68,41 @@ namespace DivineHands.Modules
                 }
 
                 // Channel 3 (raiders): only when nothing else is selected — FF single-select means a
-                // selected raider leaves 1 & 2 empty. Throttled scene scan of SelectableComponent.IsSelected.
+                // selected raider leaves 1 & 2 empty. Cheap state-machine walk, no scan.
                 if (result.Count == 0)
                 {
-                    RefreshRaiderScan(freshScan);
-                    result.AddRange(_scanCache);
+                    var raiderGo = FindSelectedRaider(im);
+                    if (raiderGo != null && IsCreature(raiderGo)) result.Add(raiderGo);
                 }
             }
             catch { }
             return result;
         }
 
-        private static void RefreshRaiderScan(bool force)
+        /// <summary>Walk InputManager.inputStateMachine → currentState → pushedState… looking for an
+        /// Input_SelectRaider, and return its raider's GameObject. All private, so fully reflected + guarded.</summary>
+        private static GameObject? FindSelectedRaider(object inputManager)
         {
-            if (!force && Time.realtimeSinceStartup - _lastScanTime < 0.30f) return;
-            _lastScanTime = Time.realtimeSinceStartup;
-            _scanCache.Clear();
+            if (_fInputStateMachine == null || _fCurrentState == null || _fRaider == null) return null;
             try
             {
-                // SelectableComponent.IsSelected is set on Select() and cleared on Deselect() (raider exit
-                // path calls Deselect), so a true flag reliably marks the current selection.
-                foreach (var sc in UnityEngine.Object.FindObjectsOfType<SelectableComponent>())
-                    if (sc != null && sc.IsSelected && IsCreature(sc.gameObject)) _scanCache.Add(sc.gameObject);
+                object? sm = _fInputStateMachine.GetValue(inputManager);
+                if (sm == null) return null;
+                object? state = _fCurrentState.GetValue(sm);
+                for (int guard = 0; state != null && guard < 32; guard++)
+                {
+                    if (_tInputSelectRaider != null && _tInputSelectRaider.IsInstanceOfType(state))
+                    {
+                        var raider = _fRaider.GetValue(state) as Component;
+                        return raider != null ? raider.gameObject : null;
+                    }
+                    // Descend the pushed-state chain (StackState.pushedState); stop if not a StackState.
+                    state = (_fPushedState != null && _tStackState != null && _tStackState.IsInstanceOfType(state))
+                        ? _fPushedState.GetValue(state) : null;
+                }
             }
             catch { }
+            return null;
         }
 
         /// <summary>For the panel: a label for the current selection + whether Kill would act on it.</summary>
@@ -112,7 +121,7 @@ namespace DivineHands.Modules
         public static string KillCurrent()
         {
             if (!Resolve()) return "Kill API unavailable";
-            var targets = SelectedCreatures(freshScan: true);
+            var targets = SelectedCreatures();
             if (targets.Count == 0) return "No living creature selected";
             int killed = 0;
             string last = "";
@@ -176,6 +185,18 @@ namespace DivineHands.Modules
                         ? ctor.Invoke(new object[] { debugFlag, 0, "Divine Hands" })
                         : Activator.CreateInstance(_tDamageType); // fallback: default(DamageType)
                 }
+
+                // Channel-3 raider walk (best-effort — if any handle is missing, raiders just aren't
+                // detected; villagers/pets/animals still work).
+                const BindingFlags PI = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                var tInputManager = AccessTools.TypeByName("InputManager");
+                var tStateMachine = AccessTools.TypeByName("StateMachine");
+                _tStackState        = AccessTools.TypeByName("StackState");
+                _tInputSelectRaider = AccessTools.TypeByName("Input_SelectRaider");
+                _fInputStateMachine = tInputManager?.GetField("inputStateMachine", PI);
+                _fCurrentState      = tStateMachine?.GetField("currentState", PI);
+                _fPushedState       = _tStackState?.GetField("pushedState", PI);
+                _fRaider            = _tInputSelectRaider?.GetField("raider", PI);
 
                 _resolveFailed = _mKill == null || _debugDamage == null || (_tCharacter == null && _tLandAnimal == null);
                 if (_resolveFailed) MelonLogger.Warning("[DivineHands] Kill: API unresolved — disabled");
