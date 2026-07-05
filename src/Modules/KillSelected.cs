@@ -26,6 +26,9 @@ namespace DivineHands.Modules
     /// from it) whose <c>Kill(GameObject damageCauser, DamageType)</c> [74067] sets life to 0 and fires
     /// <c>OnDeath</c> — the game's own death path, so villagers/raiders run ProcessDeath and animals
     /// raise their died-events. We deal a <c>DamageType(DamageTypeFlags.Debug)</c> for a debug death reason.
+    /// The <c>damageCauser</c> MUST be non-null: <c>Raider.OnDeath → ReportKilled</c> [78155] calls
+    /// <c>damageCauser.GetComponent&lt;Villager&gt;()</c> with no null guard, so a null causer NREs on raiders
+    /// (animals/villagers don't deref it). We pass a persistent component-less dummy (<see cref="EnsureCauser"/>).
     ///
     /// Gated to Character/LandAnimal so it can't nuke a building (buildings are IDamageable too — use
     /// Delete Selected for those). Reflection-only + fully guarded. Off by default.
@@ -36,6 +39,7 @@ namespace DivineHands.Modules
         private static Type? _tCharacter, _tLandAnimal, _tDamageable, _tDamageType, _tFlags;
         private static MethodInfo? _mKill;
         private static object? _debugDamage; // boxed DamageType(Debug) — struct, built once
+        private static GameObject? _causer;   // non-null damage-causer (Raider.OnDeath derefs it, no null-check)
 
         // Channel-3 (raider) state-machine walk handles — all private FF fields, resolved once.
         private static Type? _tStackState, _tInputSelectRaider;
@@ -123,6 +127,7 @@ namespace DivineHands.Modules
             if (!Resolve()) return "Kill API unavailable";
             var targets = SelectedCreatures();
             if (targets.Count == 0) return "No living creature selected";
+            var causer = EnsureCauser(); // NOT null — Raider.OnDeath -> ReportKilled does causer.GetComponent<Villager>()
             int killed = 0;
             string last = "";
             foreach (var go in targets)
@@ -131,13 +136,31 @@ namespace DivineHands.Modules
                 {
                     var dc = FindDamageable(go);
                     if (dc == null) continue;
-                    _mKill!.Invoke(dc, new object?[] { null, _debugDamage });
+                    _mKill!.Invoke(dc, new object?[] { causer, _debugDamage });
                     killed++; last = go.name;
                 }
-                catch (Exception ex) { MelonLogger.Warning($"[DivineHands] Kill failed on {go.name}: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    var inner = ex.InnerException ?? ex; // Invoke wraps the real error in TargetInvocationException
+                    MelonLogger.Warning($"[DivineHands] Kill failed on {go.name}: {inner.GetType().Name}: {inner.Message}");
+                }
             }
             if (killed == 0) return "Nothing killable (no DamageableComponent)";
             return killed == 1 ? $"Killed {last}" : $"Killed {killed} creatures";
+        }
+
+        /// <summary>A persistent, component-less GameObject used as the kill's damage-causer. Must be
+        /// non-null: Raider.OnDeath -> ReportKilled [78155] calls <c>damageCauser.GetComponent&lt;Villager&gt;()</c>
+        /// with no null guard (NRE if null). Component-less so that lookup returns null -> no attacker
+        /// occupation credited (a clean debug kill).</summary>
+        private static GameObject EnsureCauser()
+        {
+            if (_causer == null)
+            {
+                _causer = new GameObject("DivineHands_KillCauser") { hideFlags = HideFlags.HideAndDontSave };
+                UnityEngine.Object.DontDestroyOnLoad(_causer);
+            }
+            return _causer;
         }
 
         private static bool IsCreature(GameObject go)
