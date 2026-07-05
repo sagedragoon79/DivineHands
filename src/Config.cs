@@ -521,9 +521,9 @@ namespace DivineHands
             KillEnable = _root.CreateEntry("KillEnable", false,
                 display_name: "Kill Selected",
                 description: "Adds a 'Kill Selected' section to the in-game panel + a hotkey that instantly kills the " +
-                             "selected LIVING creature — a villager or any animal (wild, livestock, or pet). Runs the " +
-                             "game's own death path (proper removal + died-events). Mainly a testing aid, but this is a " +
-                             "god mod. Off by default.");
+                             "selected LIVING creature(s) — villagers, raiders, and any animal (wild, livestock, or " +
+                             "pet). Kills every creature in the current selection. Runs the game's own death path " +
+                             "(proper removal + died-events). Mainly a testing aid, but this is a god mod. Off by default.");
             KillHotkey = _root.CreateEntry("KillHotkey", "Ctrl+K",
                 display_name: "Kill Hotkey",
                 description: "Key/chord that kills the selected creature. Default: Ctrl+K (a deliberate chord so it " +

@@ -475,9 +475,10 @@ namespace DivineHands
             Reg(GroupKill, Config.KillEnable,
                 NewMeta("Kill Selected",
                         "Adds a Kill Selected section to the in-game panel and enables the kill hotkey. Select a " +
-                        "villager or any animal (wild / livestock / pet) and kill it instantly via the game's own " +
-                        "death path (proper removal + died-events). Buildings/nodes are never touched (use Delete " +
-                        "Selected). Mainly a testing aid, but this is a god mod. Default: OFF.",
+                        "villager, raider, or any animal (wild / livestock / pet) — one or a group — and kill it " +
+                        "instantly via the game's own death path (proper removal + died-events). Buildings/nodes " +
+                        "are never touched (use Delete Selected). Mainly a testing aid, but this is a god mod. " +
+                        "Default: OFF.",
                         order: 560));
             Reg(GroupKill, Config.KillHotkey,
                 NewMeta("Kill Hotkey",
