@@ -505,9 +505,9 @@ namespace DivineHands
             DeleteEnable = _root.CreateEntry("DeleteEnable", false,
                 display_name: "Delete Selected",
                 description: "Adds a 'Selected Object' section to the in-game panel + a hotkey that instantly " +
-                             "deletes the SELECTED resource node (ore / clay-sand-stone patch) or building " +
-                             "(mine, quarry, pit, deep mine — or any building). Villagers/animals/crops are never " +
-                             "touched. Destructive + no undo — off by default.");
+                             "deletes the SELECTED resource node (ore / clay-sand-stone pit / tree / rock / " +
+                             "forageable) or building (mine, quarry, pit, deep mine — or any building). " +
+                             "Villagers/animals/crops are never touched. Destructive + no undo — off by default.");
             DeleteHotkey = _root.CreateEntry("DeleteHotkey", "Ctrl+Delete",
                 display_name: "Delete Hotkey",
                 description: "Key/chord that deletes the selected node/building. Default: Ctrl+Delete (a deliberate " +

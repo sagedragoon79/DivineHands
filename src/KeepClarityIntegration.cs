@@ -455,9 +455,10 @@ namespace DivineHands
             Reg(GroupDelete, Config.DeleteEnable,
                 NewMeta("Delete Selected",
                         "Adds a Delete Selected section to the in-game panel and enables the delete hotkey. " +
-                        "Select a mine / quarry / clay-sand pit / deep mine / any building — or a raw ore/clay/" +
-                        "sand/stone resource node — and delete it instantly. Everything else (villagers, animals, " +
-                        "fields) is a safe no-op. Ore-node deletion is a PERMANENT world edit. Default: OFF.",
+                        "Select a mine / quarry / clay-sand pit / deep mine / any building — or a resource node " +
+                        "(ore, clay/sand/stone pit, tree, rock, forageable) — and delete it instantly. Everything " +
+                        "else (villagers, animals, fields) is a safe no-op. Ore-node deletion is a PERMANENT " +
+                        "world edit. Default: OFF.",
                         order: 540));
             Reg(GroupDelete, Config.DeleteHotkey,
                 NewMeta("Delete Hotkey",
