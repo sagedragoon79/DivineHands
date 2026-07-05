@@ -351,7 +351,7 @@ namespace DivineHands.Core
                     : $"Grid {gw} × {gh} cells · arrows resize, Tab swaps";
             });
 
-            UiKit.NewToggleRow(box, "Free positioning (no snap, align builds)",
+            UiKit.NewToggleRow(box, "Fine positioning (½-grid steps, free-build play)",
                 () => Config.TerrainGridFineSnap.Value, v => Config.TerrainGridFineSnap.Value = v);
 
             UiKit.NewHint(box, () =>

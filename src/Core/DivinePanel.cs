@@ -414,7 +414,7 @@ namespace DivineHands.Core
             GUILayout.Label("Arrows resize (←→ width · ↑↓ depth) · Tab swaps", HintStyle);
 
             Config.TerrainGridFineSnap.Value =
-                GUILayout.Toggle(Config.TerrainGridFineSnap.Value, "  Free positioning (no snap, align builds)");
+                GUILayout.Toggle(Config.TerrainGridFineSnap.Value, "  Fine positioning (½-grid steps, free-build play)");
 
             GUILayout.Label($"Apply: {Config.TerrainApplyKey.Value}   Undo: {Config.TerrainUndoKey.Value}" +
                             $"   (undo depth {DivineHands.Modules.TerrainElevation.UndoDepth})", HintStyle);

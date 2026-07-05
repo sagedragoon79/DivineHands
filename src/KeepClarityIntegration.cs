@@ -286,11 +286,12 @@ namespace DivineHands
                         min: 1, max: 10, order: 204, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridFineSnap,
-                NewMeta("Free Grid Positioning",
-                        "The grid overlay follows the cursor exactly — no snapping — so you can line it up " +
-                        "with free-build placement, which doesn't snap either (TerrainHelper-style). Placement " +
-                        "guide — the sculpt still resolves to whole cells on apply, so leave off for crisp " +
-                        "flat pads. Default: off.",
+                NewMeta("Fine Grid Positioning",
+                        "For free-build placement (TerrainHelper feel): the grid steps on the ½-grid lattice " +
+                        "and holds still between steps, giving the un-snapped building ghost play to be placed " +
+                        "anywhere in the half-cell window without the grid sliding beneath it. Placement guide — " +
+                        "the sculpt still resolves to whole cells on apply, so leave off for crisp flat pads. " +
+                        "Default: off.",
                         order: 205, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainApplyKey,

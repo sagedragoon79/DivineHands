@@ -427,8 +427,7 @@ namespace DivineHands.Modules
             => entry.Value = Mathf.Clamp(entry.Value + delta, 1, 10);
 
         // The integer centre cell the SCULPT writes around. Default = floor (cell under cursor). With Fine
-        // Grid Positioning the overlay follows the cursor CONTINUOUSLY (TerrainHelper-style — FF free-build
-        // placement doesn't snap at all, so the guide must be freely alignable, not stepped); the write
+        // Grid Positioning the overlay steps on the ½-cell lattice (see TryGetGridGeometry); the write
         // still resolves to the nearest whole cell (the heightmap only has whole-cell vertices).
         private static void SculptCenter(Vector3 world, out int cx, out int cz)
         {
@@ -448,11 +447,13 @@ namespace DivineHands.Modules
 
         /// <summary>Grid OVERLAY geometry for the preview: the bottom-left corner as a FRACTIONAL cell
         /// coordinate plus the cell counts. The preview draws cells between the corner lattice
-        /// [origin .. origin+cols] × [.. +rows]. With Fine Grid Positioning the origin tracks the cursor
-        /// CONTINUOUSLY (no snap — mirrors TerrainHelper's free grid: cursor − halfExtent, so the user can
-        /// line the guide up with un-snapped free-build placement exactly). The sculpt still rounds to
-        /// whole cells (<see cref="SculptCenter"/>), so the overlay can sit up to half a cell off the pad
-        /// the brush flattens — intended (it's a placement guide). False until terrain + cursor are ready.</summary>
+        /// [origin .. origin+cols] × [.. +rows]. With Fine Grid Positioning the grid centre quantizes to
+        /// the nearest HALF-cell (TerrainHelper free-build feel): the grid holds still while the cursor
+        /// roams the half-cell window between steps — that dwell is the 'play' that lets an un-snapped
+        /// free-build ghost be placed anywhere between ½-grid alignments without the grid sliding under
+        /// it. The sculpt still rounds to whole cells (<see cref="SculptCenter"/>), so the overlay can sit
+        /// up to half a cell off the pad the brush flattens — intended (it's a placement guide). False
+        /// until terrain + cursor are ready.</summary>
         public static bool TryGetGridGeometry(out float originX, out float originZ, out int cols, out int rows)
         {
             originX = originZ = 0f; cols = rows = 0;
@@ -464,9 +465,15 @@ namespace DivineHands.Modules
 
             if (Config.TerrainGridFineSnap.Value)
             {
-                // Free positioning: grid centred on the exact cursor point, no stepping.
-                originX = world.x / _resolution - cols * 0.5f;
-                originZ = world.z / _resolution - rows * 0.5f;
+                // ½-grid stepping with play (TerrainHelper free-build feel): the grid centre
+                // quantizes to the nearest HALF-cell, so the grid holds still while the cursor —
+                // and the free-build ghost — roams the half-cell window between steps, then jumps
+                // ½ grid when the cursor crosses into the next window. The grid never slides
+                // under the building; the building places anywhere in between.
+                float ccx = Mathf.Round(world.x / _resolution * 2f) / 2f;
+                float ccz = Mathf.Round(world.z / _resolution * 2f) / 2f;
+                originX = ccx - cols * 0.5f;
+                originZ = ccz - rows * 0.5f;
             }
             else
             {
