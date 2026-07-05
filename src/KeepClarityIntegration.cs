@@ -35,6 +35,7 @@ namespace DivineHands
         internal const string GroupInject   = "Selected Building";
         internal const string GroupLake      = "Lake Stamp";
         internal const string GroupFertility = "Fertility Painter";
+        internal const string GroupForest    = "Forest Brush";
         internal const string GroupDelete    = "Delete Selected";
         internal const string GroupKill       = "Kill Selected";
 
@@ -450,6 +451,46 @@ namespace DivineHands
             Reg(GroupFertility, Config.FertilityApplyKey,
                 NewMeta("Fertility Apply Key", "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1.",
                         order: 528, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
+
+            // ===== Forest brush =====
+            Reg(GroupForest, Config.ForestEnable,
+                NewMeta("Forest Brush",
+                        "Adds the Forest tab to the in-game panel. Plants the map's own trees over an adjustable " +
+                        "area at a target coverage (existing trees count, so re-applying tops up), optionally " +
+                        "setting soil fertility too. Trees + fertility persist with the save. Default: OFF.",
+                        order: 530));
+            Reg(GroupForest, Config.ForestShape,
+                NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
+                        min: 0, max: 1, order: 531, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+            Reg(GroupForest, Config.ForestGridWidth,
+                NewMeta("Width (cells)", "Brush half-width in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 532, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+            Reg(GroupForest, Config.ForestGridHeight,
+                NewMeta("Depth (cells)", "Brush half-depth in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 533, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+            Reg(GroupForest, Config.ForestCoverage,
+                NewMeta("Coverage %", "Target tree coverage of the footprint (0–100%). Existing trees count toward it. Default: 26.",
+                        min: 0f, max: 100f, order: 534, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+            Reg(GroupForest, Config.ForestVariance,
+                NewMeta("Variance", "Random xz jitter (metres) per planted tree so they don't grid-align. Default: 1.1.",
+                        min: 0f, max: 8f, order: 535, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+            Reg(GroupForest, Config.ForestSetFertility,
+                NewMeta("Also Set Fertility", "Write soil fertility under the brush (like Pangu). Off = plant trees only. Default: on.",
+                        order: 536, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+            Reg(GroupForest, Config.ForestFertility,
+                NewMeta("Fertility %", "Soil fertility set when 'Also Set Fertility' is on (0–100%). Default: 50.",
+                        min: 0f, max: 100f, order: 537, indent: 40,
+                        visibleWhen: () => Config.ForestEnable.Value && Config.ForestSetFertility.Value));
+            Reg(GroupForest, Config.ForestFertilityMult,
+                NewMeta("Fertilizer Effectiveness %", "Per-cell fertilizer effectiveness set alongside fertility (0–100%). Default: 100.",
+                        min: 0f, max: 100f, order: 538, indent: 40,
+                        visibleWhen: () => Config.ForestEnable.Value && Config.ForestSetFertility.Value));
+            Reg(GroupForest, Config.ForestArmHotkey,
+                NewMeta("Forest Arm Hotkey", "Optional key/chord to arm (re-press disarms) the Forest brush. Unbound by default.",
+                        order: 539, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+            Reg(GroupForest, Config.ForestApplyKey,
+                NewMeta("Forest Apply Key", "Key/button that plants the forest at the cursor. Default: Ctrl+Mouse1.",
+                        order: 540, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
 
             // ===== Delete Selected =====
             Reg(GroupDelete, Config.DeleteEnable,

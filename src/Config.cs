@@ -160,6 +160,19 @@ namespace DivineHands
         public static MelonPreferences_Entry<string> FertilityArmHotkey  { get; private set; } = null!;
         public static MelonPreferences_Entry<string> FertilityApplyKey   { get; private set; } = null!;
 
+        // ===== Forest brush (Pangu forest-brush port: plant trees by coverage + optional fertility) =====
+        public static MelonPreferences_Entry<bool>   ForestEnable        { get; private set; } = null!;
+        public static MelonPreferences_Entry<int>    ForestShape         { get; private set; } = null!; // 0 = Rectangle, 1 = Circle
+        public static MelonPreferences_Entry<int>    ForestGridWidth     { get; private set; } = null!; // half-extent X (cells)
+        public static MelonPreferences_Entry<int>    ForestGridHeight    { get; private set; } = null!; // half-extent Z (cells)
+        public static MelonPreferences_Entry<float>  ForestCoverage      { get; private set; } = null!; // target tree coverage %
+        public static MelonPreferences_Entry<float>  ForestVariance      { get; private set; } = null!; // per-tree xz jitter (m)
+        public static MelonPreferences_Entry<bool>   ForestSetFertility  { get; private set; } = null!; // also write soil fertility
+        public static MelonPreferences_Entry<float>  ForestFertility     { get; private set; } = null!; // fertility % when set
+        public static MelonPreferences_Entry<float>  ForestFertilityMult { get; private set; } = null!; // fertilizer effectiveness %
+        public static MelonPreferences_Entry<string> ForestArmHotkey     { get; private set; } = null!;
+        public static MelonPreferences_Entry<string> ForestApplyKey      { get; private set; } = null!;
+
         // ===== Delete Selected (resource nodes / mines / any building) =====
         public static MelonPreferences_Entry<bool>   DeleteEnable { get; private set; } = null!;
         public static MelonPreferences_Entry<string> DeleteHotkey { get; private set; } = null!;
@@ -500,6 +513,40 @@ namespace DivineHands
                              "Fertility tab, or set a key/chord here (e.g. Ctrl+F).");
             FertilityApplyKey = _root.CreateEntry("FertilityApplyKey", "Ctrl+Mouse1",
                 display_name: "Fertility Apply Key", description: "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
+
+            // ===== Forest brush =====
+            ForestEnable = _root.CreateEntry("ForestEnable", false,
+                display_name: "Forest Brush",
+                description: "Make the Forest brush available (adds its tab to the in-game panel). Plants the map's " +
+                             "own trees across an adjustable area at a target coverage, optionally setting soil " +
+                             "fertility too (Pangu's forest brush). Default: off.");
+            ForestShape = _root.CreateEntry("ForestShape", 0,
+                display_name: "Forest Shape", description: "0 = Rectangle, 1 = Circle.");
+            ForestGridWidth = _root.CreateEntry("ForestGridWidth", 5,
+                display_name: "Forest Width", description: "Brush half-width (X) in cells (1–10). Arrow keys resize while armed.");
+            ForestGridHeight = _root.CreateEntry("ForestGridHeight", 5,
+                display_name: "Forest Depth", description: "Brush half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
+            ForestCoverage = _root.CreateEntry("ForestCoverage", 26f,
+                display_name: "Forest Coverage %",
+                description: "Target tree coverage of the footprint (0–100%). Existing trees count toward it, so " +
+                             "re-applying tops up to the target rather than stacking. Default: 26.");
+            ForestVariance = _root.CreateEntry("ForestVariance", 1.1f,
+                display_name: "Forest Variance",
+                description: "Random xz jitter (metres) applied to each planted tree so they don't grid-align. Default: 1.1.");
+            ForestSetFertility = _root.CreateEntry("ForestSetFertility", true,
+                display_name: "Forest Sets Fertility",
+                description: "Also write soil fertility under the brush (like Pangu). Off = plant trees only, leave " +
+                             "soil untouched. Default: on.");
+            ForestFertility = _root.CreateEntry("ForestFertility", 50f,
+                display_name: "Forest Fertility %", description: "Soil fertility the brush sets when 'Sets Fertility' is on (0–100%). Default: 50.");
+            ForestFertilityMult = _root.CreateEntry("ForestFertilityMult", 100f,
+                display_name: "Forest Fertilizer Effectiveness %", description: "Per-cell fertilizer effectiveness set alongside fertility (0–100%). Default: 100.");
+            ForestArmHotkey = _root.CreateEntry("ForestArmHotkey", "",
+                display_name: "Forest Arm Hotkey",
+                description: "Optional key/chord that arms (re-press disarms) the Forest brush. Unbound by default — " +
+                             "use the Forest tab, or set a key/chord here.");
+            ForestApplyKey = _root.CreateEntry("ForestApplyKey", "Ctrl+Mouse1",
+                display_name: "Forest Apply Key", description: "Key/button that plants the forest at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
 
             // ===== Delete Selected =====
             DeleteEnable = _root.CreateEntry("DeleteEnable", false,

@@ -115,7 +115,9 @@ namespace DivineHands.Core
             _panelRt.anchorMin = _panelRt.anchorMax = new Vector2(0, 1);
             _panelRt.pivot = new Vector2(0, 1);
             _panelRt.sizeDelta = new Vector2(PanelWidth, 0);
-            UiKit.ApplyBorder(panelGo, FFAssets.PanelBorderCarved ?? FFAssets.PanelBorder, Color.white, raycast: true);
+            // Square-cornered FF frame (the same sprite KC's settings manager uses). The ornate
+            // carved sprite was rejected: its corners are asymmetric (curved top, square bottom).
+            UiKit.ApplyBorder(panelGo, FFAssets.PanelBorder ?? FFAssets.PanelBorderDark, Color.white, raycast: true);
 
             var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
             vlg.padding = new RectOffset(10, 10, 6, 9);
@@ -172,9 +174,8 @@ namespace DivineHands.Core
             _drag.TopMargin = 44f; // FF's top bar
 
             var hlg = header.AddComponent<HorizontalLayoutGroup>();
-            // Left padding clears the carved frame's ornate top-left corner sweep, which
-            // otherwise curves straight through the title (FF insets its titles the same way).
-            hlg.padding = new RectOffset(30, 5, 3, 3);
+            hlg.padding = new RectOffset(12, 5, 3, 3); // square frame — no corner sweep to clear
+
             hlg.spacing = 4;
             hlg.childAlignment = TextAnchor.MiddleLeft;
             hlg.childControlWidth = true;
@@ -270,20 +271,22 @@ namespace DivineHands.Core
             ToolTab(tabs, "Spawner", 2, () => Config.SpawnEnable.Value);
             ToolTab(tabs, "Lake", 3, () => Config.LakeEnable.Value);
             ToolTab(tabs, "Fertility", 4, () => Config.FertilityEnable.Value);
+            ToolTab(tabs, "Forest", 5, () => Config.ForestEnable.Value);
 
             // Drop a stale arm when its tool gets disabled in config; prompt when nothing armed.
             UiKit.Bind(() =>
             {
                 int a = DivinePanel.ArmedIndex;
                 if ((a == 1 && !Config.TerrainEnable.Value) || (a == 2 && !Config.SpawnEnable.Value)
-                    || (a == 3 && !Config.LakeEnable.Value) || (a == 4 && !Config.FertilityEnable.Value))
+                    || (a == 3 && !Config.LakeEnable.Value) || (a == 4 && !Config.FertilityEnable.Value)
+                    || (a == 5 && !Config.ForestEnable.Value))
                     DivinePanel.ArmedIndex = 0;
             });
 
             UiKit.NewHint(section, () =>
             {
                 bool anyTool = Config.TerrainEnable.Value || Config.SpawnEnable.Value
-                            || Config.LakeEnable.Value || Config.FertilityEnable.Value;
+                            || Config.LakeEnable.Value || Config.FertilityEnable.Value || Config.ForestEnable.Value;
                 if (!anyTool) return "(enable tools in the Keep Clarity settings)";
                 return DivinePanel.ArmedIndex == 0 ? "Click a tab to arm a tool — it applies on its key while armed." : "";
             }, wrap: true);
@@ -303,6 +306,10 @@ namespace DivineHands.Core
             var fertility = NewSection(section, "FertilityOpts");
             BuildFertilityOptions(fertility);
             UiKit.Bind(() => SetActive(fertility, DivinePanel.ArmedIndex == 4));
+
+            var forest = NewSection(section, "ForestOpts");
+            BuildForestOptions(forest);
+            UiKit.Bind(() => SetActive(forest, DivinePanel.ArmedIndex == 5));
         }
 
         private static void ToolTab(GameObject row, string label, int index, Func<bool> enabled)
@@ -543,6 +550,37 @@ namespace DivineHands.Core
                 float cell = Modules.TerrainElevation.CellMeters;
                 string area = cell > 0f ? $"~{2 * gw * cell:0} × {2 * gh * cell:0} m" : $"{gw} × {gh} cells";
                 return $"Area {area} · arrows resize · Apply: {Config.FertilityApplyKey.Value}";
+            });
+        }
+
+        private static void BuildForestOptions(GameObject box)
+        {
+            ShapeRow(box, () => Config.ForestShape.Value, v => Config.ForestShape.Value = v);
+
+            UiKit.NewSliderRow(box, "Width", 1f, 10f, whole: true,
+                () => Config.ForestGridWidth.Value, v => Config.ForestGridWidth.Value = Mathf.RoundToInt(v),
+                () => Config.ForestGridWidth.Value.ToString());
+            UiKit.NewSliderRow(box, "Depth", 1f, 10f, whole: true,
+                () => Config.ForestGridHeight.Value, v => Config.ForestGridHeight.Value = Mathf.RoundToInt(v),
+                () => Config.ForestGridHeight.Value.ToString());
+            UiKit.NewSliderRow(box, "Coverage", 0f, 100f, whole: true,
+                () => Config.ForestCoverage.Value, v => Config.ForestCoverage.Value = v,
+                () => $"{Mathf.RoundToInt(Config.ForestCoverage.Value)}%");
+
+            UiKit.NewToggleRow(box, "Also set soil fertility",
+                () => Config.ForestSetFertility.Value, v => Config.ForestSetFertility.Value = v);
+            UiKit.NewSliderRow(box, "Fertility", 0f, 100f, whole: true,
+                () => Config.ForestFertility.Value, v => Config.ForestFertility.Value = v,
+                () => $"{Mathf.RoundToInt(Config.ForestFertility.Value)}%",
+                visibleWhen: () => Config.ForestSetFertility.Value);
+
+            UiKit.NewHint(box, () =>
+            {
+                int gw = Mathf.Clamp(Config.ForestGridWidth.Value, 1, 10);
+                int gh = Mathf.Clamp(Config.ForestGridHeight.Value, 1, 10);
+                float cell = Modules.TerrainElevation.CellMeters;
+                string area = cell > 0f ? $"~{2 * gw * cell:0} × {2 * gh * cell:0} m" : $"{gw} × {gh} cells";
+                return $"Area {area} · arrows resize · Apply: {Config.ForestApplyKey.Value}";
             });
         }
 

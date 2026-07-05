@@ -1413,6 +1413,34 @@ namespace DivineHands.Modules
         // needs no GUIDs and always matches the current map + DLC. Cached per map (cleared in OnMapLoaded).
         private static GameObject[]? _mapTreePrefabs;
 
+        /// <summary>The map's plantable tree prefabs (shared with the Forest brush).</summary>
+        internal static List<GameObject> MapTreePrefabs() => CollectMapTreePrefabs();
+
+        /// <summary>Plant one fully-grown tree with xz jitter — the scalar-variance AddGrowingTree overload
+        /// [217795] Pangu's forest brush uses. Shared with the Forest brush. Returns true if placed.</summary>
+        internal static bool PlantTreeWithVariance(GameObject prefab, float worldX, float worldZ, float variance)
+        {
+            try
+            {
+                var gm = GameManager.Instance;
+                object? tm = gm != null ? gm.terrainManager : null;
+                if (tm == null) return false;
+                // public override bool AddGrowingTree(GameObject, float worldX, float worldZ,
+                //   float xzVariance, float startPercentGrown, bool checkValidityOnly) [217795]
+                var mi = tm.GetType().GetMethod("AddGrowingTree", new[]
+                    { typeof(GameObject), typeof(float), typeof(float), typeof(float), typeof(float), typeof(bool) });
+                if (mi == null) return false;
+                var ok = mi.Invoke(tm, new object[] { prefab, worldX, worldZ, Mathf.Max(0f, variance), 1f, false });
+                return ok is bool b && b;
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] Forest AddGrowingTree failed: {ex.Message}");
+                return false;
+            }
+        }
+
         private static List<GameObject> CollectMapTreePrefabs()
         {
             if (_mapTreePrefabs != null) return new List<GameObject>(_mapTreePrefabs);

@@ -21,6 +21,24 @@ namespace DivineHands.UI
         public static readonly List<Action> Bindings = new List<Action>();
         public static void Bind(Action refresh) => Bindings.Add(refresh);
 
+        // Every typeable value field registers here so the rest of the mod can pause its
+        // keyboard shortcuts while the user is typing (arrows/End/Home are caret keys AND
+        // brush-resize/arm hotkeys — they must not fire mid-edit).
+        private static readonly List<TMP_InputField> _inputFields = new List<TMP_InputField>();
+
+        public static bool AnyInputFocused
+        {
+            get
+            {
+                for (int i = 0; i < _inputFields.Count; i++)
+                {
+                    var f = _inputFields[i];
+                    if (f != null && f.isActiveAndEnabled && f.isFocused) return true;
+                }
+                return false;
+            }
+        }
+
         // ── primitives ──────────────────────────────────────────────────────
 
         public static GameObject NewChild(GameObject parent, string name)
@@ -118,7 +136,9 @@ namespace DivineHands.UI
             {
                 Btn.interactable = enabled;
                 Bg.color = !enabled ? FFAssets.ChipDisabled : on ? FFAssets.ChipOn : FFAssets.ChipOff;
-                Label.color = !enabled ? FFAssets.TextMuted : on ? Color.black : FFAssets.TextPrimary;
+                // The FF button sprite's face stays dark under the golden ON tint, so the
+                // label goes golden too (black was unreadable on the dark face).
+                Label.color = !enabled ? FFAssets.TextMuted : on ? FFAssets.Amber : FFAssets.TextPrimary;
                 Label.fontStyle = on ? FontStyles.Bold : FontStyles.Normal;
             }
         }
@@ -252,9 +272,60 @@ namespace DivineHands.UI
             slider.SetValueWithoutNotify(Mathf.Clamp(get(), min, max));
             slider.onValueChanged.AddListener(v => set(v));
 
-            var val = NewText(row, "Value", "", 10.5f, FFAssets.Amber, TextAlignmentOptions.MidlineRight);
+            // Typeable value field: shows the formatted value ("2.5 m") when idle, swaps to
+            // the raw number on focus, parses + clamps on commit. Faint box hints editability.
+            var valGo = NewChild(row, "Value");
+            valGo.AddComponent<LayoutElement>().preferredWidth = 48f;
+            var valBg = valGo.AddComponent<Image>();
+            var boxSprite = FFAssets.PanelBorderSimple;
+            if (boxSprite != null) { valBg.sprite = boxSprite; valBg.type = Image.Type.Sliced; }
+            valBg.color = new Color(0f, 0f, 0f, 0.22f);
+            valBg.raycastTarget = true;
+
+            // Build the field while INACTIVE: TMP_InputField whose OnEnable runs with a null
+            // textComponent permanently kills its caret (KC hit the same bug).
+            valGo.SetActive(false);
+
+            var areaGo = NewChild(valGo, "Text Area");
+            var areaRt = (RectTransform)areaGo.transform;
+            areaRt.anchorMin = Vector2.zero; areaRt.anchorMax = Vector2.one;
+            areaRt.offsetMin = new Vector2(3, 0); areaRt.offsetMax = new Vector2(-3, 0);
+            areaGo.AddComponent<RectMask2D>();
+
+            var val = NewText(areaGo, "Text", "", 10.5f, FFAssets.Amber, TextAlignmentOptions.MidlineRight);
             var vf = FFAssets.FontNumbers; if (vf != null) val.font = vf;
-            val.gameObject.AddComponent<LayoutElement>().preferredWidth = 48f;
+            var valRt = val.rectTransform;
+            valRt.anchorMin = Vector2.zero; valRt.anchorMax = Vector2.one;
+            valRt.offsetMin = Vector2.zero; valRt.offsetMax = Vector2.zero;
+
+            var input = valGo.AddComponent<TMP_InputField>();
+            input.textViewport = areaRt;
+            input.textComponent = val;
+            input.targetGraphic = valBg;
+            input.transition = Selectable.Transition.None;
+            input.lineType = TMP_InputField.LineType.SingleLine;
+            input.contentType = whole ? TMP_InputField.ContentType.IntegerNumber
+                                      : TMP_InputField.ContentType.DecimalNumber;
+            input.customCaretColor = true;
+            input.caretColor = FFAssets.Amber;
+            input.selectionColor = new Color(0.87f, 0.66f, 0.28f, 0.45f);
+            input.onFocusSelectAll = true;
+            valGo.SetActive(true);
+            _inputFields.Add(input);
+
+            input.onSelect.AddListener(_ =>
+            {
+                float v = get();
+                input.SetTextWithoutNotify(whole ? Mathf.RoundToInt(v).ToString() : v.ToString("0.##"));
+            });
+            input.onEndEdit.AddListener(txt =>
+            {
+                txt = (txt ?? "").Trim().Replace(',', '.');
+                if (float.TryParse(txt, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out float v))
+                    set(Mathf.Clamp(whole ? Mathf.Round(v) : v, min, max));
+                // The binding repaints the formatted label once focus leaves.
+            });
 
             Bind(() =>
             {
@@ -268,8 +339,11 @@ namespace DivineHands.UI
                 // slider. During a drag onValueChanged already wrote config, so this is a no-op.
                 float cur = Mathf.Clamp(get(), min, max);
                 if (!Mathf.Approximately(slider.value, cur)) slider.SetValueWithoutNotify(cur);
-                string s = valueText();
-                if (val.text != s) val.text = s;
+                if (!input.isFocused)   // never clobber the user's in-progress typing
+                {
+                    string s = valueText();
+                    if (input.text != s) input.SetTextWithoutNotify(s);
+                }
             });
         }
 

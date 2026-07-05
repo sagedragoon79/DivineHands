@@ -36,7 +36,7 @@ namespace DivineHands.Core
 
         /// <summary>Which god-power (if any) is currently armed. Only ONE tool is armed at a time —
         /// arming spawners disarms terrain and vice-versa — so the apply key is never ambiguous.</summary>
-        private enum ArmedTool { None, Terrain, Spawner, Lake, Fertility }
+        private enum ArmedTool { None, Terrain, Spawner, Lake, Fertility, Forest }
         private static ArmedTool _armedTool = ArmedTool.None;
 
         /// <summary>Armed tool as an index (0 None · 1 Terrain · 2 Spawner · 3 Lake · 4 Fertility) —
@@ -45,7 +45,7 @@ namespace DivineHands.Core
         internal static int ArmedIndex
         {
             get => (int)_armedTool;
-            set => _armedTool = (ArmedTool)Mathf.Clamp(value, 0, 4);
+            set => _armedTool = (ArmedTool)Mathf.Clamp(value, 0, 5);
         }
 
         /// <summary>True when the panel is open AND the Terrain tool is the armed mode — read by
@@ -72,6 +72,12 @@ namespace DivineHands.Core
         public static bool FertilityModeActive =>
             _visible && Config.MasterEnable.Value && Config.FertilityEnable.Value
             && _armedTool == ArmedTool.Fertility && !UI.UiKit.AnyInputFocused;
+
+        /// <summary>True when the panel is open AND the Forest brush is the armed mode — read by
+        /// <see cref="DivineHands.Modules.ForestBrush"/> to gate planting on the apply key.</summary>
+        public static bool ForestModeActive =>
+            _visible && Config.MasterEnable.Value && Config.ForestEnable.Value
+            && _armedTool == ArmedTool.Forest && !UI.UiKit.AnyInputFocused;
 
         /// <summary>True when the cursor is over the visible panel — read by the input guard
         /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
@@ -101,6 +107,9 @@ namespace DivineHands.Core
 
         /// <summary>Toggle-arm the Fertility painter from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
         public static void ToggleArmFertility() => HotkeyArm(ArmedTool.Fertility, Config.FertilityEnable.Value);
+
+        /// <summary>Toggle-arm the Forest brush from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
+        public static void ToggleArmForest() => HotkeyArm(ArmedTool.Forest, Config.ForestEnable.Value);
 
         private static void HotkeyArm(ArmedTool tool, bool enabled)
         {
@@ -240,13 +249,14 @@ namespace DivineHands.Core
             bool spawnerEnabled   = Config.SpawnEnable.Value;
             bool lakeEnabled      = Config.LakeEnable.Value;
             bool fertilityEnabled = Config.FertilityEnable.Value;
+            bool forestEnabled    = Config.ForestEnable.Value;
 
-            GUILayout.Label("Terrain / Spawner / Lake / Fertility", SectionStyle);
+            GUILayout.Label("Terrain / Spawner / Lake / Fertility / Forest", SectionStyle);
 
-            if (!terrainEnabled && !spawnerEnabled && !lakeEnabled && !fertilityEnabled)
+            if (!terrainEnabled && !spawnerEnabled && !lakeEnabled && !fertilityEnabled && !forestEnabled)
             {
                 _armedTool = ArmedTool.None;
-                GUILayout.Label("(enable Terrain / Cursor spawners / Lake stamp / Fertility painter in the Keep Clarity settings)",
+                GUILayout.Label("(enable the tools — Terrain / Spawners / Lake / Fertility / Forest — in the Keep Clarity settings)",
                                 HintStyle);
                 return;
             }
@@ -256,6 +266,7 @@ namespace DivineHands.Core
             if (_armedTool == ArmedTool.Spawner   && !spawnerEnabled)   _armedTool = ArmedTool.None;
             if (_armedTool == ArmedTool.Lake      && !lakeEnabled)      _armedTool = ArmedTool.None;
             if (_armedTool == ArmedTool.Fertility && !fertilityEnabled) _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Forest    && !forestEnabled)    _armedTool = ArmedTool.None;
 
             // Tab row — each tab is a toggle-button whose pressed state == that tool being armed.
             // Re-clicking the active tab clears the arm (None); clicking another tab switches.
@@ -264,6 +275,7 @@ namespace DivineHands.Core
             DrawToolTab(spawnerEnabled,   ArmedTool.Spawner,   "Spawner");
             DrawToolTab(lakeEnabled,      ArmedTool.Lake,      "Lake");
             DrawToolTab(fertilityEnabled, ArmedTool.Fertility, "Fertility");
+            DrawToolTab(forestEnabled,    ArmedTool.Forest,    "Forest");
             if (_tabCol != 0) { GUILayout.EndHorizontal(); _tabCol = 0; } // close a half-filled final row
 
             // Options for whichever tab is armed (shared area). Nothing armed => prompt.
@@ -273,6 +285,7 @@ namespace DivineHands.Core
                 case ArmedTool.Spawner:   DrawSpawnerOptions(); break;
                 case ArmedTool.Lake:      DrawLakeOptions(); break;
                 case ArmedTool.Fertility: DrawFertilityOptions(); break;
+                case ArmedTool.Forest:    DrawForestOptions(); break;
                 default:
                     GUILayout.Label("Click a tab to arm a tool — it applies on its key while armed.", HintStyle);
                     break;
@@ -368,6 +381,39 @@ namespace DivineHands.Core
                 GUILayout.Label("   also sets soil texture + water to the fruit-tree ideal", HintStyle);
 
             GUILayout.Label($"Apply: {Config.FertilityApplyKey.Value}   (effectiveness slider: Keep Clarity panel)", HintStyle);
+        }
+
+        // Forest brush options — shape + area + coverage + optional fertility. Tab arms it; applies on key.
+        private static void DrawForestOptions()
+        {
+            int shape = Mathf.Clamp(Config.ForestShape.Value, 0, 1);
+            int newShape = GUILayout.Toolbar(shape, _lakeShapes);
+            if (newShape != shape) Config.ForestShape.Value = newShape;
+
+            int gw = Mathf.Clamp(Config.ForestGridWidth.Value, 1, 10);
+            int gh = Mathf.Clamp(Config.ForestGridHeight.Value, 1, 10);
+            float cell = DivineHands.Modules.TerrainElevation.CellMeters;
+            string size = cell > 0f ? $"Area: ~{2 * gw * cell:0} x {2 * gh * cell:0} m"
+                                    : $"Area: {gw} x {gh} cells";
+            GUILayout.Label(size, HintStyle);
+            GUILayout.Label("Width", HintStyle);
+            Config.ForestGridWidth.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gw, 1f, 10f));
+            GUILayout.Label("Depth", HintStyle);
+            Config.ForestGridHeight.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gh, 1f, 10f));
+            GUILayout.Label("Arrows resize (←→ width · ↑↓ depth)", HintStyle);
+
+            GUILayout.Label($"Coverage: {Mathf.RoundToInt(Config.ForestCoverage.Value)}%", HintStyle);
+            Config.ForestCoverage.Value = GUILayout.HorizontalSlider(Config.ForestCoverage.Value, 0f, 100f);
+
+            Config.ForestSetFertility.Value =
+                GUILayout.Toggle(Config.ForestSetFertility.Value, " Also set soil fertility");
+            if (Config.ForestSetFertility.Value)
+            {
+                GUILayout.Label($"Fertility: {Mathf.RoundToInt(Config.ForestFertility.Value)}%", HintStyle);
+                Config.ForestFertility.Value = GUILayout.HorizontalSlider(Config.ForestFertility.Value, 0f, 100f);
+            }
+
+            GUILayout.Label($"Apply: {Config.ForestApplyKey.Value}   (variance & effectiveness: Keep Clarity panel)", HintStyle);
         }
 
         private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten", "Average" };

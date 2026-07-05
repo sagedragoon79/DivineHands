@@ -70,7 +70,16 @@ namespace DivineHands.Modules
         private static void ApplyFertility()
         {
             if (!TryGetFootprint(out int cx, out int cz, out int fhw, out int fhh, out bool circle, out float res)) return;
+            WriteFertilityRect(cx, cz, fhw, fhh, circle, res,
+                Config.FertilityAmount.Value, Config.FertilityMult.Value, Config.FertilityConditionSoil.Value);
+        }
 
+        /// <summary>Absolute-write soil fertility (and, if <paramref name="conditionSoil"/>, the orchard-ideal
+        /// sand/clay + water) over the footprint. Shared by the Fertility painter and the Forest brush.
+        /// <paramref name="fertPct"/>/<paramref name="multPct"/> are 0–100.</summary>
+        internal static void WriteFertilityRect(int cx, int cz, int fhw, int fhh, bool circle, float res,
+            float fertPct, float multPct, bool conditionSoil)
+        {
             var gm = GameManager.Instance;
             var am = gm != null ? gm.agricultureManager : null;
             if (am == null) return;
@@ -94,13 +103,13 @@ namespace DivineHands.Modules
             int iMax = Mathf.Clamp((int)((cwz + hhW - 0.001f) / fcell), 0, lenZ - 1);
             if (jMax < jMin || iMax < iMin) return;
 
-            float target = Mathf.Clamp01(Config.FertilityAmount.Value * 0.01f);
-            float multTarget = Mathf.Clamp01(Config.FertilityMult.Value * 0.01f);
+            float target = Mathf.Clamp01(fertPct * 0.01f);
+            float multTarget = Mathf.Clamp01(multPct * 0.01f);
 
             // "Condition soil for orchards": also set soil texture (sand/clay) + water to the fruit-tree ideal,
             // zeroing the sand/clay + water penalties FF subtracts from fruit-tree fertility. Ideals are read
             // from the game's own penalty curves so they track the real tuning.
-            bool condition = Config.FertilityConditionSoil.Value;
+            bool condition = conditionSoil;
             float[,]? sand = condition ? am.cachedSandClayData : null;
             float[,]? water = condition ? am.cachedWaterData : null;
             bool hasSand  = sand  != null && sand.GetLength(0)  == lenX && sand.GetLength(1)  == lenZ;
@@ -129,7 +138,7 @@ namespace DivineHands.Modules
             }
 
             if (Config.DebugLog.Value)
-                MelonLogger.Msg($"[DivineHands] Fertility painted @ ({cwx:0},{cwz:0}) — {changed} cells -> " +
+                MelonLogger.Msg($"[DivineHands] Fertility written @ ({cwx:0},{cwz:0}) — {changed} cells -> " +
                                 $"{target * 100f:0}% (mult {multTarget * 100f:0}%)" +
                                 (condition ? $", orchard soil: sand/clay {idealSC:0.00}, water {idealW:0.00}." : "."));
         }

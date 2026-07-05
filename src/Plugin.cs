@@ -69,6 +69,7 @@ namespace DivineHands
                 TerrainElevation.OnSceneExit();
                 LakeStamp.OnSceneExit();
                 FertilityBrush.OnSceneExit();
+                ForestBrush.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
                 BrushPreview.OnSceneExit();
                 CursorSpawners.OnSceneExit();
@@ -87,6 +88,7 @@ namespace DivineHands
             TerrainElevation.OnMapLoaded();
             LakeStamp.OnMapLoaded();
             FertilityBrush.OnMapLoaded();
+            ForestBrush.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
             BrushPreview.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
@@ -132,27 +134,36 @@ namespace DivineHands
 
             if (!Config.MasterEnable.Value) return;
 
+            // Suspend ALL of the mod's hotkeys while the user is typing in one of the panel's
+            // value fields — End/Home/Insert/Delete are caret-editing keys before they are
+            // ours. (The armed-tool arrows/apply suspend via the *ModeActive gates.)
+            bool typing = UI.UiKit.AnyInputFocused;
+
             // Toggle the shared god-power panel on the configurable hotkey.
-            if (Hotkey.Pressed(Config.PanelHotkey.Value))
+            if (!typing && Hotkey.Pressed(Config.PanelHotkey.Value))
                 DivinePanel.Toggle();
 
             if (InGame)
             {
-                // Arm Terrain / Spawner straight from the keyboard (no tab click) — re-press disarms.
-                if (Hotkey.Pressed(Config.TerrainArmHotkey.Value))   DivinePanel.ToggleArmTerrain();
-                if (Hotkey.Pressed(Config.SpawnerArmHotkey.Value))   DivinePanel.ToggleArmSpawner();
-                if (Hotkey.Pressed(Config.LakeArmHotkey.Value))      DivinePanel.ToggleArmLake();
-                if (Hotkey.Pressed(Config.FertilityArmHotkey.Value)) DivinePanel.ToggleArmFertility();
+                if (!typing)
+                {
+                    // Arm Terrain / Spawner straight from the keyboard (no tab click) — re-press disarms.
+                    if (Hotkey.Pressed(Config.TerrainArmHotkey.Value))   DivinePanel.ToggleArmTerrain();
+                    if (Hotkey.Pressed(Config.SpawnerArmHotkey.Value))   DivinePanel.ToggleArmSpawner();
+                    if (Hotkey.Pressed(Config.LakeArmHotkey.Value))      DivinePanel.ToggleArmLake();
+                    if (Hotkey.Pressed(Config.FertilityArmHotkey.Value)) DivinePanel.ToggleArmFertility();
+                if (Hotkey.Pressed(Config.ForestArmHotkey.Value))    DivinePanel.ToggleArmForest();
 
-                // Delete the current selection on its hotkey (mine/quarry/pit/deep-mine/ore node/any
-                // building). Gated on the feature enable; a no-op when nothing deletable is selected.
-                if (Config.DeleteEnable.Value && Hotkey.Pressed(Config.DeleteHotkey.Value))
-                    DeleteSelected.DeleteCurrent();
+                    // Delete the current selection on its hotkey (mine/quarry/pit/deep-mine/ore node/any
+                    // building). Gated on the feature enable; a no-op when nothing deletable is selected.
+                    if (Config.DeleteEnable.Value && Hotkey.Pressed(Config.DeleteHotkey.Value))
+                        DeleteSelected.DeleteCurrent();
 
-                // Kill the selected villager/animal on its hotkey (testing aid). No-op unless a living
-                // creature is selected.
-                if (Config.KillEnable.Value && Hotkey.Pressed(Config.KillHotkey.Value))
-                    KillSelected.KillCurrent();
+                    // Kill the selected villager/animal on its hotkey (testing aid). No-op unless a living
+                    // creature is selected.
+                    if (Config.KillEnable.Value && Hotkey.Pressed(Config.KillHotkey.Value))
+                        KillSelected.KillCurrent();
+                }
 
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
@@ -160,6 +171,7 @@ namespace DivineHands
                 TerrainElevation.OnUpdate();
                 LakeStamp.OnUpdate();
                 FertilityBrush.OnUpdate();
+                ForestBrush.OnUpdate();
                 CursorSpawners.OnUpdate();
                 ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
