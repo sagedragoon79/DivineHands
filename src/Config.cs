@@ -533,10 +533,12 @@ namespace DivineHands
             ForestVariance = _root.CreateEntry("ForestVariance", 1.1f,
                 display_name: "Forest Variance",
                 description: "Random xz jitter (metres) applied to each planted tree so they don't grid-align. Default: 1.1.");
-            ForestSetFertility = _root.CreateEntry("ForestSetFertility", true,
+            ForestSetFertility = _root.CreateEntry("ForestSetFertility", false,
                 display_name: "Forest Sets Fertility",
-                description: "Also write soil fertility under the brush (like Pangu). Off = plant trees only, leave " +
-                             "soil untouched. Default: on.");
+                description: "Also write CROP/soil fertility under the brush (like Pangu). NOTE: this does not speed " +
+                             "up the trees you plant — their growth runs off the biome/tech system, not soil " +
+                             "fertility — so it only conditions the ground for crops/orchards farmed there later. " +
+                             "Off = plant trees only, leave soil untouched. Default: off.");
             ForestFertility = _root.CreateEntry("ForestFertility", 50f,
                 display_name: "Forest Fertility %", description: "Soil fertility the brush sets when 'Sets Fertility' is on (0–100%). Default: 50.");
             ForestFertilityMult = _root.CreateEntry("ForestFertilityMult", 100f,

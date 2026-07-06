@@ -475,7 +475,10 @@ namespace DivineHands
                 NewMeta("Variance", "Random xz jitter (metres) per planted tree so they don't grid-align. Default: 1.1.",
                         min: 0f, max: 8f, order: 535, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
             Reg(GroupForest, Config.ForestSetFertility,
-                NewMeta("Also Set Fertility", "Write soil fertility under the brush (like Pangu). Off = plant trees only. Default: on.",
+                NewMeta("Also Set Fertility",
+                        "Write CROP/soil fertility under the brush (like Pangu). Does NOT speed up the planted trees " +
+                        "(their growth is the biome/tech system, not soil) — only conditions the ground for crops/" +
+                        "orchards farmed there later. Off = plant trees only. Default: off.",
                         order: 536, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
             Reg(GroupForest, Config.ForestFertility,
                 NewMeta("Fertility %", "Soil fertility set when 'Also Set Fertility' is on (0–100%). Default: 50.",
