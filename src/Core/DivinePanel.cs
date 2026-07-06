@@ -36,7 +36,7 @@ namespace DivineHands.Core
 
         /// <summary>Which god-power (if any) is currently armed. Only ONE tool is armed at a time —
         /// arming spawners disarms terrain and vice-versa — so the apply key is never ambiguous.</summary>
-        private enum ArmedTool { None, Terrain, Spawner, Lake, Fertility, Forest }
+        private enum ArmedTool { None, Terrain, Spawner, Lake, Fertility, Forest, Mountain }
         private static ArmedTool _armedTool = ArmedTool.None;
 
         /// <summary>Armed tool as an index (0 None · 1 Terrain · 2 Spawner · 3 Lake · 4 Fertility) —
@@ -45,7 +45,7 @@ namespace DivineHands.Core
         internal static int ArmedIndex
         {
             get => (int)_armedTool;
-            set => _armedTool = (ArmedTool)Mathf.Clamp(value, 0, 5);
+            set => _armedTool = (ArmedTool)Mathf.Clamp(value, 0, 6);
         }
 
         /// <summary>True when the panel is open AND the Terrain tool is the armed mode — read by
@@ -79,6 +79,12 @@ namespace DivineHands.Core
             _visible && Config.MasterEnable.Value && Config.ForestEnable.Value
             && _armedTool == ArmedTool.Forest && !UI.UiKit.AnyInputFocused;
 
+        /// <summary>True when the panel is open AND the Mountain brush is the armed mode — read by
+        /// <see cref="DivineHands.Modules.MountainBrush"/> to gate raising on the apply key.</summary>
+        public static bool MountainModeActive =>
+            _visible && Config.MasterEnable.Value && Config.MountainEnable.Value
+            && _armedTool == ArmedTool.Mountain && !UI.UiKit.AnyInputFocused;
+
         /// <summary>True when the cursor is over the visible panel — read by the input guard
         /// (<see cref="DivineHands.Patches.SelectionGuardPatch"/>) so the game treats the panel like
         /// UI and doesn't start a drag-select underneath it. <c>_rect</c> is in GUI space (y down),
@@ -110,6 +116,9 @@ namespace DivineHands.Core
 
         /// <summary>Toggle-arm the Forest brush from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
         public static void ToggleArmForest() => HotkeyArm(ArmedTool.Forest, Config.ForestEnable.Value);
+
+        /// <summary>Toggle-arm the Mountain brush from a global hotkey — see <see cref="ToggleArmTerrain"/>.</summary>
+        public static void ToggleArmMountain() => HotkeyArm(ArmedTool.Mountain, Config.MountainEnable.Value);
 
         private static void HotkeyArm(ArmedTool tool, bool enabled)
         {
@@ -250,13 +259,14 @@ namespace DivineHands.Core
             bool lakeEnabled      = Config.LakeEnable.Value;
             bool fertilityEnabled = Config.FertilityEnable.Value;
             bool forestEnabled    = Config.ForestEnable.Value;
+            bool mountainEnabled  = Config.MountainEnable.Value;
 
-            GUILayout.Label("Terrain / Spawner / Lake / Fertility / Forest", SectionStyle);
+            GUILayout.Label("Terrain / Spawner / Lake / Fertility / Forest / Mountain", SectionStyle);
 
-            if (!terrainEnabled && !spawnerEnabled && !lakeEnabled && !fertilityEnabled && !forestEnabled)
+            if (!terrainEnabled && !spawnerEnabled && !lakeEnabled && !fertilityEnabled && !forestEnabled && !mountainEnabled)
             {
                 _armedTool = ArmedTool.None;
-                GUILayout.Label("(enable the tools — Terrain / Spawners / Lake / Fertility / Forest — in the Keep Clarity settings)",
+                GUILayout.Label("(enable the tools — Terrain / Spawners / Lake / Fertility / Forest / Mountain — in the Keep Clarity settings)",
                                 HintStyle);
                 return;
             }
@@ -267,6 +277,7 @@ namespace DivineHands.Core
             if (_armedTool == ArmedTool.Lake      && !lakeEnabled)      _armedTool = ArmedTool.None;
             if (_armedTool == ArmedTool.Fertility && !fertilityEnabled) _armedTool = ArmedTool.None;
             if (_armedTool == ArmedTool.Forest    && !forestEnabled)    _armedTool = ArmedTool.None;
+            if (_armedTool == ArmedTool.Mountain  && !mountainEnabled)  _armedTool = ArmedTool.None;
 
             // Tab row — each tab is a toggle-button whose pressed state == that tool being armed.
             // Re-clicking the active tab clears the arm (None); clicking another tab switches.
@@ -276,6 +287,7 @@ namespace DivineHands.Core
             DrawToolTab(lakeEnabled,      ArmedTool.Lake,      "Lake");
             DrawToolTab(fertilityEnabled, ArmedTool.Fertility, "Fertility");
             DrawToolTab(forestEnabled,    ArmedTool.Forest,    "Forest");
+            DrawToolTab(mountainEnabled,  ArmedTool.Mountain,  "Mountain");
             if (_tabCol != 0) { GUILayout.EndHorizontal(); _tabCol = 0; } // close a half-filled final row
 
             // Options for whichever tab is armed (shared area). Nothing armed => prompt.
@@ -286,6 +298,7 @@ namespace DivineHands.Core
                 case ArmedTool.Lake:      DrawLakeOptions(); break;
                 case ArmedTool.Fertility: DrawFertilityOptions(); break;
                 case ArmedTool.Forest:    DrawForestOptions(); break;
+                case ArmedTool.Mountain:  DrawMountainOptions(); break;
                 default:
                     GUILayout.Label("Click a tab to arm a tool — it applies on its key while armed.", HintStyle);
                     break;
@@ -414,6 +427,43 @@ namespace DivineHands.Core
             }
 
             GUILayout.Label($"Apply: {Config.ForestApplyKey.Value}   (variance & effectiveness: Keep Clarity panel)", HintStyle);
+        }
+
+        // Mountain brush options — shape + area + the 7 pared-down sliders. Tab arms it; applies on key.
+        private static void DrawMountainOptions()
+        {
+            int shape = Mathf.Clamp(Config.MountainShape.Value, 0, 1);
+            int newShape = GUILayout.Toolbar(shape, _lakeShapes);
+            if (newShape != shape) Config.MountainShape.Value = newShape;
+
+            int gw = Mathf.Clamp(Config.MountainGridWidth.Value, 1, 10);
+            int gh = Mathf.Clamp(Config.MountainGridHeight.Value, 1, 10);
+            float cell = DivineHands.Modules.TerrainElevation.CellMeters;
+            string size = cell > 0f ? $"Area: ~{2 * gw * cell:0} x {2 * gh * cell:0} m"
+                                    : $"Area: {gw} x {gh} cells";
+            GUILayout.Label(size, HintStyle);
+            GUILayout.Label("Width", HintStyle);
+            Config.MountainGridWidth.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gw, 1f, 10f));
+            GUILayout.Label("Depth", HintStyle);
+            Config.MountainGridHeight.Value = Mathf.RoundToInt(GUILayout.HorizontalSlider(gh, 1f, 10f));
+            GUILayout.Label("Arrows resize (←→ width · ↑↓ depth)", HintStyle);
+
+            GUILayout.Label($"Height: {Config.MountainHeight.Value:0} m/100m", HintStyle);
+            Config.MountainHeight.Value = GUILayout.HorizontalSlider(Config.MountainHeight.Value, 2f, 80f);
+            GUILayout.Label($"Max Height: {Config.MountainMaxHeight.Value:0} m", HintStyle);
+            Config.MountainMaxHeight.Value = GUILayout.HorizontalSlider(Config.MountainMaxHeight.Value, 5f, 200f);
+            GUILayout.Label($"Edge Softness: {Config.MountainEdgeSoftness.Value:0.00}", HintStyle);
+            Config.MountainEdgeSoftness.Value = GUILayout.HorizontalSlider(Config.MountainEdgeSoftness.Value, 0f, 1f);
+            GUILayout.Label($"Ruggedness: {Mathf.RoundToInt(Config.MountainRuggedness.Value)}%", HintStyle);
+            Config.MountainRuggedness.Value = GUILayout.HorizontalSlider(Config.MountainRuggedness.Value, 0f, 100f);
+            GUILayout.Label($"Rocky Texture: {Mathf.RoundToInt(Config.MountainTexture.Value)}%", HintStyle);
+            Config.MountainTexture.Value = GUILayout.HorizontalSlider(Config.MountainTexture.Value, 0f, 100f);
+            GUILayout.Label($"Rock/Ore: {Mathf.RoundToInt(Config.MountainRockOre.Value)}%", HintStyle);
+            Config.MountainRockOre.Value = GUILayout.HorizontalSlider(Config.MountainRockOre.Value, 0f, 100f);
+            GUILayout.Label($"Wildlife: {Mathf.RoundToInt(Config.MountainWildlife.Value)}%", HintStyle);
+            Config.MountainWildlife.Value = GUILayout.HorizontalSlider(Config.MountainWildlife.Value, 0f, 100f);
+
+            GUILayout.Label($"Apply: {Config.MountainApplyKey.Value}   (raises terrain — no undo)", HintStyle);
         }
 
         private static readonly string[] _terrainModes = { "Raise", "Lower", "Smooth", "Flatten", "Average" };

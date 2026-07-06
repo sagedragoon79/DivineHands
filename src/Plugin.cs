@@ -70,6 +70,7 @@ namespace DivineHands
                 LakeStamp.OnSceneExit();
                 FertilityBrush.OnSceneExit();
                 ForestBrush.OnSceneExit();
+                MountainBrush.OnSceneExit();
                 TerrainBrushGrid.OnSceneExit();
                 BrushPreview.OnSceneExit();
                 CursorSpawners.OnSceneExit();
@@ -89,6 +90,7 @@ namespace DivineHands
             LakeStamp.OnMapLoaded();
             FertilityBrush.OnMapLoaded();
             ForestBrush.OnMapLoaded();
+            MountainBrush.OnMapLoaded();
             TerrainBrushGrid.OnMapLoaded();
             BrushPreview.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
@@ -153,6 +155,7 @@ namespace DivineHands
                     if (Hotkey.Pressed(Config.LakeArmHotkey.Value))      DivinePanel.ToggleArmLake();
                     if (Hotkey.Pressed(Config.FertilityArmHotkey.Value)) DivinePanel.ToggleArmFertility();
                 if (Hotkey.Pressed(Config.ForestArmHotkey.Value))    DivinePanel.ToggleArmForest();
+                if (Hotkey.Pressed(Config.MountainArmHotkey.Value))  DivinePanel.ToggleArmMountain();
 
                     // Delete the current selection on its hotkey (mine/quarry/pit/deep-mine/ore node/any
                     // building). Gated on the feature enable; a no-op when nothing deletable is selected.
@@ -172,6 +175,7 @@ namespace DivineHands
                 LakeStamp.OnUpdate();
                 FertilityBrush.OnUpdate();
                 ForestBrush.OnUpdate();
+                MountainBrush.OnUpdate();
                 CursorSpawners.OnUpdate();
                 ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state

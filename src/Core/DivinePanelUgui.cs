@@ -272,6 +272,7 @@ namespace DivineHands.Core
             ToolTab(tabs, "Lake", 3, () => Config.LakeEnable.Value);
             ToolTab(tabs, "Fertility", 4, () => Config.FertilityEnable.Value);
             ToolTab(tabs, "Forest", 5, () => Config.ForestEnable.Value);
+            ToolTab(tabs, "Mountain", 6, () => Config.MountainEnable.Value);
 
             // Drop a stale arm when its tool gets disabled in config; prompt when nothing armed.
             UiKit.Bind(() =>
@@ -279,14 +280,15 @@ namespace DivineHands.Core
                 int a = DivinePanel.ArmedIndex;
                 if ((a == 1 && !Config.TerrainEnable.Value) || (a == 2 && !Config.SpawnEnable.Value)
                     || (a == 3 && !Config.LakeEnable.Value) || (a == 4 && !Config.FertilityEnable.Value)
-                    || (a == 5 && !Config.ForestEnable.Value))
+                    || (a == 5 && !Config.ForestEnable.Value) || (a == 6 && !Config.MountainEnable.Value))
                     DivinePanel.ArmedIndex = 0;
             });
 
             UiKit.NewHint(section, () =>
             {
                 bool anyTool = Config.TerrainEnable.Value || Config.SpawnEnable.Value
-                            || Config.LakeEnable.Value || Config.FertilityEnable.Value || Config.ForestEnable.Value;
+                            || Config.LakeEnable.Value || Config.FertilityEnable.Value
+                            || Config.ForestEnable.Value || Config.MountainEnable.Value;
                 if (!anyTool) return "(enable tools in the Keep Clarity settings)";
                 return DivinePanel.ArmedIndex == 0 ? "Click a tab to arm a tool — it applies on its key while armed." : "";
             }, wrap: true);
@@ -310,6 +312,10 @@ namespace DivineHands.Core
             var forest = NewSection(section, "ForestOpts");
             BuildForestOptions(forest);
             UiKit.Bind(() => SetActive(forest, DivinePanel.ArmedIndex == 5));
+
+            var mountain = NewSection(section, "MountainOpts");
+            BuildMountainOptions(mountain);
+            UiKit.Bind(() => SetActive(mountain, DivinePanel.ArmedIndex == 6));
         }
 
         private static void ToolTab(GameObject row, string label, int index, Func<bool> enabled)
@@ -581,6 +587,48 @@ namespace DivineHands.Core
                 float cell = Modules.TerrainElevation.CellMeters;
                 string area = cell > 0f ? $"~{2 * gw * cell:0} × {2 * gh * cell:0} m" : $"{gw} × {gh} cells";
                 return $"Area {area} · arrows resize · Apply: {Config.ForestApplyKey.Value}";
+            });
+        }
+
+        private static void BuildMountainOptions(GameObject box)
+        {
+            ShapeRow(box, () => Config.MountainShape.Value, v => Config.MountainShape.Value = v);
+
+            UiKit.NewSliderRow(box, "Width", 1f, 10f, whole: true,
+                () => Config.MountainGridWidth.Value, v => Config.MountainGridWidth.Value = Mathf.RoundToInt(v),
+                () => Config.MountainGridWidth.Value.ToString());
+            UiKit.NewSliderRow(box, "Depth", 1f, 10f, whole: true,
+                () => Config.MountainGridHeight.Value, v => Config.MountainGridHeight.Value = Mathf.RoundToInt(v),
+                () => Config.MountainGridHeight.Value.ToString());
+            UiKit.NewSliderRow(box, "Height", 2f, 80f, whole: false,
+                () => Config.MountainHeight.Value, v => Config.MountainHeight.Value = v,
+                () => $"{Config.MountainHeight.Value:0} m");
+            UiKit.NewSliderRow(box, "Max Height", 5f, 200f, whole: false,
+                () => Config.MountainMaxHeight.Value, v => Config.MountainMaxHeight.Value = v,
+                () => $"{Config.MountainMaxHeight.Value:0} m");
+            UiKit.NewSliderRow(box, "Softness", 0f, 1f, whole: false,
+                () => Config.MountainEdgeSoftness.Value, v => Config.MountainEdgeSoftness.Value = v,
+                () => $"{Config.MountainEdgeSoftness.Value:0.00}");
+            UiKit.NewSliderRow(box, "Ruggedness", 0f, 100f, whole: true,
+                () => Config.MountainRuggedness.Value, v => Config.MountainRuggedness.Value = v,
+                () => $"{Mathf.RoundToInt(Config.MountainRuggedness.Value)}%");
+            UiKit.NewSliderRow(box, "Texture", 0f, 100f, whole: true,
+                () => Config.MountainTexture.Value, v => Config.MountainTexture.Value = v,
+                () => $"{Mathf.RoundToInt(Config.MountainTexture.Value)}%");
+            UiKit.NewSliderRow(box, "Rock/Ore", 0f, 100f, whole: true,
+                () => Config.MountainRockOre.Value, v => Config.MountainRockOre.Value = v,
+                () => $"{Mathf.RoundToInt(Config.MountainRockOre.Value)}%");
+            UiKit.NewSliderRow(box, "Wildlife", 0f, 100f, whole: true,
+                () => Config.MountainWildlife.Value, v => Config.MountainWildlife.Value = v,
+                () => $"{Mathf.RoundToInt(Config.MountainWildlife.Value)}%");
+
+            UiKit.NewHint(box, () =>
+            {
+                int gw = Mathf.Clamp(Config.MountainGridWidth.Value, 1, 10);
+                int gh = Mathf.Clamp(Config.MountainGridHeight.Value, 1, 10);
+                float cell = Modules.TerrainElevation.CellMeters;
+                string area = cell > 0f ? $"~{2 * gw * cell:0} × {2 * gh * cell:0} m" : $"{gw} × {gh} cells";
+                return $"Area {area} · arrows resize · raises terrain (no undo) · Apply: {Config.MountainApplyKey.Value}";
             });
         }
 

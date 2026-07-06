@@ -1006,9 +1006,9 @@ namespace DivineHands.Modules
                 Vector3 p = ScatterAround(world, i, count, spacing: 6f);
                 switch (kind)
                 {
-                    case MineralKind.Gold: SpawnOreSite(mm, 1 /*Gold*/, p); break;
-                    case MineralKind.Iron: SpawnOreSite(mm, 0 /*Iron*/, p); break;
-                    case MineralKind.Coal: SpawnOreSite(mm, 2 /*Coal*/, p); break;
+                    case MineralKind.Gold: SpawnOreSite(mm, 1 /*Gold*/, p, Config.SpawnIsDeep.Value); break;
+                    case MineralKind.Iron: SpawnOreSite(mm, 0 /*Iron*/, p, Config.SpawnIsDeep.Value); break;
+                    case MineralKind.Coal: SpawnOreSite(mm, 2 /*Coal*/, p, Config.SpawnIsDeep.Value); break;
                     case MineralKind.Stone: SpawnPit(_createStoneSite, mm, p, MineralKind.Stone); break;
                     case MineralKind.Clay: SpawnPit(_createClaySite, mm, p, MineralKind.Clay); break;
                     case MineralKind.Sand: SpawnPit(_createSandSite, mm, p, MineralKind.Sand); break;
@@ -1020,8 +1020,54 @@ namespace DivineHands.Modules
                                 $"(deep={Config.SpawnIsDeep.Value})");
         }
 
+        /// <summary>Spawn one finite (surface) ore deposit at a world point — for the Mountain brush's
+        /// Rock/Ore pass. type: 0=Iron, 1=Gold, 2=Coal, or Stone/Clay/Sand pit for 3/4/5.</summary>
+        internal static void SpawnMountainDepositAt(Vector3 pos, int mineralType)
+        {
+            var gm = GameManager.Instance;
+            object? mm = gm != null ? gm.mineralManager : null;
+            if (mm == null) return;
+            ResolveMineralReflection(mm.GetType());
+            switch (mineralType)
+            {
+                case 0: case 1: case 2: SpawnOreSite(mm, mineralType, pos, deep: false); break;
+                case 3: SpawnPitFinite(_createStoneSite, mm, MineralKind.Stone, pos); break;
+                case 4: SpawnPitFinite(_createClaySite,  mm, MineralKind.Clay,  pos); break;
+                case 5: SpawnPitFinite(_createSandSite,  mm, MineralKind.Sand,  pos); break;
+            }
+        }
+
+        /// <summary>Spawn one mountain-animal group at a world point — for the Mountain brush's Wildlife
+        /// pass. kind: 0=Deer, 1=Boar, 2=Wolf, 3=Bear. Loose (runtime-only, like the game's own DebugSpawn).</summary>
+        internal static void SpawnMountainAnimalAt(int kind, int count, Vector3 pos)
+        {
+            try
+            {
+                var gm = GameManager.Instance;
+                var am = gm != null ? gm.animalManager as AnimalManager : null;
+                if (am == null) return;
+                switch (kind)
+                {
+                    case 0: am.DebugSpawnDeerAtPoint(count, pos); break;
+                    case 1: am.DebugSpawnBoarsAtPoint(count, pos); break;
+                    case 2: am.DebugSpawnWolvesAtPoint(count, pos); break;
+                    case 3: am.DebugSpawnBearsAtPoint(count, pos); break;
+                }
+            }
+            catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] mountain animal spawn failed: {ex.Message}"); }
+        }
+
+        // Finite pit at a point (Mountain brush) — mirrors SpawnPit but never flips infinite (finite = a
+        // regular-buildable stone/clay/sand patch), and forces the count to the finite amount.
+        private static void SpawnPitFinite(MethodInfo? creator, object mineralManager, MineralKind kind, Vector3 pos)
+        {
+            if (creator == null) return;
+            try { creator.Invoke(mineralManager, new object[] { new Vector2(pos.x, pos.z), PitRadius, PitFiniteCount, false }); }
+            catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] mountain {kind} pit failed: {ex.Message}"); }
+        }
+
         // gold/iron/coal: replicate MineralManager.CreateMineralSite core [159415-418] deterministically.
-        private static void SpawnOreSite(object mineralManager, int mineralTypeValue, Vector3 pos)
+        private static void SpawnOreSite(object mineralManager, int mineralTypeValue, Vector3 pos, bool deep)
         {
             var mmType = mineralManager.GetType();
             var typeEnum = ResolveMineralTypeEnum();
@@ -1082,7 +1128,6 @@ namespace DivineHands.Modules
                 var siteType = FindType("MineralSite");
                 if (sitesList != null && siteType != null)
                 {
-                    bool deep = Config.SpawnIsDeep.Value;
                     int count = deep ? DeepMineCount : MineralFiniteCount;
 
                     var siteCtor = siteType.GetConstructor(new[]

@@ -36,6 +36,7 @@ namespace DivineHands
         internal const string GroupLake      = "Lake Stamp";
         internal const string GroupFertility = "Fertility Painter";
         internal const string GroupForest    = "Forest Brush";
+        internal const string GroupMountain  = "Mountain Brush";
         internal const string GroupDelete    = "Delete Selected";
         internal const string GroupKill       = "Kill Selected";
 
@@ -494,6 +495,51 @@ namespace DivineHands
             Reg(GroupForest, Config.ForestApplyKey,
                 NewMeta("Forest Apply Key", "Key/button that plants the forest at the cursor. Default: Ctrl+Mouse1.",
                         order: 540, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
+
+            // ===== Mountain brush =====
+            Reg(GroupMountain, Config.MountainEnable,
+                NewMeta("Mountain Brush",
+                        "Adds the Mountain tab to the in-game panel. Raises rocky terrain (dome + ridged noise), " +
+                        "repaints the ground to rock, sets the mountain biome, and — when the amount sliders are " +
+                        "above 0 — scatters stone/ore deposits and mountain wildlife. Terrain edits are permanent " +
+                        "(no undo). Default: OFF.",
+                        order: 545));
+            Reg(GroupMountain, Config.MountainShape,
+                NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
+                        min: 0, max: 1, order: 546, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainGridWidth,
+                NewMeta("Width (cells)", "Brush half-width in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 547, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainGridHeight,
+                NewMeta("Depth (cells)", "Brush half-depth in cells (1–10). Arrow keys resize while armed.",
+                        min: 1, max: 10, order: 548, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainHeight,
+                NewMeta("Height", "Metres of rise per 100 m of brush span. Default: 20.",
+                        min: 2f, max: 80f, order: 549, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainMaxHeight,
+                NewMeta("Max Height", "Hard cap on total rise, metres. Default: 60.",
+                        min: 5f, max: 200f, order: 550, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainEdgeSoftness,
+                NewMeta("Edge Softness", "How gradually the mountain blends into surrounding land (0 = cliff, 1 = wide skirt). Default: 0.72.",
+                        min: 0f, max: 1f, order: 551, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainRuggedness,
+                NewMeta("Ruggedness", "Jaggedness of the peaks (0 = smooth dome, 100 = craggy). Default: 55.",
+                        min: 0f, max: 100f, order: 552, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainTexture,
+                NewMeta("Rocky Texture %", "How strongly the ground is repainted to rock (0–100%). Default: 90.",
+                        min: 0f, max: 100f, order: 553, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainRockOre,
+                NewMeta("Rock/Ore Amount %", "Density of scattered stone + mineral deposits (0–100%). Default: 0.",
+                        min: 0f, max: 100f, order: 554, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainWildlife,
+                NewMeta("Wildlife Chance %", "Chance to spawn mountain animals (deer/boar/wolf/bear) (0–100%). Default: 0.",
+                        min: 0f, max: 100f, order: 555, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainArmHotkey,
+                NewMeta("Mountain Arm Hotkey", "Optional key/chord to arm (re-press disarms) the Mountain brush. Unbound by default.",
+                        order: 556, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
+            Reg(GroupMountain, Config.MountainApplyKey,
+                NewMeta("Mountain Apply Key", "Key/button that raises the mountain at the cursor. Default: Ctrl+Mouse1.",
+                        order: 557, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
 
             // ===== Delete Selected =====
             Reg(GroupDelete, Config.DeleteEnable,

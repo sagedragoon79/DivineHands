@@ -173,6 +173,21 @@ namespace DivineHands
         public static MelonPreferences_Entry<string> ForestArmHotkey     { get; private set; } = null!;
         public static MelonPreferences_Entry<string> ForestApplyKey      { get; private set; } = null!;
 
+        // ===== Mountain brush (Pangu mountain-brush port, pared to 7 sliders) =====
+        public static MelonPreferences_Entry<bool>   MountainEnable       { get; private set; } = null!;
+        public static MelonPreferences_Entry<int>    MountainShape        { get; private set; } = null!; // 0 = Rectangle, 1 = Circle
+        public static MelonPreferences_Entry<int>    MountainGridWidth    { get; private set; } = null!; // half-extent X (cells)
+        public static MelonPreferences_Entry<int>    MountainGridHeight   { get; private set; } = null!; // half-extent Z (cells)
+        public static MelonPreferences_Entry<float>  MountainHeight       { get; private set; } = null!; // rise (m) per 100 m of span
+        public static MelonPreferences_Entry<float>  MountainMaxHeight    { get; private set; } = null!; // hard cap on total rise (m)
+        public static MelonPreferences_Entry<float>  MountainEdgeSoftness { get; private set; } = null!; // 0..1 skirt width / smoothing
+        public static MelonPreferences_Entry<float>  MountainRuggedness   { get; private set; } = null!; // 0..100% ridge jaggedness + peaks
+        public static MelonPreferences_Entry<float>  MountainTexture      { get; private set; } = null!; // 0..100% rocky ground repaint
+        public static MelonPreferences_Entry<float>  MountainRockOre      { get; private set; } = null!; // 0..100% stone + ore deposit density
+        public static MelonPreferences_Entry<float>  MountainWildlife     { get; private set; } = null!; // 0..100% mountain-animal spawn chance
+        public static MelonPreferences_Entry<string> MountainArmHotkey    { get; private set; } = null!;
+        public static MelonPreferences_Entry<string> MountainApplyKey     { get; private set; } = null!;
+
         // ===== Delete Selected (resource nodes / mines / any building) =====
         public static MelonPreferences_Entry<bool>   DeleteEnable { get; private set; } = null!;
         public static MelonPreferences_Entry<string> DeleteHotkey { get; private set; } = null!;
@@ -549,6 +564,45 @@ namespace DivineHands
                              "use the Forest tab, or set a key/chord here.");
             ForestApplyKey = _root.CreateEntry("ForestApplyKey", "Ctrl+Mouse1",
                 display_name: "Forest Apply Key", description: "Key/button that plants the forest at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
+
+            // ===== Mountain brush =====
+            MountainEnable = _root.CreateEntry("MountainEnable", false,
+                display_name: "Mountain Brush",
+                description: "Make the Mountain brush available (adds its tab to the in-game panel). Raises rocky " +
+                             "terrain, repaints the ground to rock, and (when the amount sliders are above 0) spawns " +
+                             "stone/ore/wildlife — Pangu's mountain brush, pared to 7 sliders. Default: off.");
+            MountainShape = _root.CreateEntry("MountainShape", 0,
+                display_name: "Mountain Shape", description: "0 = Rectangle, 1 = Circle.");
+            MountainGridWidth = _root.CreateEntry("MountainGridWidth", 5,
+                display_name: "Mountain Width", description: "Brush half-width (X) in cells (1–10). Arrow keys resize while armed.");
+            MountainGridHeight = _root.CreateEntry("MountainGridHeight", 5,
+                display_name: "Mountain Depth", description: "Brush half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
+            MountainHeight = _root.CreateEntry("MountainHeight", 20f,
+                display_name: "Mountain Height",
+                description: "How tall the peak rises — metres of rise per 100 m of brush span. Default: 20.");
+            MountainMaxHeight = _root.CreateEntry("MountainMaxHeight", 60f,
+                display_name: "Mountain Max Height", description: "Hard cap on total rise in metres. Default: 60.");
+            MountainEdgeSoftness = _root.CreateEntry("MountainEdgeSoftness", 0.72f,
+                display_name: "Mountain Edge Softness",
+                description: "How gradually the mountain blends into surrounding land (0 = sharp cliff, 1 = wide gentle skirt). Default: 0.72.");
+            MountainRuggedness = _root.CreateEntry("MountainRuggedness", 55f,
+                display_name: "Mountain Ruggedness",
+                description: "Jaggedness of the peaks — ridge-noise strength + peak spread (0–100%). Low = smooth dome, high = craggy. Default: 55.");
+            MountainTexture = _root.CreateEntry("MountainTexture", 90f,
+                display_name: "Mountain Rocky Texture", description: "How strongly the ground is repainted to rock (0–100%). Default: 90.");
+            MountainRockOre = _root.CreateEntry("MountainRockOre", 0f,
+                display_name: "Mountain Rock/Ore Amount",
+                description: "Density of scattered stone + mineral (iron/gold/coal/clay/sand/stone) deposits placed on " +
+                             "the mountain (0–100%). Default: 0 (no deposits — crank up to seed a mining mountain).");
+            MountainWildlife = _root.CreateEntry("MountainWildlife", 0f,
+                display_name: "Mountain Wildlife Chance",
+                description: "Chance to spawn mountain animals (deer/boar/wolf/bear) in the footprint (0–100%). " +
+                             "Default: 0 (no wildlife).");
+            MountainArmHotkey = _root.CreateEntry("MountainArmHotkey", "",
+                display_name: "Mountain Arm Hotkey",
+                description: "Optional key/chord that arms (re-press disarms) the Mountain brush. Unbound by default.");
+            MountainApplyKey = _root.CreateEntry("MountainApplyKey", "Ctrl+Mouse1",
+                display_name: "Mountain Apply Key", description: "Key/button that raises the mountain at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
 
             // ===== Delete Selected =====
             DeleteEnable = _root.CreateEntry("DeleteEnable", false,

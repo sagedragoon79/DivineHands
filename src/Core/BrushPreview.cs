@@ -31,6 +31,7 @@ namespace DivineHands.Core
         private static readonly Color WaterBlue = new Color(0.25f, 0.7f, 1f, 0.95f);
         private static readonly Color FertGreen = new Color(0.35f, 0.95f, 0.30f, 0.95f);
         private static readonly Color ForestGreen = new Color(0.15f, 0.6f, 0.2f, 0.95f);
+        private static readonly Color RockGray = new Color(0.7f, 0.65f, 0.6f, 0.95f);
 
         public static void OnMapLoaded() { /* lazily rebuilt on first Render */ }
         public static void OnSceneExit() => Teardown();
@@ -47,6 +48,8 @@ namespace DivineHands.Core
                 col = FertGreen;
             else if (DivinePanel.ForestModeActive && ForestBrush.TryGetFootprint(out cx, out cz, out fhw, out fhh, out circle, out res))
                 col = ForestGreen;
+            else if (DivinePanel.MountainModeActive && MountainBrush.TryGetFootprint(out cx, out cz, out fhw, out fhh, out circle, out res))
+                col = RockGray;
             else { SetVisible(false); return; }
 
             BuildPerimeter(cx, cz, fhw, fhh, circle, res);
