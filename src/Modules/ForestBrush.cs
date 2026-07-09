@@ -128,14 +128,26 @@ namespace DivineHands.Modules
                     occupied.Add(iz * nx + ix);
                 }
 
-            // Valid cells (centre inside the shape) + the empty subset available to plant.
+            // Cell world bounds, CLAMPED to the footprint (Pangu clamps each cell's max edge with
+            // Min(rect.max, cell+g) [~3816] — without this the last row/column of ceil-sized cells
+            // extends up to a full 8 m past the rect and trees land outside the preview outline;
+            // worst at small brushes where the sole cell can be double the footprint).
+            void CellBounds(int ix, int iz, out float cx0, out float cz0, out float cx1, out float cz1)
+            {
+                cx0 = x0 + ix * g; cz0 = z0 + iz * g;
+                cx1 = Mathf.Min(x0 + w, cx0 + g);
+                cz1 = Mathf.Min(z0 + h, cz0 + g);
+            }
+
+            // Valid cells (centre of the CLAMPED cell inside the shape) + the empty subset available to plant.
             var empty = new List<int>();
             int validCount = 0;
             for (int iz = 0; iz < nz; iz++)
                 for (int ix = 0; ix < nx; ix++)
                 {
-                    float wx = x0 + (ix + 0.5f) * g, wz = z0 + (iz + 0.5f) * g;
-                    if (!InShape(wx, wz)) continue;
+                    CellBounds(ix, iz, out float cx0, out float cz0, out float cx1, out float cz1);
+                    if (cx1 - cx0 <= 0.05f || cz1 - cz0 <= 0.05f) continue; // degenerate sliver
+                    if (!InShape((cx0 + cx1) * 0.5f, (cz0 + cz1) * 0.5f)) continue;
                     validCount++;
                     int id = iz * nx + ix;
                     if (!occupied.Contains(id)) empty.Add(id);
@@ -154,10 +166,12 @@ namespace DivineHands.Modules
             {
                 if (_rng.NextDouble() > p) continue;
                 int ix = id % nx, iz = id / nx;
+                CellBounds(ix, iz, out float cx0, out float cz0, out float cx1, out float cz1);
                 for (int attempt = 0; attempt < 3; attempt++) // up to 3 tries to land inside the shape
                 {
-                    float wx = x0 + (ix + (float)_rng.NextDouble()) * g;
-                    float wz = z0 + (iz + (float)_rng.NextDouble()) * g;
+                    // Uniform inside the CLAMPED cell, so trees never leave the footprint.
+                    float wx = cx0 + (float)_rng.NextDouble() * (cx1 - cx0);
+                    float wz = cz0 + (float)_rng.NextDouble() * (cz1 - cz0);
                     if (!InShape(wx, wz)) continue;
                     var prefab = prefabs[_rng.Next(prefabs.Count)];
                     if (CursorSpawners.PlantTreeWithVariance(prefab, wx, wz, variance)) { planted++; break; }

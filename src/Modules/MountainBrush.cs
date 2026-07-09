@@ -30,7 +30,8 @@ namespace DivineHands.Modules
         private static bool _reflResolved, _reflOk;
         private static object? _generator;         // TerrainGenerator
         private static MethodInfo? _mSetPixelComp, _mUpload;
-        private static PropertyInfo? _pData, _pControlTextures, _pControlSize, _pTextureLayers, _pAreas, _pDataAreas;
+        private static PropertyInfo? _pData, _pControlTextures, _pControlSize, _pTextureLayers, _pDataAreas;
+        private static FieldInfo? _fAreas; // GenerationData.areas is a public FIELD (482993), not a property
 
         public static void OnMapLoaded() { _reflResolved = false; _reflOk = false; _generator = null; }
         public static void OnSceneExit() { _reflResolved = false; _reflOk = false; _generator = null; }
@@ -84,13 +85,11 @@ namespace DivineHands.Modules
             int maxZ = Mathf.Clamp(cz + fhh, 0, size - 1);
             if (minX >= maxX || minZ >= maxZ) return;
 
-            // 1) Height sculpt.
+            // 1) Height sculpt. One refresh is enough — SmoothHeightsNotify [491080] only invalidates the
+            // mesh + rebuilds collision/pathing (it never mutates heights), so repeat calls are pure cost.
             int changed = SculptHeight(hm, res, cx, cz, fhw, fhh, circle, minX, minZ, maxX, maxZ);
             if (changed > 0)
-            {
-                int passes = Mathf.Clamp(Mathf.RoundToInt(1f + (1f - Mathf.Clamp01(Config.MountainEdgeSoftness.Value)) * 2f), 1, 3);
-                for (int p = 0; p < passes; p++) TerrainElevation.RefreshTerrainRect(minX, minZ, maxX, maxZ);
-            }
+                TerrainElevation.RefreshTerrainRect(minX, minZ, maxX, maxZ);
 
             // World rect for texture/biome/resource passes.
             float cwx = cx * res, cwz = cz * res, hwW = fhw * res, hhW = fhh * res;
@@ -157,11 +156,14 @@ namespace DivineHands.Modules
             return changed;
         }
 
-        // Edge factor: 1 at centre → 0 at the footprint edge (radial for circle, Chebyshev for rect).
+        // Edge factor: 1 at centre → 0 half a cell beyond the outermost footprint cell (radial for circle,
+        // Chebyshev for rect). Normalising by fhw+0.5 (a cell spans ±0.5 around its centre) keeps the rim
+        // cells at a small positive weight — with the old /fhw normalisation a 1-cell brush collapsed to a
+        // single-cell spike because every non-centre cell weighed exactly 0.
         private static float EdgeFactor(int x, int z, int cx, int cz, int fhw, int fhh, bool circle)
         {
-            float nx = Mathf.Abs(x - cx) / Mathf.Max(1, fhw);
-            float nz = Mathf.Abs(z - cz) / Mathf.Max(1, fhh);
+            float nx = Mathf.Abs(x - cx) / (fhw + 0.5f);
+            float nz = Mathf.Abs(z - cz) / (fhh + 0.5f);
             if (circle) return Mathf.Clamp01(1f - Mathf.Sqrt(nx * nx + nz * nz));
             return Mathf.Clamp01(1f - Mathf.Max(nx, nz));
         }
@@ -287,7 +289,7 @@ namespace DivineHands.Modules
             try
             {
                 var data = _pDataAreas?.GetValue(_generator);
-                if (!(_pAreas?.GetValue(data) is IEnumerable areas)) return null;
+                if (data == null || !(_fAreas?.GetValue(data) is IEnumerable areas)) return null;
                 object? mtn = null;
                 // First find any mountain biome (biomeType has the Mountain bit = 8).
                 foreach (var area in areas)
@@ -376,9 +378,9 @@ namespace DivineHands.Modules
                 _pTextureLayers = dataType?.GetProperty("TextureLayers");
 
                 var tGenType = _generator?.GetType();
-                _pDataAreas = tGenType?.GetProperty("Data");        // TerrainGenerator.Data
+                _pDataAreas = tGenType?.GetProperty("Data");        // TerrainGenerator.Data (property, 483518)
                 var genDataType = _pDataAreas?.PropertyType;
-                _pAreas = genDataType?.GetProperty("areas") ?? genDataType?.GetProperty("Areas");
+                _fAreas = genDataType?.GetField("areas");           // public List<TerrainArea> areas — a FIELD (482993)
 
                 var tCtl = AccessTools.TypeByName("Terrain2Control");
                 if (tCtl != null)
@@ -389,7 +391,7 @@ namespace DivineHands.Modules
 
                 _reflOk = _generator != null && _pData != null && _pControlTextures != null
                           && _pControlSize != null && _mSetPixelComp != null && _mUpload != null
-                          && _pDataAreas != null && _pAreas != null;
+                          && _pDataAreas != null && _fAreas != null;
                 if (!_reflOk && Config.DebugLog.Value)
                     MelonLogger.Warning("[DivineHands] Mountain: texture/biome reflection incomplete — sculpt only.");
                 return _reflOk;
