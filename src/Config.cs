@@ -454,16 +454,16 @@ namespace DivineHands
             TerrainGridWidth = _root.CreateEntry(
                 "TerrainGridWidth", 3,
                 display_name: "Brush Grid Width",
-                description: "Brush footprint width (X / columns) in heightmap cells (1–10). Adjust live " +
+                description: "Brush footprint width (X / columns) in heightmap cells (1–20). Adjust live " +
                              "with Left/Right arrows while the brush is armed. Each cell is ~Resolution " +
                              "metres (~5 m). Default: 3.");
 
             TerrainGridHeight = _root.CreateEntry(
                 "TerrainGridHeight", 3,
                 display_name: "Brush Grid Depth",
-                description: "Brush footprint depth (Z / rows) in heightmap cells (1–10). Adjust live with " +
+                description: "Brush footprint depth (Z / rows) in heightmap cells (1–20). Adjust live with " +
                              "Up/Down arrows while the brush is armed; Tab swaps width and depth. " +
-                             "Use e.g. 1×10 to carve a path. Default: 3.");
+                             "Use e.g. 1×20 to carve a path. Default: 3.");
 
             TerrainGridFineSnap = _root.CreateEntry(
                 "TerrainGridFineSnap", false,

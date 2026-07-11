@@ -277,15 +277,15 @@ namespace DivineHands
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridWidth,
                 NewMeta("Brush Grid Width",
-                        "Footprint width (X) in heightmap cells (1–10). Live: Left/Right arrows while armed. " +
+                        "Footprint width (X) in heightmap cells (1–20). Live: Left/Right arrows while armed. " +
                         "Each cell ≈ Resolution metres (~5 m). Default: 3.",
-                        min: 1, max: 10, order: 203, indent: 20,
+                        min: 1, max: 20, order: 203, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridHeight,
                 NewMeta("Brush Grid Depth",
-                        "Footprint depth (Z) in heightmap cells (1–10). Live: Up/Down arrows while armed; " +
-                        "Tab swaps width/depth. Use e.g. 1×10 to carve a path. Default: 3.",
-                        min: 1, max: 10, order: 204, indent: 20,
+                        "Footprint depth (Z) in heightmap cells (1–20). Live: Up/Down arrows while armed; " +
+                        "Tab swaps width/depth. Use e.g. 1×20 to carve a path. Default: 3.",
+                        min: 1, max: 20, order: 204, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridFineSnap,
                 NewMeta("Fine Grid Positioning",

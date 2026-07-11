@@ -347,17 +347,17 @@ namespace DivineHands.Core
                 () => $"{Config.TerrainStrength.Value:0.0} m",
                 visibleWhen: () => Config.TerrainMode.Value != 3); // Flatten uses cursor height
 
-            UiKit.NewSliderRow(box, "Width", 1f, 10f, whole: true,
+            UiKit.NewSliderRow(box, "Width", 1f, 20f, whole: true,
                 () => Config.TerrainGridWidth.Value, v => Config.TerrainGridWidth.Value = Mathf.RoundToInt(v),
                 () => Config.TerrainGridWidth.Value.ToString());
-            UiKit.NewSliderRow(box, "Depth", 1f, 10f, whole: true,
+            UiKit.NewSliderRow(box, "Depth", 1f, 20f, whole: true,
                 () => Config.TerrainGridHeight.Value, v => Config.TerrainGridHeight.Value = Mathf.RoundToInt(v),
                 () => Config.TerrainGridHeight.Value.ToString());
 
             UiKit.NewHint(box, () =>
             {
-                int gw = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
-                int gh = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+                int gw = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 20);
+                int gh = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 20);
                 float cell = Modules.TerrainElevation.CellMeters;
                 return cell > 0f
                     ? $"Grid {gw} × {gh} cells ({gw * cell:0.#} × {gh * cell:0.#} m) · arrows resize, Tab swaps"

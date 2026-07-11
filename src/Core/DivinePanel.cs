@@ -494,18 +494,18 @@ namespace DivineHands.Core
 
             // Grid footprint — independent width (X) × depth (Z). Show metres when the per-cell
             // resolution is known (terrain resolved in-game); otherwise just the cell counts.
-            int gw = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
-            int gh = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+            int gw = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 20);
+            int gh = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 20);
             float cellMeters = DivineHands.Modules.TerrainElevation.CellMeters;
             string gridLabel = cellMeters > 0f
                 ? $"Grid: {gw} x {gh} cells ({gw * cellMeters:0.#} x {gh * cellMeters:0.#} m)"
                 : $"Grid: {gw} x {gh} cells";
             GUILayout.Label(gridLabel, HintStyle);
             GUILayout.Label("Width", HintStyle);
-            gw = Mathf.RoundToInt(GUILayout.HorizontalSlider(gw, 1f, 10f));
+            gw = Mathf.RoundToInt(GUILayout.HorizontalSlider(gw, 1f, 20f));
             Config.TerrainGridWidth.Value = gw;
             GUILayout.Label("Depth", HintStyle);
-            gh = Mathf.RoundToInt(GUILayout.HorizontalSlider(gh, 1f, 10f));
+            gh = Mathf.RoundToInt(GUILayout.HorizontalSlider(gh, 1f, 20f));
             Config.TerrainGridHeight.Value = gh;
             GUILayout.Label("Arrows resize (←→ width · ↑↓ depth) · Tab swaps", HintStyle);
 

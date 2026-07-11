@@ -123,8 +123,8 @@ namespace DivineHands.Modules
                 if (Input.GetKeyDown(KeyCode.DownArrow))  BumpGrid(Config.TerrainGridHeight, -1);
                 if (Input.GetKeyDown(KeyCode.Tab))
                 {
-                    int w = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
-                    int h = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+                    int w = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 20);
+                    int h = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 20);
                     Config.TerrainGridWidth.Value = h;
                     Config.TerrainGridHeight.Value = w;
                 }
@@ -413,8 +413,8 @@ namespace DivineHands.Modules
         private static void BrushRectFromCenter(int cx, int cz,
             out int minX, out int minZ, out int maxX, out int maxZ)
         {
-            int w = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
-            int h = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+            int w = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 20);
+            int h = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 20);
             int rawMinX = cx - w / 2;
             int rawMinZ = cz - h / 2;
             minX = Mathf.Max(rawMinX, 0);
@@ -424,7 +424,7 @@ namespace DivineHands.Modules
         }
 
         private static void BumpGrid(MelonLoader.MelonPreferences_Entry<int> entry, int delta)
-            => entry.Value = Mathf.Clamp(entry.Value + delta, 1, 10);
+            => entry.Value = Mathf.Clamp(entry.Value + delta, 1, 20);
 
         // The integer centre cell the SCULPT writes around. Default = floor (cell under cursor). With Fine
         // Grid Positioning the overlay steps on the ½-cell lattice (see TryGetGridGeometry); the write
@@ -460,8 +460,8 @@ namespace DivineHands.Modules
             if (!ResolveTerrain() || _heightmap == null) return false;
             if (!TryGetCursorWorldPoint(out Vector3 world)) return false;
 
-            cols = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 10);
-            rows = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 10);
+            cols = Mathf.Clamp(Config.TerrainGridWidth.Value, 1, 20);
+            rows = Mathf.Clamp(Config.TerrainGridHeight.Value, 1, 20);
 
             if (Config.TerrainGridFineSnap.Value)
             {
