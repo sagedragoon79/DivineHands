@@ -159,8 +159,10 @@ namespace DivineHands
                 NewMeta("Build Anywhere",
                         "Makes Build Anywhere available in the in-game panel — you activate it there, not " +
                         "here. When activated it lets you place NORMAL buildings on ground vanilla rejects " +
-                        "(steep slopes, no path to town, water/road overlap). Bridges are left alone so they " +
-                        "keep deferring to vanilla and Keep Clarity's Bridge Anywhere. Default: OFF.",
+                        "(steep slopes, no path to town, water/road overlap), and lifts the 150 m road length " +
+                        "cap (drag roads of any length; cost still scales with the real length). Bridges are " +
+                        "left alone so they keep deferring to vanilla and Keep Clarity's Bridge Anywhere. " +
+                        "Default: OFF.",
                         order: 110));
             Reg(GroupGodTools, Config.EnableGodView,
                 NewMeta("God View",

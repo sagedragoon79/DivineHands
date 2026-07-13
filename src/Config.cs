@@ -341,8 +341,10 @@ namespace DivineHands
                 description: "Make Build Anywhere AVAILABLE in the in-game panel. Enabling here does NOT " +
                              "change placement — you activate it in-game from the Divine Hands panel. " +
                              "When active it lets you place NORMAL buildings on ground vanilla would reject " +
-                             "(steep slopes, no path to town, water/road overlap). Bridges are NOT affected — " +
-                             "they defer to vanilla and Keep Clarity's Bridge Anywhere. Default: off.");
+                             "(steep slopes, no path to town, water/road overlap), and lifts the 150 m road " +
+                             "length cap so you can drag roads of any length (cost still scales with the real " +
+                             "length). Bridges are NOT affected — they defer to vanilla and Keep Clarity's " +
+                             "Bridge Anywhere. Default: off.");
 
             EnableGodView = _root.CreateEntry(
                 "EnableGodView", false,
