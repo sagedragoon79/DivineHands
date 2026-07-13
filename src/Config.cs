@@ -55,6 +55,11 @@ namespace DivineHands
         /// shadow draw distance), capturing the map's current values on enable and restoring on disable.</summary>
         public static MelonPreferences_Entry<bool>   EnableGodView        { get; private set; } = null!;
 
+        /// <summary>Keep trees placed over structures (plazas / building footprints) across reloads by
+        /// skipping the load-time footprint re-sweep (Building.ConstructionComplete LOAD replay). The
+        /// sweep is redundant for vanilla saves — sites were already cleared at construction.</summary>
+        public static MelonPreferences_Entry<bool> PreserveOverlapTrees { get; private set; } = null!;
+
         // Hidden persist prefs: mirror each power's live ON/OFF so it survives a save/reload. On map
         // load the runtime Active flag is restored from these instead of forced off. Reveal Map / Build
         // Anywhere / God View persist (per user request); Free Cam still always resets. Not user-facing.
@@ -353,6 +358,15 @@ namespace DivineHands
                              "camera — you activate it in-game from the Divine Hands panel. When active it " +
                              "relaxes the RTS camera limits so you can zoom far out, tilt to a flat/overhead " +
                              "angle, and survey the whole map, restoring exactly when turned off. Default: off.");
+
+            PreserveOverlapTrees = _root.CreateEntry(
+                "PreserveOverlapTrees", true,
+                display_name: "Keep Overlapping Trees",
+                description: "Keep trees placed over structures (e.g. a tree on a plaza tile via Build Anywhere) " +
+                             "across save/reload. Vanilla re-clears every building footprint of trees at LOAD — a " +
+                             "sweep that's redundant for normal saves (sites were already cleared when built), so " +
+                             "skipping it is safe. Live construction still clears trees normally. NOTE: trees on " +
+                             "ROADS still vanish on reload (separate road sweep, not covered). Default: on.");
 
             // Hidden persist prefs (not registered in KC with a visible predicate — see KC integration).
             PersistRevealActive        = _root.CreateEntry("PersistRevealActive", false);

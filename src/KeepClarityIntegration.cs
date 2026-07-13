@@ -164,6 +164,13 @@ namespace DivineHands
                         "left alone so they keep deferring to vanilla and Keep Clarity's Bridge Anywhere. " +
                         "Default: OFF.",
                         order: 110));
+            Reg(GroupGodTools, Config.PreserveOverlapTrees,
+                NewMeta("Keep Overlapping Trees",
+                        "Keep trees placed over structures (e.g. a tree on a plaza tile via Build Anywhere) across " +
+                        "save/reload. Vanilla re-clears every building footprint of trees at LOAD — redundant for " +
+                        "normal saves, so skipping it is safe; live construction still clears trees normally. " +
+                        "Trees on ROADS still vanish on reload (separate road sweep). Default: ON.",
+                        order: 111, indent: 20));
             Reg(GroupGodTools, Config.EnableGodView,
                 NewMeta("God View",
                         "Makes God View available in the in-game panel — you activate it there, not here. " +
