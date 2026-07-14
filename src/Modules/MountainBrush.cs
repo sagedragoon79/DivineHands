@@ -233,43 +233,47 @@ namespace DivineHands.Modules
         //      simplified: no clear-loop; Upload(true) to guarantee the GPU sees our writes) ----
         private static void PaintBiomeAndTexture(Rect worldRect)
         {
-            if (!ResolveTextureRefl() || _generator == null) return;
+            // Every early-exit logs under DebugLog so a failed paint is diagnosable from one stamp.
+            void Skip(string why) { if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Mountain texture skipped: {why}"); }
+
+            if (!ResolveTextureRefl() || _generator == null) { Skip("reflection unresolved"); return; }
 
             // Find the mountain biome + set it on overlapping terrain areas (public field write; the
             // visible ground comes from the splat paint below, not this).
             object? mtnBiome = FindMountainBiomeAndAssign(worldRect);
-            if (mtnBiome == null) { if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Mountain: no mountain biome on this map — skipped texture."); return; }
+            if (mtnBiome == null) { Skip("no mountain biome on this map"); return; }
 
             var terrain = TerrainElevation.ResolvedTerrain2;
-            if (terrain == null) return;
+            if (terrain == null) { Skip("Terrain2 unresolved"); return; }
             var data = _pData?.GetValue(terrain);
-            if (data == null) return;
+            if (data == null) { Skip("Terrain2.Data null"); return; }
 
-            if (!(_pControlTextures?.GetValue(data) is IList controls) || controls.Count == 0) return;
+            if (!(_pControlTextures?.GetValue(data) is IList controls) || controls.Count == 0) { Skip("no ControlTextures"); return; }
             int csize = _pControlSize != null ? Convert.ToInt32(_pControlSize.GetValue(data)) : 0;
-            if (csize < 2) return;
+            if (csize < 2) { Skip($"ControlTextureSize={csize}"); return; }
             var layers = _pTextureLayers?.GetValue(data) as IList;
 
             int baseLayer = ResolveLayerIndex(mtnBiome, "baseTexture", layers);
             int slopeLayer = ResolveLayerIndex(mtnBiome, "slopeTexture", layers);
-            if (baseLayer < 0 && slopeLayer < 0) return;
+            if (baseLayer < 0 && slopeLayer < 0)
+            { Skip($"splat layers unresolved (layers list: {(layers == null ? "null" : layers.Count.ToString())})"); return; }
 
             var terrainSize = GetTerrainSize();
             float strength = Mathf.Clamp01(Config.MountainTexture.Value * 0.01f);
-            if (strength <= 0f) return;
+            if (strength <= 0f) { Skip("texture strength 0"); return; }
 
             int px0 = Mathf.Clamp(Mathf.FloorToInt(worldRect.xMin / Mathf.Max(1f, terrainSize.x) * (csize - 1)), 0, csize - 1);
             int px1 = Mathf.Clamp(Mathf.CeilToInt(worldRect.xMax / Mathf.Max(1f, terrainSize.x) * (csize - 1)), 0, csize - 1);
             int pz0 = Mathf.Clamp(Mathf.FloorToInt(worldRect.yMin / Mathf.Max(1f, terrainSize.z) * (csize - 1)), 0, csize - 1);
             int pz1 = Mathf.Clamp(Mathf.CeilToInt(worldRect.yMax / Mathf.Max(1f, terrainSize.z) * (csize - 1)), 0, csize - 1);
-            if (px1 <= px0 || pz1 <= pz0) return;
+            if (px1 <= px0 || pz1 <= pz0) { Skip($"degenerate pixel rect [{px0},{pz0}..{px1},{pz1}] size={terrainSize}"); return; }
 
             // control index → (control texture, channel): 4 layers per control texture.
             object? baseCtl = baseLayer >= 0 && baseLayer / 4 < controls.Count ? controls[baseLayer / 4] : null;
             int baseChan = baseLayer % 4;
             object? slopeCtl = slopeLayer >= 0 && slopeLayer / 4 < controls.Count ? controls[slopeLayer / 4] : null;
             int slopeChan = slopeLayer % 4;
-            if (baseCtl == null && slopeCtl == null) return;
+            if (baseCtl == null && slopeCtl == null) { Skip($"control index out of range (base {baseLayer}, slope {slopeLayer}, controls {controls.Count})"); return; }
 
             for (int k = pz0; k <= pz1; k++)
                 for (int l = px0; l <= px1; l++)
@@ -282,6 +286,10 @@ namespace DivineHands.Modules
             // Upload(true) forces the CPU data[] -> GPU texture (Upload(false) can miss SetPixelComponent writes).
             if (baseCtl != null) _mUpload!.Invoke(baseCtl, new object[] { true });
             if (slopeCtl != null && !ReferenceEquals(slopeCtl, baseCtl)) _mUpload!.Invoke(slopeCtl, new object[] { true });
+
+            if (Config.DebugLog.Value)
+                MelonLogger.Msg($"[DivineHands] Mountain texture painted: layers base={baseLayer} slope={slopeLayer}, " +
+                                $"pixels [{px0},{pz0}..{px1},{pz1}] ({(px1 - px0 + 1) * (pz1 - pz0 + 1)}), strength {strength:0.00}");
         }
 
         private static object? FindMountainBiomeAndAssign(Rect worldRect)
