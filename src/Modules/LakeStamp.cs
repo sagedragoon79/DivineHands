@@ -177,6 +177,7 @@ namespace DivineHands.Modules
             int cMaxX = Mathf.Clamp(cx + fhw + shore, 0, size - 1);
             int cMaxZ = Mathf.Clamp(cz + fhh + shore, 0, size - 1);
 
+            int changed = 0;
             for (int x = cMinX; x <= cMaxX; x++)
             {
                 for (int z = cMinZ; z <= cMaxZ; z++)
@@ -205,12 +206,30 @@ namespace DivineHands.Modules
                         float outDist = circle ? Mathf.Sqrt(ox * ox + oz * oz) : Mathf.Max(ox, oz);
                         if (outDist > shore) continue;
                         float t = Mathf.Clamp01(outDist / shore);
-                        target = Mathf.Lerp(waterH, orig, Mathf.SmoothStep(0f, 1f, t));
+                        // Shore bank: a fixed ramp climbing from just-below-water at the footprint edge up
+                        // to a bank height above water at the outer edge, ANCHORED to waterH (NOT the
+                        // mutable current height). Combined with the LOWER-only guard below, wherever the
+                        // ramp already sits above the natural ground the cell is left alone, so the shore
+                        // meets land without a cliff. Anchoring to waterH makes re-stamping the same spot
+                        // IDEMPOTENT — the old `Lerp(waterH, orig, …)` re-read the already-carved height and
+                        // sank the shore band a little on every stamp (the reported bug).
+                        float bank = Mathf.Max(3f, depth);
+                        target = Mathf.Lerp(edgeH, waterH + bank, Mathf.SmoothStep(0f, 1f, t));
                     }
 
-                    if (orig <= target + 0.02f) continue; // LOWER-only
+                    if (orig <= target + 0.02f) continue; // LOWER-only (also what makes re-stamps idempotent)
                     hm.SetHeight(x, z, target);
+                    changed++;
                 }
+            }
+
+            // Exact re-stamp on an already-carved lake: the terrain is idempotent now, so nothing moved.
+            // Skip building ANOTHER WaterArea on top of the existing one — otherwise repeated clicks pile
+            // up dozens of overlapping water surfaces (and serialized areas), bloating the save.
+            if (changed == 0)
+            {
+                if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake: identical re-stamp (terrain unchanged) — kept existing water, no new area.");
+                return;
             }
 
             // Mesh/collider/NavMesh/tree rebuild over the carve rect (twice, matching Pangu).
