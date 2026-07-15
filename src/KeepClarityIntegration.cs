@@ -307,8 +307,8 @@ namespace DivineHands
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainApplyKey,
                 NewMeta("Apply Key",
-                        "Key/button that applies the brush at the cursor. A Unity KeyCode name (Mouse2 = " +
-                        "middle, Mouse0 = left) or a chord. Default: Mouse2.",
+                        "Key/button that applies the brush at the cursor. A Unity KeyCode name or a chord. " +
+                        "Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse0.",
                         order: 204, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainUndoKey,
@@ -378,8 +378,8 @@ namespace DivineHands
             Reg(GroupSpawning, Config.SpawnGiantRockGuids,  NewMeta("Boulder GUIDs",     visibleWhen: () => false));
             Reg(GroupSpawning, Config.SpawnApplyKey,
                 NewMeta("Spawn Apply Key",
-                        "Key/button that spawns at the cursor. Mouse2 = middle, Mouse0 = left, or a chord. " +
-                        "Default: Mouse2.",
+                        "Key/button that spawns at the cursor. A Unity KeyCode name or a chord. " +
+                        "Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse0.",
                         order: 306, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
             Reg(GroupSpawning, Config.SpawnerArmHotkey,
@@ -421,7 +421,7 @@ namespace DivineHands
                 NewMeta("Lake Arm Hotkey", "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.",
                         order: 508, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeApplyKey,
-                NewMeta("Lake Apply Key", "Key/button that stamps the lake at the cursor. Default: Ctrl+Mouse1.",
+                NewMeta("Lake Apply Key", "Key/button that stamps the lake at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse0.",
                         order: 509, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeStockFish,
                 NewMeta("Stock Fish", "Populate the new lake with fish + visible shoals (sized to the lake), so it's fishable. Default: on.",
@@ -455,11 +455,11 @@ namespace DivineHands
                         "less ideal for crops. Default: off.",
                         order: 526, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityArmHotkey,
-                NewMeta("Fertility Arm Hotkey", "Optional key/chord to arm (re-press disarms) the Fertility painter. " +
-                        "Unbound by default — use the Fertility tab, or set a key/chord (e.g. Ctrl+F).",
+                NewMeta("Fertility Arm Hotkey", "Key/chord to arm (re-press disarms) the Fertility painter — or use the " +
+                        "Fertility tab. Default: Alt+Insert.",
                         order: 527, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityApplyKey,
-                NewMeta("Fertility Apply Key", "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1.",
+                NewMeta("Fertility Apply Key", "Key/button that paints fertility at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse1.",
                         order: 528, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
 
             // ===== Forest brush =====
@@ -499,10 +499,10 @@ namespace DivineHands
                         min: 0f, max: 100f, order: 538, indent: 40,
                         visibleWhen: () => Config.ForestEnable.Value && Config.ForestSetFertility.Value));
             Reg(GroupForest, Config.ForestArmHotkey,
-                NewMeta("Forest Arm Hotkey", "Optional key/chord to arm (re-press disarms) the Forest brush. Unbound by default.",
+                NewMeta("Forest Arm Hotkey", "Key/chord to arm (re-press disarms) the Forest brush — or use the Forest tab. Default: Shift+Insert.",
                         order: 539, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
             Reg(GroupForest, Config.ForestApplyKey,
-                NewMeta("Forest Apply Key", "Key/button that plants the forest at the cursor. Default: Ctrl+Mouse1.",
+                NewMeta("Forest Apply Key", "Key/button that plants the forest at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse1.",
                         order: 540, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
 
             // ===== Mountain brush =====
@@ -544,10 +544,10 @@ namespace DivineHands
                 NewMeta("Wildlife Chance %", "Chance to spawn mountain animals (deer/boar/wolf/bear) (0–100%). Default: 0.",
                         min: 0f, max: 100f, order: 555, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
             Reg(GroupMountain, Config.MountainArmHotkey,
-                NewMeta("Mountain Arm Hotkey", "Optional key/chord to arm (re-press disarms) the Mountain brush. Unbound by default.",
+                NewMeta("Mountain Arm Hotkey", "Key/chord to arm (re-press disarms) the Mountain brush — or use the Mountain tab. Default: Ctrl+Insert.",
                         order: 556, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
             Reg(GroupMountain, Config.MountainApplyKey,
-                NewMeta("Mountain Apply Key", "Key/button that raises the mountain at the cursor. Default: Ctrl+Mouse1.",
+                NewMeta("Mountain Apply Key", "Key/button that raises the mountain at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse1.",
                         order: 557, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
 
             // ===== Delete Selected =====
@@ -582,7 +582,7 @@ namespace DivineHands
             Reg(GroupKill, Config.KillHotkey,
                 NewMeta("Kill Hotkey",
                         "Key/chord that kills the current creature. A deliberate chord is safer than a bare key. " +
-                        "Default: Ctrl+K.",
+                        "Default: Ctrl+D.",
                         order: 561, indent: 20, visibleWhen: () => Config.KillEnable.Value));
 
             // ===== Selected Building (Item Injection) =====

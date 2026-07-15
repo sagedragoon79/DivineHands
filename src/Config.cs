@@ -510,8 +510,8 @@ namespace DivineHands
                 display_name: "Extra Size", description: "Extra cells added to the lake footprint on every side (0–24). Default: 0.");
             LakeArmHotkey = _root.CreateEntry("LakeArmHotkey", "Insert",
                 display_name: "Lake Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.");
-            LakeApplyKey = _root.CreateEntry("LakeApplyKey", "Ctrl+Mouse1",
-                display_name: "Lake Apply Key", description: "Key/button that stamps the lake at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
+            LakeApplyKey = _root.CreateEntry("LakeApplyKey", "Ctrl+Mouse0",
+                display_name: "Lake Apply Key", description: "Key/button that stamps the lake at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse0.");
             LakeStockFish = _root.CreateEntry("LakeStockFish", true,
                 display_name: "Stock Fish", description: "Populate the new lake with fish + visible shoals (sized to the lake area), so it's fishable. Default: on.");
 
@@ -537,7 +537,7 @@ namespace DivineHands
                              "sand/clay + water penalties — this zeroes those penalties (the ideals are read from the " +
                              "game's own curves). Makes the spot great for fruit trees (and possibly less ideal for " +
                              "crops). Default: off.");
-            FertilityArmHotkey = _root.CreateEntry("FertilityArmHotkey", "",
+            FertilityArmHotkey = _root.CreateEntry("FertilityArmHotkey", "Alt+Insert",
                 display_name: "Fertility Arm Hotkey",
                 description: "Optional key/chord that arms (re-press disarms) the Fertility painter. Unbound by " +
                              "default (the nav-key cluster is taken / used by camera zoom) — arm it from the " +
@@ -574,12 +574,12 @@ namespace DivineHands
                 display_name: "Forest Fertility %", description: "Soil fertility the brush sets when 'Sets Fertility' is on (0–100%). Default: 50.");
             ForestFertilityMult = _root.CreateEntry("ForestFertilityMult", 100f,
                 display_name: "Forest Fertilizer Effectiveness %", description: "Per-cell fertilizer effectiveness set alongside fertility (0–100%). Default: 100.");
-            ForestArmHotkey = _root.CreateEntry("ForestArmHotkey", "",
+            ForestArmHotkey = _root.CreateEntry("ForestArmHotkey", "Shift+Insert",
                 display_name: "Forest Arm Hotkey",
                 description: "Optional key/chord that arms (re-press disarms) the Forest brush. Unbound by default — " +
                              "use the Forest tab, or set a key/chord here.");
             ForestApplyKey = _root.CreateEntry("ForestApplyKey", "Ctrl+Mouse1",
-                display_name: "Forest Apply Key", description: "Key/button that plants the forest at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
+                display_name: "Forest Apply Key", description: "Key/button that plants the forest at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse1.");
 
             // ===== Mountain brush =====
             MountainEnable = _root.CreateEntry("MountainEnable", false,
@@ -614,11 +614,11 @@ namespace DivineHands
                 display_name: "Mountain Wildlife Chance",
                 description: "Chance to spawn mountain animals (deer/boar/wolf/bear) in the footprint (0–100%). " +
                              "Default: 0 (no wildlife).");
-            MountainArmHotkey = _root.CreateEntry("MountainArmHotkey", "",
+            MountainArmHotkey = _root.CreateEntry("MountainArmHotkey", "Ctrl+Insert",
                 display_name: "Mountain Arm Hotkey",
                 description: "Optional key/chord that arms (re-press disarms) the Mountain brush. Unbound by default.");
             MountainApplyKey = _root.CreateEntry("MountainApplyKey", "Ctrl+Mouse1",
-                display_name: "Mountain Apply Key", description: "Key/button that raises the mountain at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
+                display_name: "Mountain Apply Key", description: "Key/button that raises the mountain at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse1.");
 
             // ===== Delete Selected =====
             DeleteEnable = _root.CreateEntry("DeleteEnable", false,
@@ -643,7 +643,7 @@ namespace DivineHands
                              "selected LIVING creature(s) — villagers, raiders, and any animal (wild, livestock, or " +
                              "pet). Kills every creature in the current selection. Runs the game's own death path " +
                              "(proper removal + died-events). Mainly a testing aid, but this is a god mod. Off by default.");
-            KillHotkey = _root.CreateEntry("KillHotkey", "Ctrl+K",
+            KillHotkey = _root.CreateEntry("KillHotkey", "Ctrl+D",
                 display_name: "Kill Hotkey",
                 description: "Key/chord that kills the selected creature. Default: Ctrl+K (a deliberate chord so it " +
                              "can't fire by accident).");
@@ -668,11 +668,11 @@ namespace DivineHands
                              "(e.g. End, Home, F6, Ctrl+T). Default: End (TerrainHelper convention).");
 
             TerrainApplyKey = _root.CreateEntry(
-                "TerrainApplyKey", "Ctrl+Mouse1",
+                "TerrainApplyKey", "Ctrl+Mouse0",
                 display_name: "Apply Key",
-                description: "Key/button that applies the brush at the cursor. A Unity KeyCode name or a chord " +
-                             "— e.g. Ctrl+Mouse1 (Ctrl + right-click), Mouse2 (middle), Mouse0 (left), F. " +
-                             "Default: Ctrl+Mouse1 (Ctrl + right-click — prevents accidental application).");
+                description: "Key/button that applies the brush at the cursor. A Unity KeyCode name or a chord — " +
+                             "e.g. Ctrl+Mouse0 (Ctrl + left-click), F. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. " +
+                             "Default: Ctrl+Mouse0.");
 
             TerrainUndoKey = _root.CreateEntry(
                 "TerrainUndoKey", "Ctrl+Z",
@@ -743,11 +743,10 @@ namespace DivineHands
                              "End, F7, Ctrl+B). Default: Home.");
 
             SpawnApplyKey = _root.CreateEntry(
-                "SpawnApplyKey", "Ctrl+Mouse1",
+                "SpawnApplyKey", "Ctrl+Mouse0",
                 display_name: "Spawn Apply Key",
-                description: "Key/button that spawns the selected family at the cursor. A Unity KeyCode name " +
-                             "(Mouse2 = middle, Mouse0 = left, Mouse1 = right) or a chord like Ctrl+Mouse1. " +
-                             "Default: Ctrl+Mouse1 (Ctrl + right-click — prevents accidental spawning).");
+                description: "Key/button that spawns the selected family at the cursor. A Unity KeyCode name or a " +
+                             "chord. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse0.");
 
             SpawnForageableGuids = _root.CreateEntry(
                 "SpawnForageableGuids",
