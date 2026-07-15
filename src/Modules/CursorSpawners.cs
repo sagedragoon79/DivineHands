@@ -110,7 +110,10 @@ namespace DivineHands.Modules
         private const float MineralRadius = 12f;      // metres
         private const int MineralFiniteCount = 5000;  // ore units for a non-Deep gold/iron/coal site
         private const int DeepMineCount = 99999;      // matches the engine's deep-deposit count [158664]
-        private const float PitRadius = 8f;           // metres
+        private const float PitRadius = 8f;           // metres (clay/sand — no load-time radius floor)
+        private const float StonePitRadius = 20f;     // metres — FF's StoneSite.Load floors stone radius to 20 on
+                                                      // reload [160048], so place stone at 20 up front (WYSIWYG;
+                                                      // otherwise the collider/decal balloons 8->20 on first reload).
         private const int PitCount = 9999;            // starting items for a DEEP pit (infinite flag makes it endless)
         private const int PitFiniteCount = 2500;      // starting items for a regular (non-Deep) finite pit
         private const float TreeStartGrown = 0.85f;   // AddGrowingTree startPercentGrown (near-mature)
@@ -1057,12 +1060,16 @@ namespace DivineHands.Modules
             catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] mountain animal spawn failed: {ex.Message}"); }
         }
 
+        // Stone is floored to a 20m radius on reload; clay/sand aren't. Spawn each at the radius it will
+        // actually persist at so nothing balloons on the first save/reload.
+        private static float PitRadiusFor(MineralKind kind) => kind == MineralKind.Stone ? StonePitRadius : PitRadius;
+
         // Finite pit at a point (Mountain brush) — mirrors SpawnPit but never flips infinite (finite = a
         // regular-buildable stone/clay/sand patch), and forces the count to the finite amount.
         private static void SpawnPitFinite(MethodInfo? creator, object mineralManager, MineralKind kind, Vector3 pos)
         {
             if (creator == null) return;
-            try { creator.Invoke(mineralManager, new object[] { new Vector2(pos.x, pos.z), PitRadius, PitFiniteCount, false }); }
+            try { creator.Invoke(mineralManager, new object[] { new Vector2(pos.x, pos.z), PitRadiusFor(kind), PitFiniteCount, false }); }
             catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] mountain {kind} pit failed: {ex.Message}"); }
         }
 
@@ -1187,10 +1194,16 @@ namespace DivineHands.Modules
 
             try
             {
-                // CreateXSite(Vector2 loc, float radius, int count, bool avoidWater:false)
+                // CreateXSite(Vector2 loc, float radius, int count, bool avoidWater:false) — returns bool success.
                 var loc = new Vector2(pos.x, pos.z);
                 bool deep = Config.SpawnIsDeep.Value;
-                creator.Invoke(mineralManager, new object[] { loc, PitRadius, deep ? PitCount : PitFiniteCount, false });
+
+                // Snapshot the site list BEFORE the create so we can tell whether it actually added one.
+                var listBefore = mmType.GetProperty(listName)?.GetValue(mineralManager) as System.Collections.IList;
+                int before = listBefore?.Count ?? 0;
+
+                object? ret = creator.Invoke(mineralManager, new object[] { loc, PitRadiusFor(kind), deep ? PitCount : PitFiniteCount, false });
+                bool created = !(ret is bool ok) || ok; // creators return false when off-grid (pathingGridBounds reject)
 
                 // Deep only: flip the fresh site's component infinite. In the live build infinite IS
                 // the deep marker — Clay/Sand/StonePitBuilding binds its resource via
@@ -1199,8 +1212,10 @@ namespace DivineHands.Modules
                 // "always infinite" convenience made every spawned pit deep-only.
                 if (deep)
                 {
+                    // Only touch the site we actually just added. If the create failed (e.g. off-grid), the
+                    // list didn't grow — flipping list[Count-1] would deep-toggle a pre-existing, unrelated pit.
                     var list = mmType.GetProperty(listName)?.GetValue(mineralManager) as System.Collections.IList;
-                    if (list == null || list.Count == 0) return;
+                    if (!created || list == null || list.Count <= before) return;
                     var site = list[list.Count - 1];
                     if (site != null) MakePitInfinite(site, kind);
                 }

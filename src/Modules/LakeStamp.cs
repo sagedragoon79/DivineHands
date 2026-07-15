@@ -52,7 +52,8 @@ namespace DivineHands.Modules
         private static bool _fishResolved, _fishResolveFailed;
         private static Type? _fishAreaType, _waterAreaInfoType;
         private static MethodInfo? _getAllWaterAreas, _getFishData;
-        private static FieldInfo? _genCachedAreas, _fmFishAreas, _fmWaterAreaIdToId, _waiId, _waiArea;
+        private static FieldInfo? _genCachedAreas, _fmFishAreas, _fmWaterAreaIdToId;
+        private static PropertyInfo? _waiId, _waiArea; // WaterAreaInfo.id/.area are get-only auto-PROPERTIES, not fields
         private static ConstructorInfo? _fishAreaCtor;
 
         // =====================================================================
@@ -328,7 +329,13 @@ namespace DivineHands.Modules
             if (!Config.LakePersist.Value) return;
             try
             {
+                // FF nulls activeSaveFileName for "AutoSave 1"/"AutoSave 2" inside SaveInternal's own finally
+                // (MoveSavMapFiles) BEFORE this postfix runs, so on an autosave it reads null here and we'd write
+                // the sidecar unfoldered — while the load path keys off the *foldered* activeSaveFileName and never
+                // finds it. lastGameFolder is set by SaveInternal on every save and survives that null-out, so fall
+                // back to it to keep the write key foldered and matching the read key.
                 string folder = SaveManager.GameFolder(SaveManager.activeSaveFileName ?? "");
+                if (string.IsNullOrEmpty(folder)) folder = SaveManager.lastGameFolder ?? "";
                 string name = System.IO.Path.GetFileNameWithoutExtension(savedGameFileNameNoExtension ?? "");
                 if (string.IsNullOrEmpty(name)) { LakeSidecar.Write(LakeSidecar.ActiveSaveKey(), _sessionLakes); return; }
                 LakeSidecar.Write(folder + name, _sessionLakes);
@@ -534,8 +541,8 @@ namespace DivineHands.Modules
                 _fmFishAreas = fmType.GetField("fishAreas", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
                 _fmWaterAreaIdToId = fmType.GetField("waterAreaIdToId", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
                 _getFishData = fmType.GetMethod("GetFishDataForWaterArea", BindingFlags.Public | BindingFlags.Instance);
-                _waiId = _waterAreaInfoType.GetField("id");
-                _waiArea = _waterAreaInfoType.GetField("area");
+                _waiId = _waterAreaInfoType.GetProperty("id");
+                _waiArea = _waterAreaInfoType.GetProperty("area");
 
                 // The 8-arg ctor whose 3rd param is WaterAreaInfo (the other 8-arg overload takes Bounds).
                 foreach (var c in _fishAreaType.GetConstructors())

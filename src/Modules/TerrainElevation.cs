@@ -58,6 +58,8 @@ namespace DivineHands.Modules
         private static MethodInfo? _invalidateSpace; // Terrain2.InvalidateSpace(int,int,int,int) — fallback
         private static MethodInfo? _rebuildCollision; // Terrain2.RebuildCollisionAtRectOverlap(Rect) — fallback
         private static PropertyInfo? _dataProp;      // Terrain2.Data
+        private static MethodInfo? _getCursorPoint;  // TerrainManagerBase.GetTerrainWorldPointUnderCursor(out Vector3,bool)
+        private static PropertyInfo? _heightmapProp, _sizeProp, _resolutionProp; // Terrain2.Data getters (handles cached; values re-read)
         private static bool _resolveFailed;
 
         // ---- live terrain handles (re-fetched lazily) ----
@@ -481,6 +483,15 @@ namespace DivineHands.Modules
                 originX = cx - cols / 2;
                 originZ = cz - rows / 2;
             }
+
+            // Clamp the drawn overlay to the heightmap so it never shows cells past the map edge that the
+            // sculpt won't actually flatten (BrushRectFromCenter clamps the write the same way). No-op when
+            // the footprint is fully on-map; only trims at the border. Off-map entirely → nothing to preview.
+            float rightX = originX + cols, topZ = originZ + rows;
+            originX = Mathf.Max(originX, 0f); originZ = Mathf.Max(originZ, 0f);
+            rightX = Mathf.Min(rightX, _size - 1); topZ = Mathf.Min(topZ, _size - 1);
+            cols = Mathf.FloorToInt(rightX - originX); rows = Mathf.FloorToInt(topZ - originZ);
+            if (cols <= 0 || rows <= 0) return false;
             return true;
         }
 
@@ -573,11 +584,12 @@ namespace DivineHands.Modules
             try
             {
                 // public bool GetTerrainWorldPointUnderCursor(out Vector3 point, bool includeBridges=false) [218221]
-                var args = new object?[] { null, false };
-                var mi = _terrainManager.GetType().GetMethod("GetTerrainWorldPointUnderCursor",
+                // Resolve the MethodInfo once — this runs every frame a brush is armed.
+                _getCursorPoint ??= _terrainManager.GetType().GetMethod("GetTerrainWorldPointUnderCursor",
                     new[] { typeof(Vector3).MakeByRefType(), typeof(bool) });
-                if (mi == null) return false;
-                bool hit = (bool)mi.Invoke(_terrainManager, args)!;
+                if (_getCursorPoint == null) return false;
+                var args = new object?[] { null, false };
+                bool hit = (bool)_getCursorPoint.Invoke(_terrainManager, args)!;
                 if (hit && args[0] is Vector3 p) { point = p; return true; }
                 return false;
             }
@@ -638,13 +650,21 @@ namespace DivineHands.Modules
                     _dataProp = t2Type.GetProperty("Data");
                 }
 
-                // Refresh live Heightmap + grid metadata from Terrain2.Data (public getters).
+                // Refresh live Heightmap + grid metadata from Terrain2.Data (public getters). Cache the
+                // PropertyInfo handles once (the Data type is stable) and re-read only the VALUES each call
+                // (the Heightmap can be reallocated on map regen). Avoids 3 GetProperty lookups every frame.
                 var data = _dataProp?.GetValue(_terrain);
                 if (data == null) return false;
-                var dataType = data.GetType();
-                _heightmap = dataType.GetProperty("Heightmap")?.GetValue(data) as Heightmap;
-                _size = (int)(dataType.GetProperty("Size")?.GetValue(data) ?? 0);
-                _resolution = (float)(dataType.GetProperty("Resolution")?.GetValue(data) ?? 0f);
+                if (_heightmapProp == null)
+                {
+                    var dataType = data.GetType();
+                    _heightmapProp = dataType.GetProperty("Heightmap");
+                    _sizeProp = dataType.GetProperty("Size");
+                    _resolutionProp = dataType.GetProperty("Resolution");
+                }
+                _heightmap = _heightmapProp?.GetValue(data) as Heightmap;
+                _size = (int)(_sizeProp?.GetValue(data) ?? 0);
+                _resolution = (float)(_resolutionProp?.GetValue(data) ?? 0f);
 
                 if (_heightmap == null || _size <= 0 || _resolution <= 0f)
                 {

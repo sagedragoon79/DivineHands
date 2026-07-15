@@ -87,7 +87,21 @@ namespace DivineHands.Modules
                 var ci = CultureInfo.InvariantCulture;
                 foreach (var l in lakes)
                     sb.AppendLine($"{l.cx},{l.cz},{l.fhw},{l.fhh},{(l.circle ? 1 : 0)},{l.shore},{l.depth.ToString("0.###", ci)},{(l.fish ? 1 : 0)}");
-                File.WriteAllText(path, sb.ToString());
+                // Atomic-ish write: fill a temp file, then rename over the live path, so a crash mid-write can't
+                // leave a truncated/empty sidecar (mirrors FF's own SaveInProgress.sav temp+rename).
+                var tmp = path + ".tmp";
+                File.WriteAllText(tmp, sb.ToString());
+                try
+                {
+                    if (File.Exists(path)) File.Replace(tmp, path, null);
+                    else File.Move(tmp, path);
+                }
+                catch
+                {
+                    // File.Replace/Move can fail on some filesystems — fall back to a direct overwrite.
+                    File.WriteAllText(path, sb.ToString());
+                    if (File.Exists(tmp)) File.Delete(tmp);
+                }
                 if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Lake sidecar written: {lakes.Count} lake(s) -> {path}");
             }
             catch (Exception ex) { MelonLogger.Warning($"[DivineHands] Lake sidecar write failed: {ex.Message}"); }
@@ -106,19 +120,24 @@ namespace DivineHands.Modules
                 {
                     var line = raw.Trim();
                     if (line.Length == 0 || line[0] == '#') continue;
-                    var p = line.Split(',');
-                    if (p.Length < 8) continue;
-                    result.Add(new LakeRecord
+                    try
                     {
-                        cx    = int.Parse(p[0], ci),
-                        cz    = int.Parse(p[1], ci),
-                        fhw   = int.Parse(p[2], ci),
-                        fhh   = int.Parse(p[3], ci),
-                        circle = p[4] == "1",
-                        shore = int.Parse(p[5], ci),
-                        depth = float.Parse(p[6], ci),
-                        fish  = p[7] == "1",
-                    });
+                        var p = line.Split(',');
+                        if (p.Length < 8) continue;
+                        result.Add(new LakeRecord
+                        {
+                            cx    = int.Parse(p[0], ci),
+                            cz    = int.Parse(p[1], ci),
+                            fhw   = int.Parse(p[2], ci),
+                            fhh   = int.Parse(p[3], ci),
+                            circle = p[4] == "1",
+                            shore = int.Parse(p[5], ci),
+                            depth = float.Parse(p[6], ci),
+                            fish  = p[7] == "1",
+                        });
+                    }
+                    // One malformed line shouldn't drop every lake — skip it and keep the rest.
+                    catch (Exception ex) { MelonLogger.Warning($"[DivineHands] Lake sidecar: skipping bad line \"{line}\": {ex.Message}"); }
                 }
                 if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Lake sidecar read: {result.Count} lake(s) from {path}");
             }

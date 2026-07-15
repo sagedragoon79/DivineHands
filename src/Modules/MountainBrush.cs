@@ -96,7 +96,7 @@ namespace DivineHands.Modules
             var worldRect = new Rect(cwx - hwW, cwz - hhW, 2f * hwW, 2f * hhW);
 
             // 2) Biome + rocky texture (best-effort).
-            try { PaintBiomeAndTexture(worldRect); }
+            try { PaintBiomeAndTexture(worldRect, circle); }
             catch (Exception ex) { if (Config.DebugLog.Value) MelonLogger.Warning($"[DivineHands] Mountain texture/biome: {ex.Message}"); }
 
             // 3) Resources (opt-in — default 0).
@@ -149,7 +149,13 @@ namespace DivineHands.Modules
                                  * Mathf.Lerp(0.82f, 1.18f, Mathf.PerlinNoise((wx + 13.137f) * baseFreq, (wz + 67.771f) * baseFreq));
                     float ridge = 0.5f * (Ridge(wx, wz, peakFreq, 97.12f, 33.17f)
                                           + Ridge(wx, wz, peakFreq * 1.73f, 181.57f, 211.29f));
-                    float shape = Mathf.Clamp01(dome + ridge * rug * (1f - dome));
+                    // Gate the ridge noise to the inner dome (Pangu's num30 peak-proximity smoothstep). Without
+                    // it, a ridge crest near the rim spikes the last brushed cell several metres against the
+                    // untouched cell just outside the footprint — a vertical seam instead of the edge taper.
+                    // peakGate is 0 across the outer skirt (edge <= peakAbove) and ramps to 1 toward the peak.
+                    const float peakAbove = 0.5f;
+                    float peakGate = edge > peakAbove ? Smooth01((edge - peakAbove) / (1f - peakAbove)) : 0f;
+                    float shape = Mathf.Clamp01(dome + ridge * rug * peakGate * (1f - dome));
                     float newH = Mathf.Max(cur, baseElev + rise * shape);
                     if (Mathf.Abs(newH - cur) > 0.02f) { hm.SetHeight(x, z, newH); changed++; }
                 }
@@ -231,7 +237,7 @@ namespace DivineHands.Modules
 
         // ---- biome + rocky texture (Pangu ApplyMountainBiomeToAreas + PaintMountainTextureRectWithClear,
         //      simplified: no clear-loop; Upload(true) to guarantee the GPU sees our writes) ----
-        private static void PaintBiomeAndTexture(Rect worldRect)
+        private static void PaintBiomeAndTexture(Rect worldRect, bool circle)
         {
             // Every early-exit logs under DebugLog so a failed paint is diagnosable from one stamp.
             void Skip(string why) { if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Mountain texture skipped: {why}"); }
@@ -275,9 +281,19 @@ namespace DivineHands.Modules
             int slopeChan = slopeLayer % 4;
             if (baseCtl == null && slopeCtl == null) { Skip($"control index out of range (base {baseLayer}, slope {slopeLayer}, controls {controls.Count})"); return; }
 
+            // Circle brush: paint only the pixels inside the ellipse, matching the height sculpt — otherwise
+            // the rocky texture fills the full bounding box and spills past the round mound into its corners.
+            float halfW = Mathf.Max(0.001f, worldRect.width * 0.5f), halfH = Mathf.Max(0.001f, worldRect.height * 0.5f);
+            float cX = worldRect.center.x, cZ = worldRect.center.y;
+            float sx = terrainSize.x / Mathf.Max(1, csize - 1), sz = terrainSize.z / Mathf.Max(1, csize - 1);
             for (int k = pz0; k <= pz1; k++)
                 for (int l = px0; l <= px1; l++)
                 {
+                    if (circle)
+                    {
+                        float nx = (l * sx - cX) / halfW, nz = (k * sz - cZ) / halfH;
+                        if (nx * nx + nz * nz > 1f) continue;
+                    }
                     float w = strength; // uniform rock weight (simplified — no height/edge blend for v1)
                     if (baseCtl != null) _mSetPixelComp!.Invoke(baseCtl, new object[] { l, k, baseChan, w });
                     if (slopeCtl != null) _mSetPixelComp!.Invoke(slopeCtl, new object[] { l, k, slopeChan, w * 0.6f });

@@ -12,6 +12,12 @@ namespace DivineHands
     {
         private static string _lastWarned = "";
 
+        // Specs never change at runtime, but Pressed()/Held() run every frame for ~8 hotkeys — parse once and
+        // cache so the per-frame path is a dictionary hit, not a Split('+') + per-token parse + allocation.
+        private struct Parsed { public bool ok; public KeyCode key; public bool ctrl, alt, shift; }
+        private static readonly System.Collections.Generic.Dictionary<string, Parsed> _cache =
+            new System.Collections.Generic.Dictionary<string, Parsed>();
+
         /// <summary>True on the frame the spec's key transitions to down with the exact
         /// modifier set held. Empty/invalid specs return false.</summary>
         public static bool Pressed(string spec)
@@ -43,10 +49,21 @@ namespace DivineHands
 
         private static bool TryParse(string spec, out KeyCode key, out bool ctrl, out bool alt, out bool shift)
         {
+            if (spec != null && _cache.TryGetValue(spec, out var c))
+            {
+                key = c.key; ctrl = c.ctrl; alt = c.alt; shift = c.shift; return c.ok;
+            }
+            bool ok = ParseUncached(spec, out key, out ctrl, out alt, out shift);
+            if (spec != null) _cache[spec] = new Parsed { ok = ok, key = key, ctrl = ctrl, alt = alt, shift = shift };
+            return ok;
+        }
+
+        private static bool ParseUncached(string? spec, out KeyCode key, out bool ctrl, out bool alt, out bool shift)
+        {
             key = KeyCode.None; ctrl = alt = shift = false;
             if (string.IsNullOrWhiteSpace(spec)) return false;
 
-            var parts = spec.Split('+');
+            var parts = spec!.Split('+'); // non-null past the guard (net46 IsNullOrWhiteSpace lacks the flow annotation)
             bool gotKey = false;
             foreach (var raw in parts)
             {

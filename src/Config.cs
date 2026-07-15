@@ -67,6 +67,13 @@ namespace DivineHands
         public static MelonPreferences_Entry<bool>   PersistBuildAnywhereActive { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   PersistGodViewActive      { get; private set; } = null!;
 
+        /// <summary>Hidden: the settlement folder ("SettlementName_stamp/") the Persist* flags above belong
+        /// to. The persisted powers are only restored when reloading a save in THIS same colony — otherwise
+        /// leaving a power on in one save would silently re-activate it in an unrelated one (e.g. clearing
+        /// another colony's fog). Stable across autosaves (keyed off lastGameFolder, not the nulled
+        /// activeSaveFileName). Empty until the loaded/new game has a folder. Not user-facing.</summary>
+        public static MelonPreferences_Entry<string> PersistOwnerFolder        { get; private set; } = null!;
+
         /// <summary>Proportional God-View zoom: while God View is on, make mouse-scroll zoom steps finer
         /// as you zoom in close (the wide god-view range otherwise makes each notch coarse near the
         /// ground). Off = vanilla flat step. Implemented as a Harmony prefix on CameraManager.AdjustZoom,
@@ -373,6 +380,7 @@ namespace DivineHands
             PersistRevealActive        = _root.CreateEntry("PersistRevealActive", false);
             PersistBuildAnywhereActive = _root.CreateEntry("PersistBuildAnywhereActive", false);
             PersistGodViewActive       = _root.CreateEntry("PersistGodViewActive", false);
+            PersistOwnerFolder         = _root.CreateEntry("PersistOwnerFolder", "");
 
             ProportionalZoom = _root.CreateEntry(
                 "ProportionalZoom", true,

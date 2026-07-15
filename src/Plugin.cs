@@ -29,7 +29,7 @@ namespace DivineHands
         /// <summary>Single source of truth for the version — used by MelonInfo, the init log,
         /// and the Keep Clarity registration so they can't drift. Bump with the .csproj
         /// &lt;Version&gt; on release.</summary>
-        public const string Version = "0.1.0";
+        public const string Version = "1.0.0";
 
         public static Plugin Instance { get; private set; } = null!;
         public static MelonLogger.Instance Log => Instance.LoggerInstance;
@@ -101,18 +101,43 @@ namespace DivineHands
             // (Reveal Map / Build Anywhere / God View). Set AFTER each module's OnMapLoaded (which forces
             // an off baseline) so the per-frame Sync applies them once the managers are ready. Gated on
             // MasterEnable + each power's Enable pref. Free Cam intentionally stays off on load.
+            //
+            // Per-save scoping: only restore if this is the SAME colony the flags were last saved in.
+            // Otherwise leaving a power on in one save would silently re-activate it in an unrelated one
+            // (e.g. clearing another colony's fog of war). The owner folder is stable across autosaves.
             if (Config.MasterEnable.Value)
             {
-                GodTools.RevealActive          = Config.EnableRevealMap.Value    && Config.PersistRevealActive.Value;
-                BuildAnywherePatches.Active     = Config.EnableBuildAnywhere.Value && Config.PersistBuildAnywhereActive.Value;
-                CameraTools.GodViewActive       = Config.EnableGodView.Value      && Config.PersistGodViewActive.Value;
+                string folder = CurrentSaveFolder();
+                bool sameSave = !string.IsNullOrEmpty(folder) && folder == Config.PersistOwnerFolder.Value;
+                if (sameSave)
+                {
+                    GodTools.RevealActive          = Config.EnableRevealMap.Value    && Config.PersistRevealActive.Value;
+                    BuildAnywherePatches.Active     = Config.EnableBuildAnywhere.Value && Config.PersistBuildAnywhereActive.Value;
+                    CameraTools.GodViewActive       = Config.EnableGodView.Value      && Config.PersistGodViewActive.Value;
+                }
             }
+        }
+
+        /// <summary>The active save's settlement folder ("SettlementName_stamp/"). Prefers the live
+        /// activeSaveFileName, falling back to lastGameFolder — FF nulls activeSaveFileName after an
+        /// autosave but lastGameFolder survives, so this stays stable for the whole session. Empty before
+        /// a brand-new game's first save.</summary>
+        private static string CurrentSaveFolder()
+        {
+            try
+            {
+                string f = SaveManager.GameFolder(SaveManager.activeSaveFileName ?? "");
+                if (string.IsNullOrEmpty(f)) f = SaveManager.lastGameFolder ?? "";
+                return f ?? "";
+            }
+            catch { return ""; }
         }
 
         private static bool _wasMasterEnabled = true;
 
         // Last-mirrored persist values (seeded impossible so the first frame always writes).
         private static int _persistRevealLast = -1, _persistBuildLast = -1, _persistGodViewLast = -1;
+        private static string _ownerFolderLast = "\0"; // impossible seed so the first real folder always writes
 
         private static void MirrorPersist(MelonLoader.MelonPreferences_Entry<bool> pref, bool live, ref int last)
         {
@@ -120,6 +145,15 @@ namespace DivineHands
             if (now == last) return;
             last = now;
             pref.Value = live;
+        }
+
+        /// <summary>Stamp the persisted powers with the colony they belong to (change-guarded). Skips empty
+        /// folders (brand-new game before its first save) so a prior colony's owner isn't clobbered.</summary>
+        private static void MirrorOwnerFolder(string folder)
+        {
+            if (string.IsNullOrEmpty(folder) || folder == _ownerFolderLast) return;
+            _ownerFolderLast = folder;
+            Config.PersistOwnerFolder.Value = folder;
         }
 
         public override void OnUpdate()
@@ -187,6 +221,9 @@ namespace DivineHands
                 MirrorPersist(Config.PersistRevealActive, GodTools.RevealActive, ref _persistRevealLast);
                 MirrorPersist(Config.PersistBuildAnywhereActive, BuildAnywherePatches.Active, ref _persistBuildLast);
                 MirrorPersist(Config.PersistGodViewActive, CameraTools.GodViewActive, ref _persistGodViewLast);
+                // Tag the persisted flags with the current colony so they only restore in THIS save, never
+                // bleeding into a different one (see the per-save scoping guard in OnSceneWasInitialized).
+                MirrorOwnerFolder(CurrentSaveFolder());
             }
         }
 

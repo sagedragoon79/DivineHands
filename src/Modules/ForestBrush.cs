@@ -81,7 +81,18 @@ namespace DivineHands.Modules
 
             // Footprint world rect (centre = cell corner cx*res, matches the preview + fertility mapping).
             float cwx = cx * res, cwz = cz * res, hwW = fhw * res, hhW = fhh * res;
-            float x0 = cwx - hwW, z0 = cwz - hhW, w = 2f * hwW, h = 2f * hhW;
+            // Clamp the iterated rect to the map's world extents so an edge stamp doesn't feed out-of-range
+            // coords into AddGrowingTree (its tree-grid index isn't bounds-checked and throws — silently
+            // dropping every edge tree). Centre/half-extents stay unclamped so the circle test is unaffected.
+            float worldMax = 0f;
+            if (TerrainElevation.TryGetGridContext(out _, out int gsize, out _)) worldMax = (gsize - 1) * res;
+            float x0 = cwx - hwW, z0 = cwz - hhW, x1 = cwx + hwW, z1 = cwz + hhW;
+            if (worldMax > 0f)
+            {
+                x0 = Mathf.Clamp(x0, 0f, worldMax); z0 = Mathf.Clamp(z0, 0f, worldMax);
+                x1 = Mathf.Clamp(x1, 0f, worldMax); z1 = Mathf.Clamp(z1, 0f, worldMax);
+            }
+            float w = x1 - x0, h = z1 - z0;
 
             int planted = 0;
             if (haveTrees && w > 0f && h > 0f)
