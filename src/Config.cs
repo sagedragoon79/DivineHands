@@ -153,6 +153,7 @@ namespace DivineHands
         public static MelonPreferences_Entry<string> LakeArmHotkey  { get; private set; } = null!;
         public static MelonPreferences_Entry<string> LakeApplyKey   { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   LakeStockFish  { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   LakePersist    { get; private set; } = null!; // survive save/reload via per-save sidecar
 
         // ===== Fertility painter =====
         public static MelonPreferences_Entry<bool>   FertilityEnable     { get; private set; } = null!;
@@ -514,6 +515,12 @@ namespace DivineHands
                 display_name: "Lake Apply Key", description: "Key/button that stamps the lake at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse0.");
             LakeStockFish = _root.CreateEntry("LakeStockFish", true,
                 display_name: "Stock Fish", description: "Populate the new lake with fish + visible shoals (sized to the lake area), so it's fishable. Default: on.");
+            LakePersist = _root.CreateEntry("LakePersist", true,
+                display_name: "Persist Lakes",
+                description: "Make stamped lakes survive save/reload. FF only saves water in the map file (written " +
+                             "once at gen), so a normal save loses the water surface (the carved basin stays). This " +
+                             "writes a small companion file next to each save recording your lakes and rebuilds them " +
+                             "on load — no full map re-save. The file is removed when you delete the save. Default: on.");
 
             // ===== Fertility painter =====
             FertilityEnable = _root.CreateEntry("FertilityEnable", false,

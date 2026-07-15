@@ -426,6 +426,13 @@ namespace DivineHands
             Reg(GroupLake, Config.LakeStockFish,
                 NewMeta("Stock Fish", "Populate the new lake with fish + visible shoals (sized to the lake), so it's fishable. Default: on.",
                         order: 510, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
+            Reg(GroupLake, Config.LakePersist,
+                NewMeta("Persist Lakes",
+                        "Make stamped lakes survive save/reload. FF only bakes water into the map file at gen, so a " +
+                        "normal save keeps the carved basin but loses the water — this writes a small companion " +
+                        "file next to each save and rebuilds the water on load (removed when the save is deleted). " +
+                        "Default: ON.",
+                        order: 511, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
 
             // ===== Fertility painter =====
             Reg(GroupFertility, Config.FertilityEnable,

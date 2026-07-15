@@ -58,6 +58,11 @@ namespace DivineHands.Modules
         // =====================================================================
         // Lifecycle (called from Plugin)
         // =====================================================================
+        // Lakes stamped this session (for the per-save sidecar). Cleared each map load, repopulated from
+        // the sidecar on a loaded save, appended to by live stamps.
+        private static readonly System.Collections.Generic.List<LakeRecord> _sessionLakes = new System.Collections.Generic.List<LakeRecord>();
+        private static bool _replayedThisMap;
+
         public static void OnMapLoaded()
         {
             _resolved = false;
@@ -67,12 +72,17 @@ namespace DivineHands.Modules
             _fishResolveFailed = false;
             _generator = null;
             _cachedWaterType = null;
+            _sessionLakes.Clear();
+            _replayedThisMap = false;
         }
 
         public static void OnSceneExit() => OnMapLoaded();
 
         public static void OnUpdate()
         {
+            // Restore saved lakes on a loaded game — independent of whether the Lake tool is enabled/armed.
+            TryReplaySavedLakes();
+
             if (!Config.LakeEnable.Value) return;
 
             // Resize the footprint with the arrow keys while the lake tool is armed (matches the terrain brush).
@@ -135,19 +145,39 @@ namespace DivineHands.Modules
         // =====================================================================
         // Apply
         // =====================================================================
+        // Live stamp: resolve the footprint from cursor + config, stamp it, and record it for the sidecar.
         private static void ApplyLake()
         {
-            if (!TerrainElevation.TryGetGridContext(out var hm, out int size, out float res)) return;
+            if (!TerrainElevation.TryGetGridContext(out _, out _, out float res)) return;
             if (!TerrainElevation.TryGetCursorWorld(out Vector3 world)) return;
-            if (!Resolve()) { if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake: FF water API not resolved"); return; }
 
-            float waterH = GetWaterHeight();
-            if (waterH <= 0f) { if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake: water height unavailable"); return; }
-
-            // Footprint geometry shared with the cursor preview so the outline lands where water lands.
             FootprintFromWorld(world, res, out int cx, out int cz, out int fhw, out int fhh, out bool circle);
             int shore = Mathf.Clamp(Mathf.RoundToInt(Config.LakeShoreWidth.Value), 1, 40);
             float depth = Mathf.Clamp(Config.LakeCarveDepth.Value, 0.45f, 12f);
+            bool stockFish = Config.LakeStockFish.Value;
+
+            if (StampLakeAt(cx, cz, fhw, fhh, circle, shore, depth, stockFish, forceWater: false)
+                && Config.LakePersist.Value)
+            {
+                _sessionLakes.Add(new LakeRecord
+                { cx = cx, cz = cz, fhw = fhw, fhh = fhh, circle = circle, shore = shore, depth = depth, fish = stockFish });
+                // Sidecar is (re)written on the game's own save (SaveInternal hook) so its key matches the
+                // .sav exactly — we only track the list in memory here.
+            }
+        }
+
+        /// <summary>Carve the basin + build the water surface at an explicit footprint. Used by both the
+        /// live stamp and the load-time replay. <paramref name="forceWater"/> = true bypasses the
+        /// "nothing moved" dedup so replay rebuilds water over an already-carved (or re-carved) basin.
+        /// Returns true if a WaterArea was created.</summary>
+        private static bool StampLakeAt(int cx, int cz, int fhw, int fhh, bool circle, int shore, float depth,
+            bool stockFish, bool forceWater)
+        {
+            if (!TerrainElevation.TryGetGridContext(out var hm, out int size, out float res) || hm == null) return false;
+            if (!Resolve()) { if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake: FF water API not resolved"); return false; }
+
+            float waterH = GetWaterHeight();
+            if (waterH <= 0f) { if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake: water height unavailable"); return false; }
 
             // --- footprint bbox (the WaterArea cells), clamped to the map ---
             int fMinX = Mathf.Clamp(cx - fhw, 0, size - 1);
@@ -155,7 +185,7 @@ namespace DivineHands.Modules
             int fMaxX = Mathf.Clamp(cx + fhw, 0, size - 1);
             int fMaxZ = Mathf.Clamp(cz + fhh, 0, size - 1);
             int fw = fMaxX - fMinX + 1, fh = fMaxZ - fMinZ + 1;
-            if (fw < 2 || fh < 2) return;
+            if (fw < 2 || fh < 2) return false;
 
             var mask = new bool[fw, fh];
             int filled = 0;
@@ -166,7 +196,7 @@ namespace DivineHands.Modules
                         mask[x - fMinX, z - fMinZ] = true;
                         filled++;
                     }
-            if (filled < 5) { if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Lake too small ({filled} cells); enlarge the footprint."); return; }
+            if (filled < 5) { if (Config.DebugLog.Value) MelonLogger.Msg($"[DivineHands] Lake too small ({filled} cells); enlarge the footprint."); return false; }
 
             float floorH = waterH - depth;        // deepest (core)
             float edgeH  = waterH - 0.10f;         // just below water at the footprint edge
@@ -223,13 +253,14 @@ namespace DivineHands.Modules
                 }
             }
 
-            // Exact re-stamp on an already-carved lake: the terrain is idempotent now, so nothing moved.
-            // Skip building ANOTHER WaterArea on top of the existing one — otherwise repeated clicks pile
-            // up dozens of overlapping water surfaces (and serialized areas), bloating the save.
-            if (changed == 0)
+            // Exact re-stamp on an already-carved lake (interactive): the terrain is idempotent now, so
+            // nothing moved. Skip building ANOTHER WaterArea over the existing one — otherwise repeated
+            // clicks pile up dozens of overlapping surfaces (save bloat). On REPLAY (forceWater) we DO
+            // proceed even though nothing moved — that's the whole point: rebuild the water on load.
+            if (changed == 0 && !forceWater)
             {
                 if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Lake: identical re-stamp (terrain unchanged) — kept existing water, no new area.");
-                return;
+                return false;
             }
 
             // Mesh/collider/NavMesh/tree rebuild over the carve rect (twice, matching Pangu).
@@ -238,20 +269,71 @@ namespace DivineHands.Modules
 
             // --- build + register the WaterArea, then render its surface this session ---
             object? area = BuildWaterArea(mask, fMinX, fMinZ, fMaxX, fMaxZ);
-            if (area == null) { MelonLogger.Warning("[DivineHands] Lake: WaterArea build failed (basin carved, no water)."); return; }
+            if (area == null) { MelonLogger.Warning("[DivineHands] Lake: WaterArea build failed (basin carved, no water)."); return false; }
 
             int areaId = AppendWaterArea(area);
-            if (areaId < 0) { MelonLogger.Warning("[DivineHands] Lake: could not append to waterAreas (basin carved, no water)."); return; }
+            if (areaId < 0) { MelonLogger.Warning("[DivineHands] Lake: could not append to waterAreas (basin carved, no water)."); return false; }
 
             bool surfaced = BuildWaterSurface(area, areaId);
 
             // Stock the lake with fish + visible shoals (best-effort; never blocks the lake itself).
-            int fish = Config.LakeStockFish.Value ? AddFishToLake(areaId) : -1;
+            int fish = stockFish ? AddFishToLake(areaId) : -1;
 
             if (Config.DebugLog.Value)
-                MelonLogger.Msg($"[DivineHands] Lake stamped @ {world} — {filled} cells, depth {depth:0.#}m, " +
+                MelonLogger.Msg($"[DivineHands] Lake {(forceWater ? "restored" : "stamped")} @ cell ({cx},{cz}) — {filled} cells, depth {depth:0.#}m, " +
                                 $"areaId {areaId}, surface {(surfaced ? "live" : "after-reload")}, " +
                                 $"fish {(fish < 0 ? "off" : fish.ToString())}.");
+            return true;
+        }
+
+        // =====================================================================
+        // Per-save persistence (sidecar) — see LakeSidecar
+        // =====================================================================
+
+        /// <summary>On a loaded game, re-create the stamped lakes' water surfaces from the save's sidecar.
+        /// Runs once per map, only after the terrain + water API are up, and only for LOADED games (a fresh
+        /// map has nothing to restore — and could otherwise pick up a stale save's sidecar).</summary>
+        private static void TryReplaySavedLakes()
+        {
+            if (_replayedThisMap || !Config.LakePersist.Value) return;
+            if (!TerrainElevation.TryGetGridContext(out _, out _, out _)) return; // terrain not up yet — retry next frame
+            if (!Resolve() || GetWaterHeight() <= 0f) return;                     // water API not ready — retry
+            _replayedThisMap = true;
+
+            if (!IsLoadedGame()) return; // brand-new map — nothing saved to restore
+
+            var key = LakeSidecar.ActiveSaveKey();
+            var lakes = LakeSidecar.Read(key);
+            if (lakes.Count == 0) return;
+
+            int ok = 0;
+            foreach (var l in lakes)
+            {
+                try { if (StampLakeAt(l.cx, l.cz, l.fhw, l.fhh, l.circle, l.shore, l.depth, l.fish, forceWater: true)) { _sessionLakes.Add(l); ok++; } }
+                catch (Exception ex) { MelonLogger.Warning($"[DivineHands] Lake replay failed: {ex.Message}"); }
+            }
+            MelonLogger.Msg($"[DivineHands] Restored {ok}/{lakes.Count} stamped lake(s) from the save's sidecar.");
+        }
+
+        private static bool IsLoadedGame()
+        {
+            try { var gm = GameManager.Instance; return gm != null && gm.isLoadedGame; }
+            catch { return false; }
+        }
+
+        /// <summary>Called from the SaveInternal hook: write this session's lakes to the sidecar for the
+        /// file just saved. Key = the save's folder + the written file's base name (handles autosaves too).</summary>
+        internal static void WriteSidecarForSave(string savedGameFileNameNoExtension)
+        {
+            if (!Config.LakePersist.Value) return;
+            try
+            {
+                string folder = SaveManager.GameFolder(SaveManager.activeSaveFileName ?? "");
+                string name = System.IO.Path.GetFileNameWithoutExtension(savedGameFileNameNoExtension ?? "");
+                if (string.IsNullOrEmpty(name)) { LakeSidecar.Write(LakeSidecar.ActiveSaveKey(), _sessionLakes); return; }
+                LakeSidecar.Write(folder + name, _sessionLakes);
+            }
+            catch (Exception ex) { MelonLogger.Warning($"[DivineHands] Lake sidecar save-hook failed: {ex.Message}"); }
         }
 
         private static bool InFootprint(int dx, int dz, int hw, int hh, bool circle)
