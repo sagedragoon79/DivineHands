@@ -1,0 +1,55 @@
+[h1]Divine Hands[/h1]
+[i]Shape the frontier with a god's hands — sculpt terrain, stamp lakes, raise mountains, plant forests, spawn resources, and reveal the map, all from one in-game panel. Every power is opt-in and OFF by default.[/i]
+
+[h2]What it does[/h2]
+One panel (default [b]Ctrl+G[/b]) is the control surface for every god-power:
+
+[h3]God Tools[/h3]
+[list]
+[*][b]Reveal Map[/b] — lift the fog of war, revert any time.
+[*][b]Build Anywhere[/b] — bypass placement restrictions; also lifts the road-length cap for long, planned roads.
+[*][b]God View & Free Cam[/b] — unchained camera range and a free-flying camera.
+[*][b]Instant Build[/b] — construction completes immediately, with materials deducted or fully free (your choice).
+[*]Reveal Map / Build Anywhere / God View can persist across save & reload — scoped to the save they were enabled in, so they never leak into another settlement.
+[/list]
+
+[h3]World Brushes[/h3]
+[list]
+[*][b]Terrain sculpting[/b] — raise, lower, smooth, flatten, average; brush up to 20×20 with fine grid positioning.
+[*][b]Lake stamp[/b] — carve a basin and fill it with real, working water. Optional fish stocking. Stamped lakes survive save/reload (including autosaves).
+[*][b]Mountain brush[/b] — dome + ridged-noise sculpt with rocky ground texture and mountain biome, plus optional ore deposits and wildlife.
+[*][b]Forest brush[/b] — coverage-based tree planting with optional soil-fertility write.
+[*][b]Fertility brush[/b] — paint crop fertility directly.
+[/list]
+
+[h3]Spawners & Tools[/h3]
+[list]
+[*][b]Cursor spawners[/b] — minerals (gold / iron / coal, stone / clay / sand pits with a Deep Mine toggle), trees, forageables, and animals, dropped right at the cursor.
+[*][b]Delete Selected[/b] — one hotkey removes the selected building, ore node, pit, tree, rock, or forageable.
+[*][b]Kill Selected[/b] — testing tool; works on villagers, pets, livestock, wild animals, and raiders.
+[*][b]Item Injection[/b] — grant items, with save-safe infinite storage that cleans itself out of your save.
+[*][b]Preserve overlapping trees[/b] — trees placed over plazas or structures (via Build Anywhere) survive reload.
+[*][b]Soil readout[/b] — inspect fertility under the cursor.
+[/list]
+
+[h2]Requirements[/h2]
+[list]
+[*][b]MelonLoader[/b] — required.
+[*][b]Keep Clarity[/b] — optional. All settings appear in KC's F10 settings panel; without KC everything still works via MelonPreferences.
+[/list]
+
+[h2]Safety[/h2]
+[list]
+[*]Every power defaults OFF — a fresh subscribe changes nothing until you enable it.
+[*]Cheats that could bake into a save (infinite storage) revert themselves on map exit so the mod can be removed cleanly.
+[*]Terrain, lake, and mountain edits are permanent world changes by design — save first if you're experimenting.
+[/list]
+
+[h2]Compatibility & source[/h2]
+[list]
+[*]Built for the current Farthest Frontier (Mono) build via MelonLoader.
+[*]Open source: https://github.com/sagedragoon79/DivineHands
+[*]Also available on Nexus Mods.
+[/list]
+
+Made by SageDragoon. Divine Hands unifies capabilities pioneered by the community creator mods (Pangu, TerrainHelper, the spawner mods, and more) into one clean implementation — credit to those original authors. Feedback and bug reports welcome in the comments or on GitHub.
