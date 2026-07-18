@@ -680,9 +680,19 @@ namespace DivineHands.Core
             var contentRt = (RectTransform)_itemGridContent.transform;
             contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1);
             contentRt.pivot = new Vector2(0.5f, 1);
+            // A code-created RectTransform defaults to sizeDelta (100,100). With
+            // the stretch-x anchors above and a centered pivot that made the
+            // content 100px wider than the viewport, straddling it: the grid's
+            // first column hung ~50px off the LEFT (clipped to fragments) while
+            // the surplus width sat unused on the RIGHT. Zero the width delta so
+            // the content is exactly the viewport width. (ContentSizeFitter still
+            // drives the height.)
+            contentRt.sizeDelta = new Vector2(0f, contentRt.sizeDelta.y);
             var glg = _itemGridContent.AddComponent<GridLayoutGroup>();
             glg.cellSize = new Vector2(66, 17);
             glg.spacing = new Vector2(2, 2);
+            glg.padding = new RectOffset(1, 1, 0, 0);
+            glg.childAlignment = TextAnchor.UpperLeft;
             glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             glg.constraintCount = 4;
             _itemGridContent.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;

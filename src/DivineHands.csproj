@@ -3,9 +3,9 @@
   <PropertyGroup>
     <TargetFramework>net46</TargetFramework>
     <AssemblyName>DivineHands</AssemblyName>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.0.1</Version>
     <RootNamespace>DivineHands</RootNamespace>
     <Description>God-power / creator-tool mod for Farthest Frontier — terrain sculpting (Pangu granularity, TerrainHelper UI), cursor spawners, and map god-tools, behind one in-game panel. Soft-integrated with Keep Clarity.</Description>
     <Company>SageDragoon</Company>

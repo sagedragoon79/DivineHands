@@ -29,7 +29,7 @@ namespace DivineHands
         /// <summary>Single source of truth for the version — used by MelonInfo, the init log,
         /// and the Keep Clarity registration so they can't drift. Bump with the .csproj
         /// &lt;Version&gt; on release.</summary>
-        public const string Version = "1.0.0";
+        public const string Version = "1.0.1";
 
         public static Plugin Instance { get; private set; } = null!;
         public static MelonLogger.Instance Log => Instance.LoggerInstance;
