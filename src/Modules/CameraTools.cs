@@ -184,8 +184,115 @@ namespace DivineHands.Modules
                 FreeCamActive = !FreeCamActive;
 
             SyncGodView();
+            SyncGodViewTuning();
+            SyncFowHaze();
             SyncFreeCam();
+            SyncSkybox();                          // after both syncs so the applied flags are fresh
             if (_freeCamApplied) DriveFreeCam();   // fly only while active
+        }
+
+        // =====================================================================================
+        // SKYBOX (God View) — vanilla clears the main camera to a SOLID COLOR (the RTS camera
+        // never sees above the horizon), so at god view's low angles the sky renders BLACK once
+        // the fog dome is gone. FF's own hidden FreeLookCamera solves this for itself (BeginFreeLook
+        // flips clearFlags to Skybox [59556]) and so does DH's Free Cam (ApplyFreeCam, which also
+        // restores its own capture on exit). This sync covers the remaining case: GOD VIEW. It
+        // re-asserts each frame while god view is on, which also heals the flag if Free Cam exits
+        // mid-god-view and restores its own (solid-color) baseline underneath us. The skybox
+        // material is live (DayNight blends it), so the sky matches time/weather for free.
+        // =====================================================================================
+
+        private static bool _skyApplied;
+        private static CameraClearFlags _ovClearFlags = CameraClearFlags.Color;
+
+        private static void SyncSkybox()
+        {
+            try
+            {
+                var cam = ResolveCamera();
+                var main = cam != null ? cam.mainCamera : null;
+                if (main == null) return;          // camera not up yet — retry next frame
+                if (_godViewApplied)
+                {
+                    if (!_skyApplied)
+                    {
+                        // If Free Cam already holds Skybox, the true vanilla baseline is a solid
+                        // color (EndFreeLook hardcodes Color [59568]) — don't capture the flipped value.
+                        _ovClearFlags = _freeCamApplied ? CameraClearFlags.Color : main.clearFlags;
+                        _skyApplied = true;
+                        if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Sky -> skybox (god view)");
+                    }
+                    if (main.clearFlags != CameraClearFlags.Skybox)
+                        main.clearFlags = CameraClearFlags.Skybox;
+                }
+                else if (_skyApplied)
+                {
+                    // Leave the flag alone if Free Cam still owns it — it restores its own capture.
+                    if (!_freeCamApplied) main.clearFlags = _ovClearFlags;
+                    _skyApplied = false;
+                    if (Config.DebugLog.Value) MelonLogger.Msg("[DivineHands] Sky restored");
+                }
+            }
+            catch (Exception ex)
+            {
+                _skyApplied = _godViewApplied;     // don't retry-spam on a broken resolve
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] skybox toggle failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>Re-apply the min-zoom/min-angle floors when their sliders move while God View is
+        /// already on (Apply only runs on toggle). Change-guarded — no per-frame reflection writes.</summary>
+        private static void SyncGodViewTuning()
+        {
+            if (!_godViewApplied) return;
+            float md = Mathf.Min(_ovMinDist, GodViewMinDistance);
+            float ma = Mathf.Min(_ovMinAngle, GodViewMinAngleDeg);
+            if (md == _appliedMinDist && ma == _appliedMinAngle) return;
+            var cam = ResolveCamera();
+            if (cam == null) return;
+            WriteField(_minDistField, cam, md);
+            WriteField(_minAngleField, cam, ma);
+            _appliedMinDist = md; _appliedMinAngle = ma;
+            if (Config.DebugLog.Value)
+                MelonLogger.Msg($"[DivineHands] God View floors -> zoom {md:0.#}m, angle {ma:0.#}°");
+        }
+
+        // =====================================================================================
+        // FOG-OF-WAR HAZE (visual) — FOWImageEffect is a screen-space post effect on the camera
+        // (OnRenderImage blit). At low angles / Free Cam it unprojects sky pixels into the fog
+        // texture, doming grey haze over the sky. Disabling the COMPONENT kills the visual only:
+        // FOWSystem (the sim + what saves) is untouched, so nothing bakes in and re-enabling
+        // restores the haze exactly. Separate from Reveal Map (sim) and GodViewDisableFog
+        // (Unity atmospheric fog) — third fog, third switch.
+        // =====================================================================================
+
+        private static bool _fowHazeHidden;
+
+        private static void SyncFowHaze()
+        {
+            // Hidden when the always-on toggle is set, OR scoped to Free Cam ("clean sky while flying,
+            // fog back the moment you land"). FreeCamActive flips already re-run this sync each frame.
+            bool want = Config.MasterEnable.Value
+                        && (Config.HideFowHaze.Value
+                            || (Config.FreeCamClearsHaze.Value && Config.EnableFreeCam.Value && FreeCamActive));
+            if (want == _fowHazeHidden) return;
+            try
+            {
+                var cam = ResolveCamera();
+                var eff = cam != null ? cam.GetComponent<FOWImageEffect>() : null;
+                if (eff == null) return;               // camera not up yet — retry next frame
+                eff.enabled = !want;
+                _fowHazeHidden = want;
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] FOW haze {(want ? "hidden" : "restored")}");
+            }
+            catch (Exception ex)
+            {
+                _fowHazeHidden = want;                 // don't retry-spam on a broken resolve
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] FOW haze toggle failed: {ex.Message}");
+            }
         }
 
         /// <summary>Hard-restore both powers (used by scene transitions). Best-effort, never throws.</summary>
@@ -196,6 +303,18 @@ namespace DivineHands.Modules
                 if (refetch) ResolveCamera();
                 if (_godViewApplied) RestoreGodView();
                 if (_freeCamApplied) RestoreFreeCam();
+                if (_fowHazeHidden)
+                {
+                    // Re-enable the FOW post effect so the next map never starts haze-less by accident;
+                    // SyncFowHaze re-hides on the new map if the pref is still on.
+                    var eff = _cam != null ? _cam.GetComponent<FOWImageEffect>() : null;
+                    if (eff != null) eff.enabled = true;
+                }
+                if (_skyApplied)
+                {
+                    var main = _cam != null ? _cam.mainCamera : null;
+                    if (main != null) main.clearFlags = _ovClearFlags;
+                }
             }
             catch (Exception ex)
             {
@@ -207,6 +326,8 @@ namespace DivineHands.Modules
                 // Clear flags regardless — the camera object may already be gone on scene exit.
                 _godViewApplied = false;
                 _freeCamApplied = false;
+                _fowHazeHidden = false;   // fresh camera starts with the effect enabled
+                _skyApplied = false;      // fresh camera starts on vanilla clear flags
             }
         }
 
@@ -216,8 +337,9 @@ namespace DivineHands.Modules
 
         // Relaxed presets. Distances/FOV widen the survey envelope; angles allow flat->overhead.
         // Max zoom-out is the GodViewMaxZoom pref (the perf lever) — see GodViewMaxDistance.
-        private const float GV_MinDistance =   6f;   // keep a sane floor
-        private const float GV_MinAngle    =  10f;   // low/flat
+        // Min distance + min angle are pref-driven (GodViewMinZoom / GodViewMinAngle) so the user can
+        // tune the close-follow "shoulder cam" feel live: min zoom 2 m + angle 0° + vanilla Follow
+        // ≈ ride-along at villager head height.
         private const float GV_MaxAngle    =  89f;   // near-overhead (avoid exact 90 gimbal)
         private const float GV_MinFOV      =  20f;
         private const float GV_MaxFOV      =  70f;
@@ -228,7 +350,15 @@ namespace DivineHands.Modules
         /// Read by the zoom patch to size the per-notch step span so notches stay accurate when the cap moves.</summary>
         public static float GodViewMaxDistance => Mathf.Clamp(Config.GodViewMaxZoom.Value, 200f, 900f);
 
+        /// <summary>Effective god-view min zoom-in distance (metres) from the GodViewMinZoom pref, clamped.</summary>
+        public static float GodViewMinDistance => Mathf.Clamp(Config.GodViewMinZoom.Value, 1f, 6f);
+
+        /// <summary>Effective god-view min camera pitch (degrees) from the GodViewMinAngle pref, clamped.</summary>
+        public static float GodViewMinAngleDeg => Mathf.Clamp(Config.GodViewMinAngle.Value, 0f, 35f);
+
         private static bool _godViewApplied;
+        // Last min-distance/min-angle written, so slider moves re-apply live while God View is on.
+        private static float _appliedMinDist = -1f, _appliedMinAngle = -1f;
 
         // captured originals
         private static float _ovMinDist, _ovMaxDist, _ovMinAngle, _ovMaxAngle,
@@ -269,9 +399,11 @@ namespace DivineHands.Modules
                 _ovShadowMax = ReadField(_shadowMaxField, cam, 350f);
 
                 // Apply relaxed envelope (never narrow below what the map already allows).
-                WriteField(_minDistField,   cam, Mathf.Min(_ovMinDist, GV_MinDistance));
+                _appliedMinDist  = Mathf.Min(_ovMinDist, GodViewMinDistance);
+                _appliedMinAngle = Mathf.Min(_ovMinAngle, GodViewMinAngleDeg);
+                WriteField(_minDistField,   cam, _appliedMinDist);
                 WriteField(_maxDistField,   cam, Mathf.Max(_ovMaxDist, GodViewMaxDistance));
-                WriteField(_minAngleField,  cam, Mathf.Min(_ovMinAngle, GV_MinAngle));
+                WriteField(_minAngleField,  cam, _appliedMinAngle);
                 WriteField(_maxAngleField,  cam, Mathf.Max(_ovMaxAngle, GV_MaxAngle));
                 WriteField(_minFovField,    cam, Mathf.Min(_ovMinFOV, GV_MinFOV));
                 WriteField(_maxFovField,    cam, Mathf.Max(_ovMaxFOV, GV_MaxFOV));

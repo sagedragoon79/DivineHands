@@ -92,6 +92,10 @@ namespace DivineHands
         /// <summary>God View: disable Unity's environmental distance fog (the haze) while active. On = crisp,
         /// Pangu-style. Off = keep the atmospheric fog. (Separate from FF's fog-of-war / Reveal Map.)</summary>
         public static MelonPreferences_Entry<bool>   GodViewDisableFog { get; private set; } = null!;
+        public static MelonPreferences_Entry<int>    GodViewMinAngle { get; private set; } = null!;
+        public static MelonPreferences_Entry<int>    GodViewMinZoom { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   HideFowHaze { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   FreeCamClearsHaze { get; private set; } = null!;
 
         /// <summary>ENABLE/AVAILABLE switch for Free Cam. When true, the Free Cam control appears in
         /// the in-game panel and its sliders/hotkey reveal in KC. The live ON/OFF is a runtime flag
@@ -290,6 +294,10 @@ namespace DivineHands
         /// <summary>How many of the selected item to add per click (1–9999).</summary>
         public static MelonPreferences_Entry<int>    InjectItemCount  { get; private set; } = null!;
 
+        /// <summary>Bypass the injection eligibility gate entirely — every item injectable into any
+        /// building with storage. Full god mode; the smart per-building filter is the default.</summary>
+        public static MelonPreferences_Entry<bool>   InjectUnrestricted { get; private set; } = null!;
+
         /// <summary>Livestock kind for the Add-Livestock button: 0=Cow, 1=Chicken, 2=Goat, 3=Horse
         /// (<see cref="Modules.ItemInjection.LivestockKind"/>).</summary>
         public static MelonPreferences_Entry<int>    InjectLivestockKind { get; private set; } = null!;
@@ -410,6 +418,36 @@ namespace DivineHands
                 description: "Turn off Unity's environmental distance fog (the haze) while God View is active, " +
                              "for a crisp Pangu-style survey. Restored on exit. This is the atmospheric fog, " +
                              "NOT FF's fog-of-war (Reveal Map). Default: off (keep the haze — lighter on frames).");
+
+            GodViewMinAngle = _root.CreateEntry(
+                "GodViewMinAngle", 10,
+                display_name: "God View Min Camera Angle (°)",
+                description: "Flattest camera pitch allowed while God View is on (0–35). Vanilla stops at ~35° " +
+                             "(always looking down); 10 is a low sweep; 0 is dead-level with the horizon — combine " +
+                             "with max zoom-in and the vanilla Follow button for an over-the-shoulder villager cam. " +
+                             "Takes effect live. Default: 10.");
+
+            GodViewMinZoom = _root.CreateEntry(
+                "GodViewMinZoom", 6,
+                display_name: "God View Min Zoom (m)",
+                description: "Closest zoom-in distance while God View is on, in metres (1–6). Vanilla floors " +
+                             "around 6 m; 2 m is roughly head height on a villager. Lower = closer ride-along " +
+                             "when following. Takes effect live. Default: 6.");
+
+            HideFowHaze = _root.CreateEntry(
+                "HideFowHaze", false,
+                display_name: "Hide Fog-of-War Haze (visual)",
+                description: "Disable FF's fog-of-war POST-EFFECT (the grey unexplored haze that also domes over " +
+                             "the sky at low camera angles / Free Cam). Purely visual: exploration state is " +
+                             "untouched, nothing bakes into the save, and the haze returns the moment you toggle " +
+                             "off. Pairs with Free Cam and the low-angle follow cam. Default: off.");
+
+            FreeCamClearsHaze = _root.CreateEntry(
+                "FreeCamClearsHaze", false,
+                display_name: "Free Cam: Clear Sky Haze",
+                description: "Automatically hide the fog-of-war haze while Free Cam is active and restore it the " +
+                             "moment you exit — keep fog of war for normal play, get a clean sky when flying. " +
+                             "Purely visual, exploration untouched. Default: off.");
 
             EnableFreeCam = _root.CreateEntry(
                 "EnableFreeCam", false,
@@ -814,6 +852,16 @@ namespace DivineHands
                 "InjectItemCount", 100,
                 display_name: "Item Count",
                 description: "How many of the selected item to add per click (1–9999). Default: 100.");
+
+            InjectUnrestricted = _root.CreateEntry(
+                "InjectUnrestricted", false,
+                display_name: "Unrestricted Injection",
+                description: "Bypass the smart eligibility filter — EVERY item becomes injectable into " +
+                             "any selected building that has storage (firewood into a hunter cabin, ore " +
+                             "into a house, whatever you want). Off = the default per-building filter: " +
+                             "storage buildings take their allow-list, producers their recipe inputs, " +
+                             "gatherers their trade goods, and every building tops up what it already " +
+                             "holds. Default: off.");
 
             InjectLivestockKind = _root.CreateEntry(
                 "InjectLivestockKind", 0,

@@ -1574,24 +1574,99 @@ namespace DivineHands.Modules
             }
         }
 
+        // Yearly refill for a spawned bush, per resource item. Vanilla rolls this off the biome's
+        // replenishRate curve (~ a season's worth of berries/roots); a flat 30 sits in that range.
+        private const uint ForageableReplenishRate = 30;
+
         private static void TrySeedForageable(GameObject go)
         {
             try
             {
-                // ForageableResource.SetRandomReplenishRateOnSpawn() [public 87902]
-                foreach (var c in go.GetComponents<Component>())
+                var fr = go.GetComponentInChildren<ForageableResource>();
+                if (fr == null) return;
+
+                // 1) Replenish rate. resourceItems is a lazy PROPERTY [87133-87152]: first access builds
+                // the item list from resourceRecord.itemsToQtyDict AND self-seeds itemToReplenishRateDict
+                // with each record quantity — the whole vanilla seeding, for free. (The old code reflected
+                // it as a FIELD, got null, and seeded nothing.) After the lazy build, top up any rate that
+                // is still 0 so OnInSeason has something to add.
+                int seeded = 0;
+                var items = fr.resourceItems;   // property access triggers the lazy build + rate self-seed
+                if (items != null)
                 {
-                    if (c == null) continue;
-                    var mi = c.GetType().GetMethod("SetRandomReplenishRateOnSpawn",
-                        BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
-                    if (mi != null) { mi.Invoke(c, null); return; }
+                    foreach (var item in items)
+                    {
+                        if (item == null) continue;
+                        // GetAmountToReplenish = rate × decline%; decline ≈ 1 on a fresh spawn, so 0 here
+                        // means the record carried no quantity — give it our floor rate.
+                        if (fr.GetAmountToReplenish(item) == 0)
+                            fr.SetAmountToReplenish(item, ForageableReplenishRate);
+                        seeded++;
+                    }
                 }
+
+                // 2) Growing seasons. Vanilla adds these from biome config AFTER Instantiate
+                // [88911-88931] — the prefab itself may carry none, and with zero seasons OnInSeason
+                // never fires at all. Only when the instance has none: grant the same three growing-
+                // season day windows vanilla uses (spring/summer/fall).
+                var seasonal = fr.GetComponent<SeasonalComponentBase>();
+                if (seasonal != null && (seasonal.seasons == null || seasonal.seasons.Count == 0))
+                {
+                    seasonal.AddSeason(78, 170);    // spring
+                    seasonal.AddSeason(171, 264);   // summer
+                    seasonal.AddSeason(265, 354);   // fall
+                }
+
+                if (Config.DebugLog.Value)
+                    MelonLogger.Msg($"[DivineHands] forageable seeded: {seeded} item(s) @ rate {ForageableReplenishRate}, " +
+                                    $"seasons {(seasonal != null && seasonal.seasons != null ? seasonal.seasons.Count : 0)}");
+
+                // Still no items → this prefab's resourceRecord is empty/null, so it can never replenish
+                // through ForageableResource. Dump what it actually carries so the log tells us which
+                // mechanism (ForagingSource? bare Resource?) the next fix has to drive.
+                if (seeded == 0 && Config.DebugLog.Value)
+                    DumpForageablePrefab(go, fr);
             }
             catch (Exception ex)
             {
                 if (Config.DebugLog.Value)
                     MelonLogger.Warning($"[DivineHands] forageable seed failed: {ex.Message}");
             }
+        }
+
+        private static void DumpForageablePrefab(GameObject go, ForageableResource fr)
+        {
+            try
+            {
+                var names = new System.Text.StringBuilder();
+                foreach (var c in go.GetComponentsInChildren<Component>())
+                    if (c != null) names.Append(c.GetType().Name).Append(' ');
+
+                object? record = null;
+                try { record = HarmonyLib.Traverse.Create(fr).Property("resourceRecord").GetValue()
+                              ?? HarmonyLib.Traverse.Create(fr).Field("resourceRecord").GetValue(); }
+                catch { }
+                int recordItems = -1;
+                try
+                {
+                    var dict = record != null
+                        ? HarmonyLib.Traverse.Create(record).Field("itemsToQtyDict").GetValue() as System.Collections.IDictionary
+                        : null;
+                    recordItems = dict?.Count ?? -1;
+                }
+                catch { }
+
+#pragma warning disable CS0618 // ForagingSource is [Obsolete] in the live DLL — diagnostic only: we
+                               // WANT to know if a legacy prefab still carries it.
+                var fs = go.GetComponentInChildren<ForagingSource>();
+                string fsInfo = fs == null ? "none"
+                    : $"item={(fs.item != null ? fs.item.name : "null")} rate={fs.amountToReplenish} mask={fs.seasonsMask}";
+#pragma warning restore CS0618
+
+                MelonLogger.Msg($"[DivineHands] forageable DUMP '{go.name}': record={(record == null ? "null" : "ok")} " +
+                                $"recordItems={recordItems} foragingSource=({fsInfo}) components: {names}");
+            }
+            catch (Exception ex) { MelonLogger.Warning($"[DivineHands] forageable dump failed: {ex.Message}"); }
         }
 
         private static GameObject? SafeGetPrefab(string guid)

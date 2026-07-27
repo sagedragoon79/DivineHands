@@ -96,7 +96,7 @@ namespace DivineHands.Modules
         // and Config.InjectItemIndex.
         public static readonly string[] ItemNames =
         {
-            "Logs", "Planks", "Firewood", "Stone", "Brick", "Clay", "Sand", "Glass",
+            "Logs", "Planks", "Firewood", "Water", "Stone", "Brick", "Clay", "Sand", "Glass",
             "IronOre", "Iron", "GoldOre", "GoldIngot", "Coal", "Tool", "HeavyTool",
             "Berries", "RootVegetable", "Beans", "Greens", "Grain", "Flour", "Bread",
             "Mushroom", "Roots", "Nuts", "Fruit", "Herbs", "Eggs", "Meat", "Fish",
@@ -352,14 +352,17 @@ namespace DivineHands.Modules
         }
 
         // ====================================================================
-        // Eligibility — what may be injected into the SELECTED building (3-tier):
+        // Eligibility — what may be injected into the SELECTED building (4-tier):
         //   1. StorageBuilding family (granary / storehouse / depot / stockyard / root cellar /
         //      treasury / market / trading post / supply wagon) -> its own allow-list via
         //      StorageBuilding.IsItemAllowed(Item) [355450].
         //   2. Production building (Preservist, Bakery, …) -> ONLY the items it CONSUMES, read from
         //      Building.manufactureDefinitions[].sourceItems[].itemName [184600 / 185446 / 185398].
         //      Produced goods are injected at a storage building instead.
-        //   3. Neither (no allow-list, no recipe inputs) -> DENY everything (never fake-allow).
+        //   3. Gatherer building (Forager Shack any tier — component check, rename-immune) -> the
+        //      game's foraged items (ForagingManager.foragedItemsRO).
+        //   4. None of the above (no allow-list, no recipe inputs, not a gatherer) -> DENY everything
+        //      (never fake-allow).
         // If the StorageBuilding type itself can't be resolved (reflection broken) we fail OPEN so the
         // picker never hard-locks.
         // ====================================================================
@@ -429,6 +432,53 @@ namespace DivineHands.Modules
             return _consumedNames;
         }
 
+        // Villager.foodNameToFoodTypeDict — the game's own "is this food?" table, keyed by FF item
+        // name ("ItemBerries"). GetFoodType() can't be used directly: it defaults UNKNOWN items to
+        // Vegetable, so a Log would read as food. Membership in the dict is the real classifier.
+        private static System.Collections.IDictionary? _foodDict;
+        private static bool _foodDictResolved;
+
+        private static bool IsFoodItemName(string dhName)
+        {
+            try
+            {
+                if (!_foodDictResolved)
+                {
+                    _foodDictResolved = true;
+                    _foodDict = HarmonyLib.AccessTools.Field(typeof(Villager), "foodNameToFoodTypeDict")
+                        ?.GetValue(null) as System.Collections.IDictionary;
+                    if (_foodDict == null && Config.DebugLog.Value)
+                        MelonLogger.Warning("[DivineHands] Villager.foodNameToFoodTypeDict unresolved — shelter tier limited to Firewood");
+                }
+                return _foodDict != null && (_foodDict.Contains("Item" + dhName) || _foodDict.Contains(dhName));
+            }
+            catch { return false; }
+        }
+
+        /// <summary>Gathered-goods allow-set for gatherer buildings, or null when the building isn't
+        /// one. Forager Shack (component check — rename-immune) accepts everything the game considers
+        /// a foraged item (ForagingManager.foragedItemsRO): berries, greens, herbs, roots, mushrooms,
+        /// eggs, nuts, willow. Only consulted on selection change (EnsureEligibleSet caches the result).</summary>
+        private static HashSet<string>? GetGatheredItemNames(GameObject go)
+        {
+            try
+            {
+                if (go.GetComponent<ForagerShack>() == null) return null;
+                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var foraged = ForagingManager.foragedItemsRO;
+                if (foraged != null)
+                    foreach (var item in foraged)
+                        if (item != null) set.Add(item.GetType().Name);   // "ItemBerries", "ItemGreens", …
+                return set.Count > 0 ? set : null;
+            }
+            catch (Exception ex)
+            {
+                if (Config.DebugLog.Value)
+                    MelonLogger.Warning($"[DivineHands] GetGatheredItemNames failed: {ex.Message}");
+                return null;
+            }
+        }
+
         // Field-or-property reflective getter, walking base types. Cheap and tolerant.
         private static object? ReflectGet(object obj, string name)
         {
@@ -449,6 +499,10 @@ namespace DivineHands.Modules
         {
             try
             {
+                // God-mode bypass: anything goes wherever there's storage to hold it.
+                if (Config.InjectUnrestricted.Value)
+                    return go.GetComponent<ReservableItemStorage>() != null;
+
                 ResolveEligibility();
                 if (_storageBuildingType == null) return true; // reflection broken -> fail OPEN
 
@@ -470,7 +524,43 @@ namespace DivineHands.Modules
                 if (consumed != null)
                     return consumed.Contains("Item" + dhName) || consumed.Contains(dhName);
 
-                // Tier 3 — neither: deny (the user's fallback; never fake-allow).
+                // Tier 3 — gatherer building (Forager Shack, any tier): no allow-list and no recipes,
+                // but its storage legitimately holds what it gathers — allow the game's foraged items.
+                // COMPONENT-based, so building renames by other mods (e.g. Tended Wilds' T2 hut) can't
+                // break the match.
+                var gathered = GetGatheredItemNames(go);
+                if (gathered != null)
+                    return gathered.Contains("Item" + dhName) || gathered.Contains(dhName);
+
+                // Tier 4 — shelter: hunter cabins / forager huts / fishing shacks are also RESIDENCES
+                // (workers live in them), and homes stock firewood + food. Component check via the
+                // Residence base — which also un-bricks plain houses/shelters. Non-matching items fall
+                // through (trade goods still arrive via top-up below).
+                if (go.GetComponentInChildren<Residence>() != null)
+                {
+                    // Firewood + Water are the two non-food home-stock items (water is a real Item —
+                    // ItemWater / ItemID.Water — homes keep it to prevent dysentery).
+                    if (dhName.Equals("Firewood", StringComparison.OrdinalIgnoreCase)
+                        || dhName.Equals("Water", StringComparison.OrdinalIgnoreCase)) return true;
+                    if (IsFoodItemName(dhName)) return true;
+                }
+
+                // Tier 5 — top-up: ANY building keeps accepting what its storage ALREADY holds — a
+                // hunter/fishing shack with meat/hides/fish, a house with firewood/food/water. If the
+                // item is in there, it evidently belongs there. (Covers every gatherer-style building
+                // without naming them one by one; refreshes when the selection changes.)
+                var topUpStorage = go.GetComponent<ReservableItemStorage>();
+                if (topUpStorage != null)
+                {
+                    var topUpItem = CreateItem(dhName);
+                    if (topUpItem != null)
+                    {
+                        try { if (topUpStorage.GetItemCount(topUpItem) > 0) return true; }
+                        catch { /* fall through to deny */ }
+                    }
+                }
+
+                // Tier 6 — none of the above: deny (the user's fallback; never fake-allow).
                 if (!_loggedNoFilter && Config.DebugLog.Value)
                 {
                     _loggedNoFilter = true;
@@ -491,10 +581,15 @@ namespace DivineHands.Modules
         private static GameObject? _eligSetGo;
         private static HashSet<string>? _eligibleNames;
 
+        private static bool _eligSetUnrestricted;
+
         private static void EnsureEligibleSet(GameObject go)
         {
-            if (ReferenceEquals(go, _eligSetGo) && _eligibleNames != null) return;
+            // Rebuild when the building changes OR the Unrestricted toggle flips mid-selection.
+            if (ReferenceEquals(go, _eligSetGo) && _eligibleNames != null
+                && _eligSetUnrestricted == Config.InjectUnrestricted.Value) return;
             _eligSetGo = go;
+            _eligSetUnrestricted = Config.InjectUnrestricted.Value;
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var names = ItemNames;
             for (int i = 0; i < names.Length; i++)

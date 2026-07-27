@@ -203,6 +203,31 @@ namespace DivineHands
                         "Restored on exit. Separate from fog-of-war / Reveal Map. Default: OFF (keep haze, lighter on frames).",
                         order: 124, indent: 20,
                         visibleWhen: () => Config.EnableGodView.Value));
+            Reg(GroupGodTools, Config.GodViewMinZoom,
+                NewMeta("Min Zoom-In (m)",
+                        "Closest god-view zoom, metres (1–6). Vanilla floors ~6; 2 is about villager head height. " +
+                        "Combine with Min Camera Angle 0 and the vanilla Follow button for an over-the-shoulder " +
+                        "villager cam. Live — tune while following. Default: 6.",
+                        min: 1, max: 6, order: 125, indent: 20,
+                        visibleWhen: () => Config.EnableGodView.Value));
+            Reg(GroupGodTools, Config.GodViewMinAngle,
+                NewMeta("Min Camera Angle (°)",
+                        "Flattest camera pitch while God View is on (0–35). Vanilla stops ~35 (always looking down); " +
+                        "0 is level with the horizon. Live — tune while following. Default: 10.",
+                        min: 0, max: 35, order: 126, indent: 20,
+                        visibleWhen: () => Config.EnableGodView.Value));
+            Reg(GroupGodTools, Config.HideFowHaze,
+                NewMeta("Hide Fog-of-War Haze (visual)",
+                        "Disable the fog-of-war POST-EFFECT — the grey unexplored haze that domes over the sky at " +
+                        "low angles / Free Cam. Purely visual: exploration is untouched, nothing bakes into the " +
+                        "save, toggling off restores it instantly. Default: OFF.",
+                        order: 127, indent: 20));
+            Reg(GroupGodTools, Config.FreeCamClearsHaze,
+                NewMeta("Free Cam: Clear Sky Haze",
+                        "Auto-hide the fog-of-war haze only WHILE Free Cam is active — fog of war for normal play, " +
+                        "clean sky when flying, haze back the moment you exit. Purely visual. Default: OFF.",
+                        order: 128, indent: 40,
+                        visibleWhen: () => Config.EnableFreeCam.Value));
             Reg(GroupGodTools, Config.EnableFreeCam,
                 NewMeta("Free Cam",
                         "Makes Free Cam available in the in-game panel — you activate it there, not here. " +
@@ -606,6 +631,15 @@ namespace DivineHands
                         "Which item the Add Items button injects into the selected building's storage " +
                         "(index into the panel's item list). Pick the item in the panel.",
                         min: 0, max: 999, order: 401, indent: 20,
+                        visibleWhen: () => Config.InjectEnable.Value));
+            Reg(GroupInject, Config.InjectUnrestricted,
+                NewMeta("Unrestricted Injection",
+                        "Bypass the smart per-building filter — EVERY item becomes injectable into any " +
+                        "selected building with storage. Off = the default filter: storage buildings " +
+                        "take their allow-list, producers their recipe inputs, gatherers their trade " +
+                        "goods, shelters firewood+food, and every building tops up what it already holds. " +
+                        "Default: OFF.",
+                        indent: 20,
                         visibleWhen: () => Config.InjectEnable.Value));
             Reg(GroupInject, Config.InjectItemCount,
                 NewMeta("Item Count",
