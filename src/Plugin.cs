@@ -29,7 +29,7 @@ namespace DivineHands
         /// <summary>Single source of truth for the version — used by MelonInfo, the init log,
         /// and the Keep Clarity registration so they can't drift. Bump with the .csproj
         /// &lt;Version&gt; on release.</summary>
-        public const string Version = "1.1.0";
+        public const string Version = "1.1.1";
 
         public static Plugin Instance { get; private set; } = null!;
         public static MelonLogger.Instance Log => Instance.LoggerInstance;
@@ -75,6 +75,7 @@ namespace DivineHands
                 BrushPreview.OnSceneExit();
                 CursorSpawners.OnSceneExit();
                 DeleteSelected.OnSceneExit();
+                Diagnostics.OnSceneExit();
                 ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
                 return;
             }
@@ -95,6 +96,7 @@ namespace DivineHands
             BrushPreview.OnMapLoaded();
             CursorSpawners.OnMapLoaded();
             DeleteSelected.OnMapLoaded();
+            Diagnostics.OnMapLoaded();
             ItemInjection.OnMapLoaded();
 
             // Restore the persisted live state for the powers the user wants to survive a save/reload
@@ -212,6 +214,7 @@ namespace DivineHands
                 MountainBrush.OnUpdate();
                 CursorSpawners.OnUpdate();
                 ItemInjection.OnUpdate(); // drives post-save re-apply of session-infinite flags
+                Diagnostics.OnUpdate();   // opt-in reference dumps (no-op unless a Diag pref is on)
                 TerrainBrushGrid.Render(); // after the brush so it reads fresh cursor/grid state
                 BrushPreview.Render();     // lake/fertility footprint outline at the cursor
 

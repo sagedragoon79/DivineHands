@@ -27,6 +27,7 @@ namespace DivineHands.Patches
     {
         private static MethodInfo? _calculateZoomMethod;  // OPTIONAL — only the close-in taper uses it
         private static bool _resolved;
+        private static float _lastLoggedStepM = float.NaN;  // change-guard for the debug log (see Postfix)
 
         private static void Resolve()
         {
@@ -91,9 +92,15 @@ namespace DivineHands.Patches
                 float stepMetres = cells * metresPerCell * taper;
                 float dz = Mathf.Sign(__0) * (stepMetres / gvSpan);
 
-                if (Config.DebugLog.Value)
-                    MelonLogger.Msg($"[DivineHands] Zoom: in={__0:0.#####} curZoom={currentZoom:0.###} " +
-                                    $"cells={cells} stepM={stepMetres:0.#} out(dz)={dz:0.#####}");
+                // Fires on EVERY scroll notch — with DebugLog on that buried the log under thousands of
+                // lines (5.7k in one session), drowning the messages people actually report with. Log
+                // only when the computed step CHANGES, which is all the diagnostic value it ever had.
+                if (Config.DebugLog.Value && Mathf.Abs(stepMetres - _lastLoggedStepM) > 0.01f)
+                {
+                    _lastLoggedStepM = stepMetres;
+                    MelonLogger.Msg($"[DivineHands] Zoom step: curZoom={currentZoom:0.###} " +
+                                    $"cells={cells} stepM={stepMetres:0.#}");
+                }
 
                 __0 = dz;
             }

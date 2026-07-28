@@ -139,11 +139,19 @@ namespace DivineHands
                 NewMeta("Debug Logging",
                         "Verbose diagnostic output to MelonLoader.log. Default: OFF.",
                         order: 13, indent: 20));
+            Reg(GroupGeneral, Config.DiagBuildingScare,
+                NewMeta("Log: Animal-Scare Table",
+                        "Write a reference table to MelonLoader.log listing which buildings scare wildlife " +
+                        "away and which don't. FF splits the map into 64 m spawn cells; 3+ scaring buildings " +
+                        "in one cell drives that herd elsewhere (crop fields always evict, separate rule). " +
+                        "Read-only — changes nothing in game. Runs once when switched on; toggle off then on " +
+                        "to run again. Default: OFF.",
+                        order: 14, indent: 20));
             Reg(GroupGeneral, Config.ClassicPanel,
                 NewMeta("Classic Panel",
                         "Use the original lightweight IMGUI panel instead of the FF-styled one. " +
                         "Fallback if the styled panel ever misbehaves. Default: OFF.",
-                        order: 14, indent: 20));
+                        order: 15, indent: 20));
 
             // ===== God Tools =====
             // These Enable toggles make each power AVAILABLE in the in-game panel; you ACTIVATE it

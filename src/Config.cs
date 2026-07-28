@@ -298,6 +298,10 @@ namespace DivineHands
         /// building with storage. Full god mode; the smart per-building filter is the default.</summary>
         public static MelonPreferences_Entry<bool>   InjectUnrestricted { get; private set; } = null!;
 
+        /// <summary>Diagnostic: dump the per-building "scares animals" table to the log (research aid).
+        /// Runs once when switched on; toggle off/on to re-run.</summary>
+        public static MelonPreferences_Entry<bool>   DiagBuildingScare { get; private set; } = null!;
+
         /// <summary>Livestock kind for the Add-Livestock button: 0=Cow, 1=Chicken, 2=Goat, 3=Horse
         /// (<see cref="Modules.ItemInjection.LivestockKind"/>).</summary>
         public static MelonPreferences_Entry<int>    InjectLivestockKind { get; private set; } = null!;
@@ -852,6 +856,16 @@ namespace DivineHands
                 "InjectItemCount", 100,
                 display_name: "Item Count",
                 description: "How many of the selected item to add per click (1–9999). Default: 100.");
+
+            DiagBuildingScare = _root.CreateEntry(
+                "DiagBuildingScare", false,
+                display_name: "Log: Animal-Scare Table",
+                description: "Write a reference table to the MelonLoader log listing which buildings scare " +
+                             "wildlife away and which don't. (FF splits the map into 64 m spawn cells; 3+ " +
+                             "scaring buildings in one cell drives that cell's herd elsewhere. Crop fields " +
+                             "always evict, on a separate rule.) Read-only research aid — changes nothing " +
+                             "in game. Runs once when switched on; toggle off then on to run again. " +
+                             "Default: off.");
 
             InjectUnrestricted = _root.CreateEntry(
                 "InjectUnrestricted", false,
