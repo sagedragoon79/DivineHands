@@ -420,7 +420,9 @@ namespace DivineHands.Core
             UiKit.NewSliderRow(box, "Unit", 0f, 24f, whole: true,
                 () => Config.SpawnRaiderUnit.Value, v => Config.SpawnRaiderUnit.Value = Mathf.RoundToInt(v),
                 () => Modules.RaiderSpawners.UnitLabel(Config.SpawnRaiderUnit.Value),
-                visibleWhen: () => Config.SpawnFamily.Value == 4 && Config.SpawnSubtype.Value == 0);
+                labelWidth: 30f,
+                visibleWhen: () => Config.SpawnFamily.Value == 4 && Config.SpawnSubtype.Value == 0,
+                valueWidth: 116f);   // holds a unit NAME, not a number
 
             UiKit.NewToggleRow(box, "Persistent (Deer area, Wolf/Boar dens)",
                 () => Config.SpawnPersistent.Value, v => Config.SpawnPersistent.Value = v,

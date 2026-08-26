@@ -139,7 +139,7 @@ namespace DivineHands.Modules
                 if (!string.IsNullOrEmpty(token))
                 {
                     var loc = GameManager.Instance?.localizationManager?.Localize(token);
-                    if (!string.IsNullOrEmpty(loc) && loc != token) return loc!;
+                    if (!string.IsNullOrEmpty(loc) && loc != token) return Shorten(loc!);
                 }
             }
             catch { }
@@ -151,7 +151,21 @@ namespace DivineHands.Modules
                 if (i > 0 && char.IsUpper(n[i]) && !char.IsUpper(n[i - 1])) sb.Append(' ');
                 sb.Append(n[i]);
             }
-            return sb.ToString();
+            return Shorten(sb.ToString());
+        }
+
+        /// <summary>Trim the redundant leading "Raider" from a unit name — the family chip already says
+        /// Raider, and the panel value box shows a name, not a paragraph ("Raider Spearman" -> "Spearman").
+        /// Applied to localized names too, so both paths stay short enough to read.</summary>
+        private static string Shorten(string name)
+        {
+            var n = (name ?? "").Trim();
+            if (n.Length > 7 && n.StartsWith("Raider", StringComparison.OrdinalIgnoreCase))
+            {
+                var rest = n.Substring(6).TrimStart('_', ' ', '-');
+                if (rest.Length > 0) return rest;
+            }
+            return n;
         }
 
         /// <summary>The label the panel shows for a picker value (0 = Any).</summary>

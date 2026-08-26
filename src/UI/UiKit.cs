@@ -213,7 +213,7 @@ namespace DivineHands.UI
 
         public static void NewSliderRow(GameObject parent, string label, float min, float max, bool whole,
             Func<float> get, Action<float> set, Func<string> valueText,
-            float labelWidth = 58f, Func<bool>? visibleWhen = null)
+            float labelWidth = 58f, Func<bool>? visibleWhen = null, float valueWidth = 48f)
         {
             var row = NewRow(parent, 18f);
 
@@ -275,7 +275,7 @@ namespace DivineHands.UI
             // Typeable value field: shows the formatted value ("2.5 m") when idle, swaps to
             // the raw number on focus, parses + clamps on commit. Faint box hints editability.
             var valGo = NewChild(row, "Value");
-            valGo.AddComponent<LayoutElement>().preferredWidth = 48f;
+            valGo.AddComponent<LayoutElement>().preferredWidth = valueWidth;
             var valBg = valGo.AddComponent<Image>();
             var boxSprite = FFAssets.PanelBorderSimple;
             if (boxSprite != null) { valBg.sprite = boxSprite; valBg.type = Image.Type.Sliced; }
