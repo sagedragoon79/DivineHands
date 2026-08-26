@@ -364,17 +364,29 @@ namespace DivineHands
                         order: 300));
             Reg(GroupSpawning, Config.SpawnFamily,
                 NewMeta("Spawn Family",
-                        "0 = Animal, 1 = Mineral, 2 = Villager, 3 = Resource.",
-                        min: 0, max: 3, order: 301, indent: 20,
+                        "0 = Animal, 1 = Mineral, 2 = Villager, 3 = Resource, 4 = Raider. Raider spawns are " +
+                        "HOSTILE: units attack your town, camps are permanent enemy structures.",
+                        min: 0, max: 4, order: 301, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
             Reg(GroupSpawning, Config.SpawnSubtype,
                 NewMeta("Spawn Sub-type",
                         "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf/4 Fox/5 Groundhog/" +
                         "6 Dog/7 Cat (4-7 require the Cats & Dogs DLC). " +
                         "Mineral: 0 Gold/1 Iron/2 Coal/3 Stone/4 Clay/5 Sand. " +
-                        "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. Villager ignores this.",
+                        "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. " +
+                        "Raider: 0 Raiders/1 Battering Ram/2 Camp/3 Large Camp/4 Guard Tower/5 Large Guard " +
+                        "Tower (only Raiders uses the count). Villager ignores this.",
                         min: 0, max: 7, order: 302, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value));
+            Reg(GroupSpawning, Config.SpawnRaiderUnit,
+                NewMeta("Raider Unit Type",
+                        "Which raider type the Raider family spawns. 0 = Any (the game's own weighted mix). " +
+                        "1 and up pick one specific unit from this map's raid table and spawn only that; the " +
+                        "available list depends on your raider difficulty. Turn on Debug Logging to see the " +
+                        "names in MelonLoader.log. Default: 0 (Any).",
+                        min: 0, max: 24, order: 303, indent: 20,
+                        visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 4
+                                           && Config.SpawnSubtype.Value == 0));
             Reg(GroupSpawning, Config.SpawnCount,
                 NewMeta("Spawn Count",
                         "How many to place per apply (1–50), scattered in a small ring around the cursor.",

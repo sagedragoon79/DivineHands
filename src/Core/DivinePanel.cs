@@ -516,11 +516,12 @@ namespace DivineHands.Core
                             $"   (undo depth {DivineHands.Modules.TerrainElevation.UndoDepth})", HintStyle);
         }
 
-        private static readonly string[] _families = { "Animal", "Mineral", "Villager", "Resource" };
+        private static readonly string[] _families = { "Animal", "Mineral", "Villager", "Resource", "Raider" };
         private static readonly string[] _animalKinds =
             { "Deer", "Bear", "Boar", "Wolf", "Fox", "Groundhog", "Dog", "Cat" };
         private static readonly string[] _mineralKinds = { "Gold", "Iron", "Coal", "Stone", "Clay", "Sand" };
         private static readonly string[] _resourceKinds = { "Forage", "Tree", "Rock", "Boulder" };
+        private static readonly string[] _raiderKinds = { "Raiders", "Ram", "Camp", "Big Camp", "Tower", "Big Tower" };
 
         // Last-rendered spawner family/subtype, so we can reset the count to 1 when the user switches
         // type (a fresh type defaults to spawning one). Seeded to an impossible value to skip the first frame.
@@ -548,6 +549,7 @@ namespace DivineHands.Core
                 0 => _animalKinds,
                 1 => _mineralKinds,
                 3 => _resourceKinds,
+                4 => _raiderKinds,
                 _ => null
             };
             if (kinds != null)

@@ -66,7 +66,7 @@ namespace DivineHands.Modules
     public static class CursorSpawners
     {
         // Family / sub-type are stored as ints in Config; these enums name them.
-        public enum Family { Animal, Mineral, Villager, Resource }
+        public enum Family { Animal, Mineral, Villager, Resource, Raider }
 
         // Order MUST match the panel pickers and the Config descriptions.
         // Deer..Wolf are base-game; Fox/Groundhog (wildlife) + Dog/Cat (pets) ship in the Cats & Dogs
@@ -181,7 +181,7 @@ namespace DivineHands.Modules
             }
 
             int count = Mathf.Clamp(Config.SpawnCount.Value, 1, 50);
-            var family = (Family)Mathf.Clamp(Config.SpawnFamily.Value, 0, 3);
+            var family = (Family)Mathf.Clamp(Config.SpawnFamily.Value, 0, 4);
 
             // Minerals are always a single deposit/pit; Boulders (Resource→GiantRock) are always single.
             // (Other resources/animals/villagers respect the count.)
@@ -189,6 +189,11 @@ namespace DivineHands.Modules
                 count = 1;
             else if (family == Family.Resource
                      && (ResourceKind)Mathf.Clamp(Config.SpawnSubtype.Value, 0, 3) == ResourceKind.GiantRock)
+                count = 1;
+            // Raider camps/towers/rams are single placements; only raider UNITS use the count.
+            else if (family == Family.Raider
+                     && RaiderSpawners.IsSingleShot(
+                            (RaiderSpawners.RaiderKind)Mathf.Clamp(Config.SpawnSubtype.Value, 0, 5)))
                 count = 1;
 
             if (Config.DebugLog.Value)
@@ -203,6 +208,7 @@ namespace DivineHands.Modules
                     case Family.Mineral: SpawnMineral(world, count); break;
                     case Family.Villager: SpawnVillagers(world, count); break;
                     case Family.Resource: SpawnResources(world, count); break;
+                    case Family.Raider: RaiderSpawners.Spawn(world, count); break;
                 }
             }
             catch (Exception ex)

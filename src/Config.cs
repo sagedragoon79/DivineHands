@@ -245,6 +245,10 @@ namespace DivineHands
         /// <summary>How many to spawn per apply (1–50).</summary>
         public static MelonPreferences_Entry<int>    SpawnCount     { get; private set; } = null!;
 
+        /// <summary>Which raider unit type the Raider family spawns: 0 = Any (the game's own weighted
+        /// mix), 1..N = a specific unit from this map's raid table. See Modules.RaiderSpawners.Units.</summary>
+        public static MelonPreferences_Entry<int>    SpawnRaiderUnit { get; private set; } = null!;
+
         /// <summary>Minerals only: gold/iron/coal spawn as a deep (infinite) deposit when true.
         /// Stone/clay/sand are always infinite pits regardless.</summary>
         public static MelonPreferences_Entry<bool>   SpawnIsDeep    { get; private set; } = null!;
@@ -748,7 +752,9 @@ namespace DivineHands
             SpawnFamily = _root.CreateEntry(
                 "SpawnFamily", 0,
                 display_name: "Spawn Family",
-                description: "0 = Animal, 1 = Mineral, 2 = Villager, 3 = Resource. Default: Animal.");
+                description: "0 = Animal, 1 = Mineral, 2 = Villager, 3 = Resource, 4 = Raider. " +
+                             "Raider spawns are HOSTILE — units attack your town and camps are permanent " +
+                             "enemy structures. Default: Animal.");
 
             SpawnSubtype = _root.CreateEntry(
                 "SpawnSubtype", 0,
@@ -756,13 +762,23 @@ namespace DivineHands
                 description: "Index within the family. Animal: 0 Deer/1 Bear/2 Boar/3 Wolf/4 Fox/" +
                              "5 Groundhog/6 Dog/7 Cat (4-7 need the Cats & Dogs DLC). " +
                              "Mineral: 0 Gold/1 Iron/2 Coal/3 Stone/4 Clay/5 Sand. " +
-                             "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. Villager ignores this.");
+                             "Resource: 0 Forageable/1 Tree/2 Rock/3 Boulder. " +
+                             "Raider: 0 Raiders/1 Battering Ram/2 Camp/3 Large Camp/4 Guard Tower/" +
+                             "5 Large Guard Tower (only Raiders uses the count). Villager ignores this.");
 
             SpawnCount = _root.CreateEntry(
                 "SpawnCount", 1,
                 display_name: "Spawn Count",
                 description: "How many to place per apply (1–50). Spawns are scattered in a small ring " +
                              "around the cursor so they don't stack. Default: 1.");
+
+            SpawnRaiderUnit = _root.CreateEntry(
+                "SpawnRaiderUnit", 0,
+                display_name: "Raider Unit Type",
+                description: "Which raider type to spawn (Raider family, Raiders sub-type). 0 = Any, which " +
+                             "uses the game's own weighted mix for a random raid group. 1 and up pick one " +
+                             "specific unit from this map's raid table (spearmen, archers, and so on) and " +
+                             "spawn only that. The list depends on your raider difficulty. Default: 0 (Any).");
 
             SpawnIsDeep = _root.CreateEntry(
                 "SpawnIsDeep", false,

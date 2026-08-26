@@ -371,10 +371,11 @@ namespace DivineHands.Core
                 $"Apply: {Config.TerrainApplyKey.Value}   Undo: {Config.TerrainUndoKey.Value} (depth {Modules.TerrainElevation.UndoDepth})");
         }
 
-        private static readonly string[] Families = { "Animal", "Mineral", "Villager", "Resource" };
+        private static readonly string[] Families = { "Animal", "Mineral", "Villager", "Resource", "Raider" };
         private static readonly string[] AnimalKinds = { "Deer", "Bear", "Boar", "Wolf", "Fox", "Groundhog", "Dog", "Cat" };
         private static readonly string[] MineralKinds = { "Gold", "Iron", "Coal", "Stone", "Clay", "Sand" };
         private static readonly string[] ResourceKinds = { "Forage", "Tree", "Rock", "Boulder" };
+        private static readonly string[] RaiderKinds = { "Raiders", "Ram", "Camp", "Big Camp", "Tower", "Big Tower" };
 
         private static GameObject? _subtypeGrid;
         private static int _builtSubtypeFamily = -1;
@@ -391,7 +392,7 @@ namespace DivineHands.Core
                 {
                     if (Config.SpawnFamily.Value != fam) { Config.SpawnFamily.Value = fam; Config.SpawnSubtype.Value = 0; }
                 }, fontSize: 9.5f);
-                UiKit.Bind(() => chip.SetVisual(Mathf.Clamp(Config.SpawnFamily.Value, 0, 3) == fam));
+                UiKit.Bind(() => chip.SetVisual(Mathf.Clamp(Config.SpawnFamily.Value, 0, 4) == fam));
             }
 
             _subtypeGrid = UiKit.NewChild(box, "SubtypeGrid");
@@ -415,6 +416,11 @@ namespace DivineHands.Core
             UiKit.NewSliderRow(box, "Count", 1f, 50f, whole: true,
                 () => Config.SpawnCount.Value, v => Config.SpawnCount.Value = Mathf.RoundToInt(v),
                 () => Config.SpawnCount.Value.ToString());
+
+            UiKit.NewSliderRow(box, "Unit", 0f, 24f, whole: true,
+                () => Config.SpawnRaiderUnit.Value, v => Config.SpawnRaiderUnit.Value = Mathf.RoundToInt(v),
+                () => Modules.RaiderSpawners.UnitLabel(Config.SpawnRaiderUnit.Value),
+                visibleWhen: () => Config.SpawnFamily.Value == 4 && Config.SpawnSubtype.Value == 0);
 
             UiKit.NewToggleRow(box, "Persistent (Deer area, Wolf/Boar dens)",
                 () => Config.SpawnPersistent.Value, v => Config.SpawnPersistent.Value = v,
@@ -443,8 +449,8 @@ namespace DivineHands.Core
         private static void RefreshSubtypeGrid()
         {
             if (_subtypeGrid == null) return;
-            int family = Mathf.Clamp(Config.SpawnFamily.Value, 0, 3);
-            string[]? kinds = family switch { 0 => AnimalKinds, 1 => MineralKinds, 3 => ResourceKinds, _ => null };
+            int family = Mathf.Clamp(Config.SpawnFamily.Value, 0, 4);
+            string[]? kinds = family switch { 0 => AnimalKinds, 1 => MineralKinds, 3 => ResourceKinds, 4 => RaiderKinds, _ => null };
 
             if (kinds == null)   // Villager: no subtype picker
             {
