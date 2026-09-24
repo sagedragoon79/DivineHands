@@ -34,6 +34,34 @@ namespace DivineHands.Core
         private static RectTransform? _panelRt;
         private static DraggablePanel? _drag;
 
+        // ---- UI scale ----
+        // The canvas runs in ScaleWithScreenSize, where CanvasScaler.scaleFactor is ignored — the factor
+        // is derived from referenceResolution instead. So scaling means DIVIDING the reference resolution:
+        // a smaller reference makes every canvas unit cover more screen pixels, which grows text, controls
+        // and padding together. Scaling font sizes alone would overflow the fixed-height rows and clip.
+        private const float BaseRefWidth = 1920f, BaseRefHeight = 1080f;
+        private const float MinScale = 0.75f, MaxScale = 2.0f;
+        private static float _appliedScale = -1f;
+
+        /// <summary>Apply the user's panel scale, and re-clamp so a bigger panel can't end up off-screen.
+        /// Change-guarded: this runs every frame the panel is visible.</summary>
+        private static void SyncScale()
+        {
+            float want = Mathf.Clamp(Config.PanelScale.Value, MinScale, MaxScale);
+            if (Mathf.Approximately(want, _appliedScale)) return;
+            _appliedScale = want;
+
+            var scaler = _canvasRoot != null ? _canvasRoot.GetComponent<CanvasScaler>() : null;
+            if (scaler == null) return;
+            scaler.referenceResolution = new Vector2(BaseRefWidth / want, BaseRefHeight / want);
+
+            // The panel keeps its anchored position in canvas units, so scaling up moves it further across
+            // the screen and can push it past the edge. ApplyPosition re-clamps it into view. persist:false
+            // leaves the user's saved position alone — only the live placement is corrected.
+            if (_drag != null && _panelRt != null)
+                _drag.ApplyPosition(_panelRt.anchoredPosition, persist: false);
+        }
+
         // Section containers gated by bindings (config enables / InGame).
         private static GameObject? _notInGame;
         private static GameObject? _godSection;
@@ -69,6 +97,7 @@ namespace DivineHands.Core
             if (_canvasRoot == null) return;
             if (_canvasRoot.activeSelf != want) _canvasRoot.SetActive(want);
             if (!want) return;
+            SyncScale();
 
             try
             {
@@ -153,6 +182,10 @@ namespace DivineHands.Core
             BuildDanger(_dangerSection);
             UiKit.Bind(() => SetActive(_dangerSection,
                 Plugin.InGame && (Config.DeleteEnable.Value || Config.KillEnable.Value)));
+
+            UiKit.NewSliderRow(panelGo, "UI Scale", MinScale, MaxScale, whole: false,
+                () => Config.PanelScale.Value, v => Config.PanelScale.Value = v,
+                () => $"{Config.PanelScale.Value:0.00}x");
 
             UiKit.NewHint(panelGo, () => $"v{Plugin.Version} · Hotkeys & every setting: Keep Clarity panel (F10).", wrap: false);
 

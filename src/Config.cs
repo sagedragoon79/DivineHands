@@ -33,6 +33,10 @@ namespace DivineHands
         /// FF-styled uGUI panel. Also auto-set if the uGUI build ever fails.</summary>
         public static MelonPreferences_Entry<bool>   ClassicPanel   { get; private set; } = null!;
 
+        /// <summary>UI scale for the FF-styled panel (0.75-2.0, 1 = default). Applied by dividing the
+        /// canvas reference resolution, so text, controls and padding all scale together.</summary>
+        public static MelonPreferences_Entry<float>  PanelScale     { get; private set; } = null!;
+
         // ===== God Tools =====
 
         /// <summary>ENABLE/AVAILABLE switch for Reveal Map. When true, the Reveal Map control appears
@@ -348,6 +352,14 @@ namespace DivineHands
                 "DebugLog", false,
                 display_name: "Debug Logging",
                 description: "Verbose diagnostic output to MelonLoader.log. Default: off.");
+
+            PanelScale = _root.CreateEntry(
+                "PanelScale", 1.0f,
+                display_name: "Panel UI Scale",
+                description: "Size of the Divine Hands panel, from 0.75 (smaller) to 2.0 (double). Scales the " +
+                             "text, controls and spacing together, so nothing clips. Takes effect as you drag " +
+                             "the slider. Use this if the panel reads small on a high-resolution display. " +
+                             "Default: 1.0.");
 
             ClassicPanel = _root.CreateEntry(
                 "ClassicPanel", false,

@@ -147,6 +147,13 @@ namespace DivineHands
                         "Read-only — changes nothing in game. Runs once when switched on; toggle off then on " +
                         "to run again. Default: OFF.",
                         order: 14, indent: 20));
+            Reg(GroupGeneral, Config.PanelScale,
+                NewMeta("Panel UI Scale",
+                        "Size of the Divine Hands panel, 0.75 (smaller) to 2.0 (double). Scales text, controls " +
+                        "and spacing together so nothing clips, and updates as you drag. Use this if the panel " +
+                        "reads small on a high-resolution display. There is a matching slider at the bottom of " +
+                        "the panel itself. Default: 1.0.",
+                        min: 0.75f, max: 2.0f, order: 16, indent: 20));
             Reg(GroupGeneral, Config.ClassicPanel,
                 NewMeta("Classic Panel",
                         "Use the original lightweight IMGUI panel instead of the FF-styled one. " +
