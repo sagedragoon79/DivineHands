@@ -103,8 +103,16 @@ namespace DivineHands.Modules
                             // A negative multiplier is the inversion case: orig - orig*(-m) > orig.
                             if (v.multiplier < 0f) suspect = true;
                         }
-                        if (d.chancePerYearMax >= 0.999f) suspect = true;
-                        if (cd != null && cd.spreadRatePerDay >= 0.999f) suspect = true;
+                        // Do NOT flag on an absolute 1.0: several diseases legitimately ship at
+                        // that value (Dehydration and Frostbite are condition-gated, not random).
+                        // Only a rate that exceeds its OWN recorded original is evidence of
+                        // inflation, and that only exists once the multiplier bookkeeping has an
+                        // entry. Flagging 1.0 outright produced false positives on first run.
+                        if (mults != null && mults.TryGetValue(d.name, out var chk))
+                        {
+                            if (d.chancePerYearMax > chk.origChancePerYearMax + 1e-6f) suspect = true;
+                            if (cd != null && cd.spreadRatePerDay > chk.origSpreadRatePerDay + 1e-6f) suspect = true;
+                        }
 
                         sb.AppendLine($"  {(suspect ? "!" : " ")}{d.name,-23} {d.chancePerYearMin,10:0.#####} " +
                                       $"{d.chancePerYearMax,10:0.#####} {spread,11}   {book}");
@@ -113,8 +121,8 @@ namespace DivineHands.Modules
                 }
 
                 sb.AppendLine(flagged > 0
-                    ? $"  ⚠ {flagged} entr(ies) marked '!': pinned at the 1.0 clamp, or a negative multiplier inflating them."
-                    : "  All rates look like shipped values; no negative multipliers.");
+                    ? $"  ⚠ {flagged} entr(ies) marked '!': a negative multiplier, or a live rate above its own recorded original."
+                    : "  No inflation: every multiplier is positive and no live rate exceeds its original.");
                 sb.Append("[DivineHands] ───── end disease rates ─────");
                 MelonLogger.Msg(sb.ToString());
             }
