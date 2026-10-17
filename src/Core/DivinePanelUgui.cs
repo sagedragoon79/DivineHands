@@ -266,9 +266,26 @@ namespace DivineHands.Core
                 () => Config.InstantBuildUseMaterials.Value, v => Config.InstantBuildUseMaterials.Value = v,
                 visibleWhen: () => Config.InstantBuildEnable.Value && Modules.InstantBuild.Active, indent: 10);
 
+            // ── Progression: All Buildings (live toggle), tech point grant, Unlock All Tech ──
+            var progRow = UiKit.NewRow(section, 20f, spacing: 3);
+            var allBuildings = UiKit.NewChip(progRow, "All Buildings",
+                () => Config.UnlockAllBuildings.Value = !Config.UnlockAllBuildings.Value, fontSize: 10);
+            UiKit.Bind(() => allBuildings.SetVisual(Config.UnlockAllBuildings.Value));
+            UiKit.NewButton(progRow, "Tech Points", Modules.Progression.GrantTechPoints, height: 19f, fontSize: 10f,
+                liveLabel: () => $"+{Config.TechPointGrant.Value} Tech Pts");
+            UiKit.NewButton(progRow, "Unlock All Tech", Modules.Progression.UnlockAllTechClicked, height: 19f, fontSize: 10f,
+                liveLabel: () => Modules.Progression.AwaitingConfirm ? "Click to confirm" : "Unlock All Tech");
+            UiKit.Bind(() => SetActive(progRow, Config.EnableProgression.Value));
+            UiKit.NewSliderRow(section, "Tech pts", 1f, 50f, whole: true,
+                () => Config.TechPointGrant.Value, v => Config.TechPointGrant.Value = Mathf.RoundToInt(v),
+                () => Config.TechPointGrant.Value.ToString(),
+                visibleWhen: () => Config.EnableProgression.Value);
+
             // One shared status/hint line: free-cam controls while flying, instant-build progress.
             UiKit.NewHint(section, () =>
             {
+                if (Config.EnableProgression.Value && !string.IsNullOrEmpty(Modules.Progression.Status))
+                    return Modules.Progression.Status;
                 if (Config.InstantBuildEnable.Value && Modules.InstantBuild.Active
                     && !string.IsNullOrEmpty(Modules.InstantBuild.Status))
                     return Modules.InstantBuild.Status;
@@ -276,7 +293,7 @@ namespace DivineHands.Core
                     return $"{Config.FreeCamHotkey.Value} toggles · WASD fly · mouse look · Shift fast";
                 bool any = Config.EnableRevealMap.Value || Config.EnableBuildAnywhere.Value
                         || Config.EnableGodView.Value || Config.EnableFreeCam.Value
-                        || Config.InstantBuildEnable.Value;
+                        || Config.InstantBuildEnable.Value || Config.EnableProgression.Value;
                 return any ? "" : "(enable god tools in the Keep Clarity settings)";
             });
         }

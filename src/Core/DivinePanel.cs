@@ -205,7 +205,7 @@ namespace DivineHands.Core
 
             bool anyEnabled = Config.EnableRevealMap.Value || Config.EnableBuildAnywhere.Value
                            || Config.EnableGodView.Value || Config.EnableFreeCam.Value
-                           || Config.InstantBuildEnable.Value;
+                           || Config.InstantBuildEnable.Value || Config.EnableProgression.Value;
 
             if (!anyEnabled)
             {
@@ -243,6 +243,20 @@ namespace DivineHands.Core
                     if (!string.IsNullOrEmpty(DivineHands.Modules.InstantBuild.Status))
                         GUILayout.Label(DivineHands.Modules.InstantBuild.Status, HintStyle);
                 }
+            }
+
+            if (Config.EnableProgression.Value)
+            {
+                Config.UnlockAllBuildings.Value =
+                    GUILayout.Toggle(Config.UnlockAllBuildings.Value, "  All Buildings (ignore prerequisites)");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button($"+{Config.TechPointGrant.Value} Tech Points"))
+                    DivineHands.Modules.Progression.GrantTechPoints();
+                if (GUILayout.Button(DivineHands.Modules.Progression.AwaitingConfirm ? "Click to confirm" : "Unlock All Tech"))
+                    DivineHands.Modules.Progression.UnlockAllTechClicked();
+                GUILayout.EndHorizontal();
+                if (!string.IsNullOrEmpty(DivineHands.Modules.Progression.Status))
+                    GUILayout.Label(DivineHands.Modules.Progression.Status, HintStyle);
             }
         }
 

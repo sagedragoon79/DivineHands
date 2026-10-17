@@ -78,6 +78,10 @@ namespace DivineHands
         /// activeSaveFileName). Empty until the loaded/new game has a folder. Not user-facing.</summary>
         public static MelonPreferences_Entry<string> PersistOwnerFolder        { get; private set; } = null!;
 
+        /// <summary>Hidden: which defaults migration this config has received. 0 = written by a pre-1.3.0
+        /// build, where every feature defaulted OFF. See the migration at the end of <see cref="Initialize"/>.</summary>
+        public static MelonPreferences_Entry<int>    DefaultsVersion           { get; private set; } = null!;
+
         /// <summary>Proportional God-View zoom: while God View is on, make mouse-scroll zoom steps finer
         /// as you zoom in close (the wide god-view range otherwise makes each notch coarse near the
         /// ground). Off = vanilla flat step. Implemented as a Harmony prefix on CameraManager.AdjustZoom,
@@ -222,6 +226,17 @@ namespace DivineHands
         public static MelonPreferences_Entry<bool> InstantBuildEnable       { get; private set; } = null!;
         public static MelonPreferences_Entry<bool> InstantBuildUseMaterials { get; private set; } = null!;
 
+        /// <summary>Make the Progression tools available in the panel's God Tools section: All Buildings,
+        /// tech point grants, and Unlock All Tech. Availability only — each acts when you use it.</summary>
+        public static MelonPreferences_Entry<bool>   EnableProgression  { get; private set; } = null!;
+
+        /// <summary>While on, every building's prerequisites count as met (see Modules.Progression).
+        /// Writes nothing to the save; re-locks on the next load after you turn it off.</summary>
+        public static MelonPreferences_Entry<bool>   UnlockAllBuildings { get; private set; } = null!;
+
+        /// <summary>Tech points the panel's grant button adds per click (1-50).</summary>
+        public static MelonPreferences_Entry<int>    TechPointGrant     { get; private set; } = null!;
+
         /// <summary>Keyboard hotkey that arms/disarms the Terrain tool without clicking its tab (opens
         /// the panel when arming). Default End — matches TerrainHelper muscle memory.</summary>
         public static MelonPreferences_Entry<string> TerrainArmHotkey { get; private set; } = null!;
@@ -309,6 +324,7 @@ namespace DivineHands
         /// <summary>Diagnostic: dump the per-building "scares animals" table to the log (research aid).
         /// Runs once when switched on; toggle off/on to re-run.</summary>
         public static MelonPreferences_Entry<bool>   DiagBuildingScare { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   DiagDiseaseRates  { get; private set; } = null!;
 
         /// <summary>Livestock kind for the Add-Livestock button: 0=Cow, 1=Chicken, 2=Goat, 3=Horse
         /// (<see cref="Modules.ItemInjection.LivestockKind"/>).</summary>
@@ -354,12 +370,33 @@ namespace DivineHands
                 description: "Verbose diagnostic output to MelonLoader.log. Default: off.");
 
             PanelScale = _root.CreateEntry(
-                "PanelScale", 1.0f,
+                "PanelScale", 1.2f,
                 display_name: "Panel UI Scale",
                 description: "Size of the Divine Hands panel, from 0.75 (smaller) to 2.0 (double). Scales the " +
                              "text, controls and spacing together, so nothing clips. Takes effect as you drag " +
                              "the slider. Use this if the panel reads small on a high-resolution display. " +
-                             "Default: 1.0.");
+                             "Default: 1.2.");
+
+            EnableProgression = _root.CreateEntry(
+                "EnableProgression", true,
+                display_name: "Progression Tools",
+                description: "Show the Progression tools in the panel's God Tools section: All Buildings, a " +
+                             "tech point grant, and Unlock All Tech. Showing them changes nothing until you " +
+                             "use one. Default: on.");
+
+            UnlockAllBuildings = _root.CreateEntry(
+                "UnlockAllBuildings", false,
+                display_name: "All Buildings",
+                description: "While on, every building is available to build: tech, tier, and other-building " +
+                             "prerequisites all count as met. Writes nothing to your save. Turning it off " +
+                             "re-locks buildings the next time you load. Buildings you already placed stay. " +
+                             "Default: off.");
+
+            TechPointGrant = _root.CreateEntry(
+                "TechPointGrant", 5,
+                display_name: "Tech Points per Grant",
+                description: "How many tech points the panel's grant button adds per click (1-50). The game " +
+                             "never grants more than the tree has left to buy. Default: 5.");
 
             ClassicPanel = _root.CreateEntry(
                 "ClassicPanel", false,
@@ -368,16 +405,16 @@ namespace DivineHands
                              "one. Fallback if the styled panel misbehaves. Default: off.");
 
             EnableRevealMap = _root.CreateEntry(
-                "EnableRevealMap", false,
+                "EnableRevealMap", true,
                 display_name: "Reveal Map",
                 description: "Make Reveal Map AVAILABLE in the in-game panel. Enabling here does NOT clear " +
                              "fog — you activate it in-game from the Divine Hands panel (God Tools). " +
                              "Reveal clears the entire fog of war; toggling it off best-effort restores the " +
                              "fog you'd explored. Caveat: FF bakes explored state into the SAVE — if you save " +
-                             "while revealed, the whole map stays explored. Default: off.");
+                             "while revealed, the whole map stays explored. Default: on.");
 
             EnableBuildAnywhere = _root.CreateEntry(
-                "EnableBuildAnywhere", false,
+                "EnableBuildAnywhere", true,
                 display_name: "Build Anywhere",
                 description: "Make Build Anywhere AVAILABLE in the in-game panel. Enabling here does NOT " +
                              "change placement — you activate it in-game from the Divine Hands panel. " +
@@ -385,15 +422,15 @@ namespace DivineHands
                              "(steep slopes, no path to town, water/road overlap), and lifts the 150 m road " +
                              "length cap so you can drag roads of any length (cost still scales with the real " +
                              "length). Bridges are NOT affected — they defer to vanilla and Keep Clarity's " +
-                             "Bridge Anywhere. Default: off.");
+                             "Bridge Anywhere. Default: on.");
 
             EnableGodView = _root.CreateEntry(
-                "EnableGodView", false,
+                "EnableGodView", true,
                 display_name: "God View",
                 description: "Make God View AVAILABLE in the in-game panel. Enabling here does NOT move the " +
                              "camera — you activate it in-game from the Divine Hands panel. When active it " +
                              "relaxes the RTS camera limits so you can zoom far out, tilt to a flat/overhead " +
-                             "angle, and survey the whole map, restoring exactly when turned off. Default: off.");
+                             "angle, and survey the whole map, restoring exactly when turned off. Default: on.");
 
             PreserveOverlapTrees = _root.CreateEntry(
                 "PreserveOverlapTrees", true,
@@ -409,6 +446,7 @@ namespace DivineHands
             PersistBuildAnywhereActive = _root.CreateEntry("PersistBuildAnywhereActive", false);
             PersistGodViewActive       = _root.CreateEntry("PersistGodViewActive", false);
             PersistOwnerFolder         = _root.CreateEntry("PersistOwnerFolder", "");
+            DefaultsVersion            = _root.CreateEntry("DefaultsVersion", 0);
 
             ProportionalZoom = _root.CreateEntry(
                 "ProportionalZoom", true,
@@ -433,26 +471,26 @@ namespace DivineHands
                              "Default 450 (conservative); Pangu caps at 600. Raise for a wider survey, lower if heavy.");
 
             GodViewDisableFog = _root.CreateEntry(
-                "GodViewDisableFog", false,
+                "GodViewDisableFog", true,
                 display_name: "God View: Disable Fog",
                 description: "Turn off Unity's environmental distance fog (the haze) while God View is active, " +
                              "for a crisp Pangu-style survey. Restored on exit. This is the atmospheric fog, " +
-                             "NOT FF's fog-of-war (Reveal Map). Default: off (keep the haze — lighter on frames).");
+                             "NOT FF's fog-of-war (Reveal Map). Default: on (crisp, haze-free view).");
 
             GodViewMinAngle = _root.CreateEntry(
-                "GodViewMinAngle", 10,
+                "GodViewMinAngle", 0,
                 display_name: "God View Min Camera Angle (°)",
                 description: "Flattest camera pitch allowed while God View is on (0–35). Vanilla stops at ~35° " +
                              "(always looking down); 10 is a low sweep; 0 is dead-level with the horizon — combine " +
                              "with max zoom-in and the vanilla Follow button for an over-the-shoulder villager cam. " +
-                             "Takes effect live. Default: 10.");
+                             "Takes effect live. Default: 0.");
 
             GodViewMinZoom = _root.CreateEntry(
-                "GodViewMinZoom", 6,
+                "GodViewMinZoom", 1,
                 display_name: "God View Min Zoom (m)",
                 description: "Closest zoom-in distance while God View is on, in metres (1–6). Vanilla floors " +
                              "around 6 m; 2 m is roughly head height on a villager. Lower = closer ride-along " +
-                             "when following. Takes effect live. Default: 6.");
+                             "when following. Takes effect live. Default: 1.");
 
             HideFowHaze = _root.CreateEntry(
                 "HideFowHaze", false,
@@ -470,12 +508,12 @@ namespace DivineHands
                              "Purely visual, exploration untouched. Default: off.");
 
             EnableFreeCam = _root.CreateEntry(
-                "EnableFreeCam", false,
+                "EnableFreeCam", true,
                 display_name: "Free Cam",
                 description: "Make Free Cam AVAILABLE in the in-game panel. Enabling here does NOT detach " +
                              "the camera — you activate it in-game. Press Ctrl+F (configurable) to enter/exit, " +
                              "or use the panel toggle. WASD move, Space/Ctrl up/down, Shift fast, mouse look. " +
-                             "Exiting restores the normal camera and full RTS control exactly. Default: off.");
+                             "Exiting restores the normal camera and full RTS control exactly. Default: on.");
 
             FreeCamHotkey = _root.CreateEntry(
                 "FreeCamHotkey", "Ctrl+F",
@@ -505,20 +543,20 @@ namespace DivineHands
                              "into the backface/sky void. Turn OFF for under-the-map shots. Default: on.");
 
             FreeCamFloorClearance = _root.CreateEntry(
-                "FreeCamFloorClearance", 1.0f,
+                "FreeCamFloorClearance", 4.0f,
                 display_name: "Free Cam Floor Clearance",
                 description: "Metres the ground floor sits above the terrain surface. Small values let you " +
                              "skim the ground for low cinematic shots; 0 rides the surface (may clip the " +
-                             "near plane). Default: 1.0 m.");
+                             "near plane). Default: 4.0 m.");
 
             // ===== Terrain Sculpting =====
 
             TerrainEnable = _root.CreateEntry(
-                "TerrainEnable", false,
+                "TerrainEnable", true,
                 display_name: "Terrain Sculpting",
                 description: "Enable the terrain-elevation god-power (Raise/Lower/Smooth/Flatten). " +
                              "When on, select Terrain in the panel and apply with the apply key over the " +
-                             "world. Default: off.");
+                             "world. Default: on.");
 
             TerrainMode = _root.CreateEntry(
                 "TerrainMode", 0,
@@ -528,53 +566,53 @@ namespace DivineHands
                              "level, TerrainHelper-style; Smooth only de-bumps and keeps slopes.) Default: Raise.");
 
             TerrainStrength = _root.CreateEntry(
-                "TerrainStrength", 1.0f,
+                "TerrainStrength", 0.74f,
                 display_name: "Brush Strength",
                 description: "Raise/Lower height change in world metres per application (also the Smooth " +
                              "and Average step size). Flatten ignores this — it sets the brush to the " +
-                             "cursor's height. Default: 1.0.");
+                             "cursor's height. Default: 0.74.");
 
             TerrainGridWidth = _root.CreateEntry(
-                "TerrainGridWidth", 3,
+                "TerrainGridWidth", 5,
                 display_name: "Brush Grid Width",
                 description: "Brush footprint width (X / columns) in heightmap cells (1–20). Adjust live " +
                              "with Left/Right arrows while the brush is armed. Each cell is ~Resolution " +
-                             "metres (~5 m). Default: 3.");
+                             "metres (~5 m). Default: 5.");
 
             TerrainGridHeight = _root.CreateEntry(
-                "TerrainGridHeight", 3,
+                "TerrainGridHeight", 5,
                 display_name: "Brush Grid Depth",
                 description: "Brush footprint depth (Z / rows) in heightmap cells (1–20). Adjust live with " +
                              "Up/Down arrows while the brush is armed; Tab swaps width and depth. " +
-                             "Use e.g. 1×20 to carve a path. Default: 3.");
+                             "Use e.g. 1×20 to carve a path. Default: 5.");
 
             TerrainGridFineSnap = _root.CreateEntry(
-                "TerrainGridFineSnap", false,
+                "TerrainGridFineSnap", true,
                 display_name: "Fine Grid Positioning",
                 description: "When on, the grid overlay snaps to HALF-cell steps so you can square up " +
                              "free-build buildings (TerrainHelper-style). It's a placement guide — the " +
                              "sculpt still resolves to the nearest whole heightmap cells on apply, so for " +
-                             "crisp flat pads leave this off. Default: off.");
+                             "crisp flat pads leave this off. Default: on.");
 
             // ===== Lake / Pond stamp =====
-            LakeEnable = _root.CreateEntry("LakeEnable", false,
+            LakeEnable = _root.CreateEntry("LakeEnable", true,
                 display_name: "Lake / Pond Stamp",
                 description: "Make the Lake stamp available (adds its tab to the in-game panel). Stamps a " +
-                             "carved, water-filled lake at the cursor (mirrors Pangu). Default: off.");
+                             "carved, water-filled lake at the cursor (mirrors Pangu). Default: on.");
             LakeShape = _root.CreateEntry("LakeShape", 0,
                 display_name: "Lake Shape", description: "0 = Rectangle, 1 = Circle.");
-            LakeGridWidth = _root.CreateEntry("LakeGridWidth", 5,
+            LakeGridWidth = _root.CreateEntry("LakeGridWidth", 1,
                 display_name: "Lake Width", description: "Core footprint half-width (X) in cells (1–10). Arrow keys resize while armed.");
-            LakeGridHeight = _root.CreateEntry("LakeGridHeight", 5,
+            LakeGridHeight = _root.CreateEntry("LakeGridHeight", 1,
                 display_name: "Lake Depth (cells)", description: "Core footprint half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
-            LakeFillRatio = _root.CreateEntry("LakeFillRatio", 1.0f,
-                display_name: "Fill Ratio", description: "Grows the lake size — multiplies the Width/Depth (1.0–2.0). Default: 1.0 (no growth).");
-            LakeCarveDepth = _root.CreateEntry("LakeCarveDepth", 4.6f,
-                display_name: "Carve Depth", description: "How far the lake bed sits below the water plane, world metres (0.45–12). Default: 4.6.");
-            LakeShoreWidth = _root.CreateEntry("LakeShoreWidth", 16f,
-                display_name: "Shore Blend", description: "Outer-blend ring width that ramps the banks back up to land (2–40). Default: 16.");
-            LakeNoGoWidth = _root.CreateEntry("LakeNoGoWidth", 0f,
-                display_name: "Extra Size", description: "Extra cells added to the lake footprint on every side (0–24). Default: 0.");
+            LakeFillRatio = _root.CreateEntry("LakeFillRatio", 1.63f,
+                display_name: "Fill Ratio", description: "Grows the lake size — multiplies the Width/Depth (1.0–2.0). Default: 1.63.");
+            LakeCarveDepth = _root.CreateEntry("LakeCarveDepth", 4.0f,
+                display_name: "Carve Depth", description: "How far the lake bed sits below the water plane, world metres (0.45–12). Default: 4.0.");
+            LakeShoreWidth = _root.CreateEntry("LakeShoreWidth", 12f,
+                display_name: "Shore Blend", description: "Outer-blend ring width that ramps the banks back up to land (2–40). Default: 12.");
+            LakeNoGoWidth = _root.CreateEntry("LakeNoGoWidth", 7f,
+                display_name: "Extra Size", description: "Extra cells added to the lake footprint on every side (0–24). Default: 7.");
             LakeArmHotkey = _root.CreateEntry("LakeArmHotkey", "Insert",
                 display_name: "Lake Arm Hotkey", description: "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.");
             LakeApplyKey = _root.CreateEntry("LakeApplyKey", "Ctrl+Mouse0",
@@ -589,18 +627,18 @@ namespace DivineHands
                              "on load — no full map re-save. The file is removed when you delete the save. Default: on.");
 
             // ===== Fertility painter =====
-            FertilityEnable = _root.CreateEntry("FertilityEnable", false,
+            FertilityEnable = _root.CreateEntry("FertilityEnable", true,
                 display_name: "Fertility Painter",
                 description: "Make the Fertility painter available (adds its tab to the in-game panel). Paints soil " +
-                             "fertility over an adjustable area — persists with the save. Default: off.");
+                             "fertility over an adjustable area — persists with the save. Default: on.");
             FertilityShape = _root.CreateEntry("FertilityShape", 0,
                 display_name: "Fertility Shape", description: "0 = Rectangle, 1 = Circle.");
-            FertilityGridWidth = _root.CreateEntry("FertilityGridWidth", 5,
+            FertilityGridWidth = _root.CreateEntry("FertilityGridWidth", 10,
                 display_name: "Fertility Width", description: "Brush half-width (X) in cells (1–10). Arrow keys resize while armed.");
-            FertilityGridHeight = _root.CreateEntry("FertilityGridHeight", 5,
+            FertilityGridHeight = _root.CreateEntry("FertilityGridHeight", 10,
                 display_name: "Fertility Depth", description: "Brush half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
-            FertilityAmount = _root.CreateEntry("FertilityAmount", 80f,
-                display_name: "Fertility %", description: "Target soil fertility the brush paints (0–100%). Default: 80.");
+            FertilityAmount = _root.CreateEntry("FertilityAmount", 100f,
+                display_name: "Fertility %", description: "Target soil fertility the brush paints (0–100%). Default: 100.");
             FertilityMult = _root.CreateEntry("FertilityMult", 100f,
                 display_name: "Fertilizer Effectiveness %", description: "Per-cell fertilizer/compost effectiveness the brush sets (0–100%). Default: 100.");
             FertilityConditionSoil = _root.CreateEntry("FertilityConditionSoil", false,
@@ -619,32 +657,32 @@ namespace DivineHands
                 display_name: "Fertility Apply Key", description: "Key/button that paints fertility at the cursor. Default: Ctrl+Mouse1 (Ctrl + right-click).");
 
             // ===== Forest brush =====
-            ForestEnable = _root.CreateEntry("ForestEnable", false,
+            ForestEnable = _root.CreateEntry("ForestEnable", true,
                 display_name: "Forest Brush",
                 description: "Make the Forest brush available (adds its tab to the in-game panel). Plants the map's " +
                              "own trees across an adjustable area at a target coverage, optionally setting soil " +
-                             "fertility too (Pangu's forest brush). Default: off.");
-            ForestShape = _root.CreateEntry("ForestShape", 0,
+                             "fertility too (Pangu's forest brush). Default: on.");
+            ForestShape = _root.CreateEntry("ForestShape", 1,
                 display_name: "Forest Shape", description: "0 = Rectangle, 1 = Circle.");
             ForestGridWidth = _root.CreateEntry("ForestGridWidth", 5,
                 display_name: "Forest Width", description: "Brush half-width (X) in cells (1–10). Arrow keys resize while armed.");
             ForestGridHeight = _root.CreateEntry("ForestGridHeight", 5,
                 display_name: "Forest Depth", description: "Brush half-depth (Z) in cells (1–10). Arrow keys resize while armed.");
-            ForestCoverage = _root.CreateEntry("ForestCoverage", 26f,
+            ForestCoverage = _root.CreateEntry("ForestCoverage", 100f,
                 display_name: "Forest Coverage %",
                 description: "Target tree coverage of the footprint (0–100%). Existing trees count toward it, so " +
-                             "re-applying tops up to the target rather than stacking. Default: 26.");
+                             "re-applying tops up to the target rather than stacking. Default: 100.");
             ForestVariance = _root.CreateEntry("ForestVariance", 1.1f,
                 display_name: "Forest Variance",
                 description: "Random xz jitter (metres) applied to each planted tree so they don't grid-align. Default: 1.1.");
-            ForestSetFertility = _root.CreateEntry("ForestSetFertility", false,
+            ForestSetFertility = _root.CreateEntry("ForestSetFertility", true,
                 display_name: "Forest Sets Fertility",
                 description: "Also write CROP/soil fertility under the brush (like Pangu). NOTE: this does not speed " +
                              "up the trees you plant — their growth runs off the biome/tech system, not soil " +
                              "fertility — so it only conditions the ground for crops/orchards farmed there later. " +
-                             "Off = plant trees only, leave soil untouched. Default: off.");
-            ForestFertility = _root.CreateEntry("ForestFertility", 50f,
-                display_name: "Forest Fertility %", description: "Soil fertility the brush sets when 'Sets Fertility' is on (0–100%). Default: 50.");
+                             "Off = plant trees only, leave soil untouched. Default: on.");
+            ForestFertility = _root.CreateEntry("ForestFertility", 100f,
+                display_name: "Forest Fertility %", description: "Soil fertility the brush sets when 'Sets Fertility' is on (0–100%). Default: 100.");
             ForestFertilityMult = _root.CreateEntry("ForestFertilityMult", 100f,
                 display_name: "Forest Fertilizer Effectiveness %", description: "Per-cell fertilizer effectiveness set alongside fertility (0–100%). Default: 100.");
             ForestArmHotkey = _root.CreateEntry("ForestArmHotkey", "Shift+Insert",
@@ -655,12 +693,12 @@ namespace DivineHands
                 display_name: "Forest Apply Key", description: "Key/button that plants the forest at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse1.");
 
             // ===== Mountain brush =====
-            MountainEnable = _root.CreateEntry("MountainEnable", false,
+            MountainEnable = _root.CreateEntry("MountainEnable", true,
                 display_name: "Mountain Brush",
                 description: "Make the Mountain brush available (adds its tab to the in-game panel). Raises rocky " +
                              "terrain, repaints the ground to rock, and (when the amount sliders are above 0) spawns " +
-                             "stone/ore/wildlife — Pangu's mountain brush, pared to 7 sliders. Default: off.");
-            MountainShape = _root.CreateEntry("MountainShape", 0,
+                             "stone/ore/wildlife — Pangu's mountain brush, pared to 7 sliders. Default: on.");
+            MountainShape = _root.CreateEntry("MountainShape", 1,
                 display_name: "Mountain Shape", description: "0 = Rectangle, 1 = Circle.");
             MountainGridWidth = _root.CreateEntry("MountainGridWidth", 5,
                 display_name: "Mountain Width", description: "Brush half-width (X) in cells (1–10). Arrow keys resize while armed.");
@@ -677,8 +715,8 @@ namespace DivineHands
             MountainRuggedness = _root.CreateEntry("MountainRuggedness", 55f,
                 display_name: "Mountain Ruggedness",
                 description: "Jaggedness of the peaks — ridge-noise strength + peak spread (0–100%). Low = smooth dome, high = craggy. Default: 55.");
-            MountainTexture = _root.CreateEntry("MountainTexture", 90f,
-                display_name: "Mountain Rocky Texture", description: "How strongly the ground is repainted to rock (0–100%). Default: 90.");
+            MountainTexture = _root.CreateEntry("MountainTexture", 100f,
+                display_name: "Mountain Rocky Texture", description: "How strongly the ground is repainted to rock (0–100%). Default: 100.");
             MountainRockOre = _root.CreateEntry("MountainRockOre", 0f,
                 display_name: "Mountain Rock/Ore Amount",
                 description: "Density of scattered stone + mineral (iron/gold/coal/clay/sand/stone) deposits placed on " +
@@ -694,44 +732,44 @@ namespace DivineHands
                 display_name: "Mountain Apply Key", description: "Key/button that raises the mountain at the cursor. Mouse buttons: Mouse0 = left-click, Mouse1 = right-click, Mouse2 = middle-click. Default: Ctrl+Mouse1.");
 
             // ===== Delete Selected =====
-            DeleteEnable = _root.CreateEntry("DeleteEnable", false,
+            DeleteEnable = _root.CreateEntry("DeleteEnable", true,
                 display_name: "Delete Selected",
                 description: "Adds a 'Selected Object' section to the in-game panel + a hotkey that instantly " +
                              "deletes the SELECTED resource node (ore / clay-sand-stone pit / tree / rock / " +
                              "forageable) or building (mine, quarry, pit, deep mine — or any building). " +
-                             "Villagers/animals/crops are never touched. Destructive + no undo — off by default.");
+                             "Villagers/animals/crops are never touched. Destructive, with no undo. Default: on.");
             DeleteHotkey = _root.CreateEntry("DeleteHotkey", "Ctrl+Delete",
                 display_name: "Delete Hotkey",
                 description: "Key/chord that deletes the selected node/building. Default: Ctrl+Delete (a deliberate " +
                              "chord so it can't fire by accident).");
-            DeleteRefund = _root.CreateEntry("DeleteRefund", false,
+            DeleteRefund = _root.CreateEntry("DeleteRefund", true,
                 display_name: "Refund on Delete",
                 description: "When deleting a BUILDING, refund its materials + drop its stored items on the ground " +
-                             "(vanilla demolish behaviour). Off = clean vaporize, no clutter. Default: off.");
+                             "(vanilla demolish behaviour). Off = clean vaporize, no clutter. Default: on.");
 
             // ===== Kill Selected =====
-            KillEnable = _root.CreateEntry("KillEnable", false,
+            KillEnable = _root.CreateEntry("KillEnable", true,
                 display_name: "Kill Selected",
                 description: "Adds a 'Kill Selected' section to the in-game panel + a hotkey that instantly kills the " +
                              "selected LIVING creature(s) — villagers, raiders, and any animal (wild, livestock, or " +
                              "pet). Kills every creature in the current selection. Runs the game's own death path " +
-                             "(proper removal + died-events). Mainly a testing aid, but this is a god mod. Off by default.");
+                             "(proper removal + died-events). Mainly a testing aid, but this is a god mod. Default: on.");
             KillHotkey = _root.CreateEntry("KillHotkey", "Ctrl+D",
                 display_name: "Kill Hotkey",
                 description: "Key/chord that kills the selected creature. Default: Ctrl+K (a deliberate chord so it " +
                              "can't fire by accident).");
 
             // ===== Instant Build =====
-            InstantBuildEnable = _root.CreateEntry("InstantBuildEnable", false,
+            InstantBuildEnable = _root.CreateEntry("InstantBuildEnable", true,
                 display_name: "Instant Build",
                 description: "Make Instant Build available in the in-game panel. When ACTIVATED there, every build " +
                              "site — newly placed AND already pending — completes on the next frame via the game's " +
-                             "own completion path. Resets off on every map load. Default: off.");
-            InstantBuildUseMaterials = _root.CreateEntry("InstantBuildUseMaterials", true,
+                             "own completion path. Resets off on every map load. Default: on.");
+            InstantBuildUseMaterials = _root.CreateEntry("InstantBuildUseMaterials", false,
                 display_name: "Instant Build Uses Materials",
                 description: "Charge the required construction materials from town storage up-front when instantly " +
                              "completing a building (labor is always free). Sites the town can't afford are left to " +
-                             "construct normally. Off = material-free god building. Default: on.");
+                             "construct normally. Off = material-free god building. Default: off.");
 
             TerrainArmHotkey = _root.CreateEntry(
                 "TerrainArmHotkey", "End",
@@ -755,11 +793,11 @@ namespace DivineHands
             // ===== Cursor Spawners =====
 
             SpawnEnable = _root.CreateEntry(
-                "SpawnEnable", false,
+                "SpawnEnable", true,
                 display_name: "Cursor Spawners",
                 description: "Enable the cursor-spawner god-power. With it on, pick a family in the panel, " +
                              "arm the spawner, and press the apply key over the world to place things at the " +
-                             "cursor. Default: off.");
+                             "cursor. Default: on.");
 
             SpawnFamily = _root.CreateEntry(
                 "SpawnFamily", 0,
@@ -793,11 +831,11 @@ namespace DivineHands
                              "spawn only that. The list depends on your raider difficulty. Default: 0 (Any).");
 
             SpawnIsDeep = _root.CreateEntry(
-                "SpawnIsDeep", false,
+                "SpawnIsDeep", true,
                 display_name: "Deep Deposit (gold/iron/coal)",
                 description: "Minerals only. When on, gold/iron/coal spawn as a DEEP (effectively " +
                              "infinite) deposit. Stone/clay/sand always spawn as infinite pits regardless. " +
-                             "Default: off.");
+                             "Default: on.");
 
             SpawnAnnounceVillagers = _root.CreateEntry(
                 "SpawnAnnounceVillagers", false,
@@ -868,11 +906,11 @@ namespace DivineHands
             // ===== Item Injection (selected building) =====
 
             InjectEnable = _root.CreateEntry(
-                "InjectEnable", false,
+                "InjectEnable", true,
                 display_name: "Item Injection",
                 description: "Enable item injection on the selected building. With it on, select a " +
                              "building in-game, then use the panel's Selected Building section to add " +
-                             "items, add livestock, or toggle infinite storage. Default: off.");
+                             "items, add livestock, or toggle infinite storage. Default: on.");
 
             InjectItemIndex = _root.CreateEntry(
                 "InjectItemIndex", 0,
@@ -895,15 +933,25 @@ namespace DivineHands
                              "in game. Runs once when switched on; toggle off then on to run again. " +
                              "Default: off.");
 
+            DiagDiseaseRates = _root.CreateEntry(
+                "DiagDiseaseRates", false,
+                display_name: "Log: Disease Rates",
+                description: "Write every disease's LIVE contraction and spread rates to the MelonLoader " +
+                             "log, next to the multiplier bookkeeping that modifies them. Those numbers are " +
+                             "mutable at runtime and nothing in game shows them. Entries are flagged when a " +
+                             "rate is pinned at 100% or a multiplier has gone negative, which inflates " +
+                             "disease instead of reducing it. Read-only — changes nothing in game. Runs once " +
+                             "when switched on; toggle off then on to run again. Default: off.");
+
             InjectUnrestricted = _root.CreateEntry(
-                "InjectUnrestricted", false,
+                "InjectUnrestricted", true,
                 display_name: "Unrestricted Injection",
                 description: "Bypass the smart eligibility filter — EVERY item becomes injectable into " +
                              "any selected building that has storage (firewood into a hunter cabin, ore " +
                              "into a house, whatever you want). Off = the default per-building filter: " +
                              "storage buildings take their allow-list, producers their recipe inputs, " +
                              "gatherers their trade goods, and every building tops up what it already " +
-                             "holds. Default: off.");
+                             "holds. Default: on.");
 
             InjectLivestockKind = _root.CreateEntry(
                 "InjectLivestockKind", 0,
@@ -933,7 +981,44 @@ namespace DivineHands
                 display_name: "Horse Prefab GUID",
                 description: "Prefab GUID instantiated when adding a Horse to a Stable.");
 
+            MigrateDefaults();
+
             MelonLogger.Msg("[DivineHands] Config initialized");
+        }
+
+        /// <summary>
+        /// One-time migration to the 1.3.0 defaults, where every feature is available out of the box.
+        ///
+        /// Changing a default only reaches players who never saved that setting. MelonLoader writes every
+        /// entry to MelonPreferences.cfg on first launch, so anyone who ran an older build already has
+        /// <c>false</c> stored for each feature — the new default would never reach the players who are
+        /// confused about how to turn features on. This flips each availability toggle that is still at the
+        /// old default (off) to on, once, then records <see cref="DefaultsVersion"/> = 1 so it never runs again.
+        ///
+        /// Only the availability toggles migrate: they add tabs and buttons to the panel and activate nothing
+        /// by themselves. Delete Selected and Kill Selected are deliberately excluded — enabling them arms a
+        /// destructive hotkey, which an existing player shouldn't get without opting in. Tuning values and
+        /// behavior options also stay as each player has them. Fresh installs get every new default directly.
+        /// A player who had deliberately turned a feature off can't be told apart from one who never touched
+        /// it; they get it back once, and switching it off again sticks.
+        /// </summary>
+        private static void MigrateDefaults()
+        {
+            if (DefaultsVersion.Value >= 1) return;
+
+            var availability = new[]
+            {
+                EnableRevealMap, EnableBuildAnywhere, EnableGodView, EnableFreeCam, InstantBuildEnable,
+                TerrainEnable, SpawnEnable, LakeEnable, FertilityEnable, ForestEnable, MountainEnable,
+                InjectEnable,
+            };
+            int flipped = 0;
+            foreach (var e in availability)
+                if (!e.Value) { e.Value = true; flipped++; }
+
+            DefaultsVersion.Value = 1;
+            MelonLogger.Msg($"[DivineHands] Defaults updated for 1.3.0: {flipped} feature(s) made available " +
+                            "in the panel. Turn any of them off in the Keep Clarity settings (F10) if you prefer.");
         }
     }
 }

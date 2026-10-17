@@ -20,7 +20,7 @@ namespace DivineHands.Patches
     /// flag (no game reflection), owns the damping itself (<c>baseStep</c>, since God View no longer sets
     /// <c>zoomUnlocked</c>), and treats <c>CalculateZoom()</c> [59689] as OPTIONAL — if it can't be bound
     /// (rename / added overload) the taper is simply dropped and a flat scale is used. Vanilla zoom (God
-    /// View off) is untouched. Auto-registered via Plugin's HarmonyInstance.PatchAll.
+    /// View off) is untouched. Applied automatically by MelonLoader's attribute scan.
     /// </summary>
     [HarmonyPatch(typeof(CameraManager), "AdjustZoom")]
     internal static class CameraZoomPatch

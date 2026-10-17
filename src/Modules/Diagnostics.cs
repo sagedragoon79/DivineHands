@@ -20,20 +20,38 @@ namespace DivineHands.Modules
     ///     is a per-PREFAB inspector flag (public field, default true, never assigned in code), so the
     ///     only way to know the real values is to read the loaded prefabs — which is what this does.
     ///     Crop fields are a separate path (+100 per field → always evicts) and aren't in this table.
+    ///
+    ///   • DISEASE RATES — the LIVE contraction and spread numbers on every Disease asset, next to
+    ///     the multiplier bookkeeping that modifies them. Worth having because those numbers are
+    ///     mutable at runtime and nothing in game surfaces them.
+    ///
+    ///     GE_DiseaseChanceAndSpreadModify writes straight into the shared Disease ScriptableObjects
+    ///     and keeps the pre-modification values in TechTreeManager.geDiseaseChanceAndSpreadMultipliers
+    ///     so it can undo itself. It applies `orig - orig * multiplier`, clamped to 0..1 — so a
+    ///     multiplier that ends up NEGATIVE does not reduce disease, it multiplies it UP, potentially
+    ///     to a flat 100%. This dump makes that visible: compare `live` against `orig`, and read the
+    ///     multiplier's sign.
     /// </summary>
     internal static class Diagnostics
     {
         private static bool _scareDumpDone;
+        private static bool _diseaseDumpDone;
 
         /// <summary>New map: allow the dumps to run again.</summary>
-        public static void OnMapLoaded() => _scareDumpDone = false;
+        public static void OnMapLoaded() { _scareDumpDone = false; _diseaseDumpDone = false; }
 
-        public static void OnSceneExit() => _scareDumpDone = false;
+        public static void OnSceneExit() { _scareDumpDone = false; _diseaseDumpDone = false; }
 
         public static void OnUpdate()
         {
             // Run-once-per-enable: turning the pref off re-arms it, so the user can re-run a dump
             // on the current map without reloading.
+            if (Config.DiagDiseaseRates.Value)
+            {
+                if (!_diseaseDumpDone) { _diseaseDumpDone = true; DumpDiseaseRates(); }
+            }
+            else _diseaseDumpDone = false;
+
             if (!Config.DiagBuildingScare.Value) { _scareDumpDone = false; return; }
             if (_scareDumpDone) return;
             _scareDumpDone = true;
@@ -42,6 +60,70 @@ namespace DivineHands.Modules
 
         /// <summary>Log every building prefab's <c>scaresAnimals</c> flag, grouped so the exempt ones
         /// (the interesting answer) come first.</summary>
+        /// <summary>
+        /// Print every disease's live contraction and spread rates beside the stored originals.
+        ///
+        /// Shipped values for reference (read from resources.assets, 2026-10): influenza is one of
+        /// the WEAKEST diseases in the game at 0.2% per year and 0.8% spread per day; smallpox is
+        /// 0.35%/6%; bubonic plague 8%/6%. If a live number is orders above its shipped value, or
+        /// sitting at a flat 1.0, something has inflated it and the multiplier below will show a
+        /// negative sign.
+        /// </summary>
+        private static void DumpDiseaseRates()
+        {
+            try
+            {
+                var gm = GameManager.Instance;
+                var dm = gm != null ? gm.diseaseManager : null;
+                var ttm = gm != null ? gm.techTreeManager : null;
+                if (dm == null) { MelonLogger.Warning("[DivineHands] Disease dump: no DiseaseManager."); return; }
+
+                var mults = ttm != null ? ttm.geDiseaseChanceAndSpreadMultipliers : null;
+
+                var sb = new StringBuilder();
+                sb.AppendLine("[DivineHands] ───── DISEASE RATES (live) ─────");
+                sb.AppendLine($"  {"asset",-24} {"live min",10} {"live max",10} {"spread/day",11}   multiplier bookkeeping");
+
+                int flagged = 0;
+                foreach (var list in new[] { dm.contagiousDiseases?.diseases, dm.personalDiseases?.diseases })
+                {
+                    if (list == null) continue;
+                    foreach (var d in list)
+                    {
+                        if (d == null) continue;
+                        var cd = d as ContagiousDisease;
+                        string spread = cd != null ? cd.spreadRatePerDay.ToString("0.#####") : "-";
+
+                        string book = "(none)";
+                        bool suspect = false;
+                        if (mults != null && mults.TryGetValue(d.name, out var v))
+                        {
+                            book = $"mult {v.multiplier:+0.###;-0.###;0} | orig {v.origChancePerYearMin:0.#####}/" +
+                                   $"{v.origChancePerYearMax:0.#####} spread {v.origSpreadRatePerDay:0.#####}";
+                            // A negative multiplier is the inversion case: orig - orig*(-m) > orig.
+                            if (v.multiplier < 0f) suspect = true;
+                        }
+                        if (d.chancePerYearMax >= 0.999f) suspect = true;
+                        if (cd != null && cd.spreadRatePerDay >= 0.999f) suspect = true;
+
+                        sb.AppendLine($"  {(suspect ? "!" : " ")}{d.name,-23} {d.chancePerYearMin,10:0.#####} " +
+                                      $"{d.chancePerYearMax,10:0.#####} {spread,11}   {book}");
+                        if (suspect) flagged++;
+                    }
+                }
+
+                sb.AppendLine(flagged > 0
+                    ? $"  ⚠ {flagged} entr(ies) marked '!': pinned at the 1.0 clamp, or a negative multiplier inflating them."
+                    : "  All rates look like shipped values; no negative multipliers.");
+                sb.Append("[DivineHands] ───── end disease rates ─────");
+                MelonLogger.Msg(sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning("[DivineHands] Disease dump failed: " + ex.Message);
+            }
+        }
+
         private static void DumpAnimalScareTable()
         {
             try

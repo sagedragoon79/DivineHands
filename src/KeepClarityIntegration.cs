@@ -152,7 +152,7 @@ namespace DivineHands
                         "Size of the Divine Hands panel, 0.75 (smaller) to 2.0 (double). Scales text, controls " +
                         "and spacing together so nothing clips, and updates as you drag. Use this if the panel " +
                         "reads small on a high-resolution display. There is a matching slider at the bottom of " +
-                        "the panel itself. Default: 1.0.",
+                        "the panel itself. Default: 1.2.",
                         min: 0.75f, max: 2.0f, order: 16, indent: 20));
             Reg(GroupGeneral, Config.ClassicPanel,
                 NewMeta("Classic Panel",
@@ -168,7 +168,7 @@ namespace DivineHands
                         "Makes Reveal Map available in the in-game Divine Hands panel — you activate it " +
                         "there, not here. When activated it clears the entire fog of war; toggling it off " +
                         "best-effort restores the fog you'd explored. Caveat: FF serializes explored state " +
-                        "into the save — if you save while revealed, the whole map stays explored. Default: OFF.",
+                        "into the save — if you save while revealed, the whole map stays explored. Default: ON.",
                         order: 100));
             Reg(GroupGodTools, Config.EnableBuildAnywhere,
                 NewMeta("Build Anywhere",
@@ -177,7 +177,7 @@ namespace DivineHands
                         "(steep slopes, no path to town, water/road overlap), and lifts the 150 m road length " +
                         "cap (drag roads of any length; cost still scales with the real length). Bridges are " +
                         "left alone so they keep deferring to vanilla and Keep Clarity's Bridge Anywhere. " +
-                        "Default: OFF.",
+                        "Default: ON.",
                         order: 110));
             Reg(GroupGodTools, Config.PreserveOverlapTrees,
                 NewMeta("Keep Overlapping Trees",
@@ -190,7 +190,7 @@ namespace DivineHands
                 NewMeta("God View",
                         "Makes God View available in the in-game panel — you activate it there, not here. " +
                         "When activated it relaxes the RTS camera limits — zoom far out, tilt to a flat/" +
-                        "overhead angle, survey the whole map — restoring exactly when turned off. Default: OFF.",
+                        "overhead angle, survey the whole map — restoring exactly when turned off. Default: ON.",
                         order: 120));
             Reg(GroupGodTools, Config.ProportionalZoom,
                 NewMeta("Proportional Zoom",
@@ -215,20 +215,20 @@ namespace DivineHands
             Reg(GroupGodTools, Config.GodViewDisableFog,
                 NewMeta("Disable Fog (God View)",
                         "Turn off the environmental distance haze while God View is active (crisp, Pangu-style). " +
-                        "Restored on exit. Separate from fog-of-war / Reveal Map. Default: OFF (keep haze, lighter on frames).",
+                        "Restored on exit. Separate from fog-of-war / Reveal Map. Default: ON (crisp, haze-free view).",
                         order: 124, indent: 20,
                         visibleWhen: () => Config.EnableGodView.Value));
             Reg(GroupGodTools, Config.GodViewMinZoom,
                 NewMeta("Min Zoom-In (m)",
                         "Closest god-view zoom, metres (1–6). Vanilla floors ~6; 2 is about villager head height. " +
                         "Combine with Min Camera Angle 0 and the vanilla Follow button for an over-the-shoulder " +
-                        "villager cam. Live — tune while following. Default: 6.",
+                        "villager cam. Live — tune while following. Default: 1.",
                         min: 1, max: 6, order: 125, indent: 20,
                         visibleWhen: () => Config.EnableGodView.Value));
             Reg(GroupGodTools, Config.GodViewMinAngle,
                 NewMeta("Min Camera Angle (°)",
                         "Flattest camera pitch while God View is on (0–35). Vanilla stops ~35 (always looking down); " +
-                        "0 is level with the horizon. Live — tune while following. Default: 10.",
+                        "0 is level with the horizon. Live — tune while following. Default: 0.",
                         min: 0, max: 35, order: 126, indent: 20,
                         visibleWhen: () => Config.EnableGodView.Value));
             Reg(GroupGodTools, Config.HideFowHaze,
@@ -248,7 +248,7 @@ namespace DivineHands
                         "Makes Free Cam available in the in-game panel — you activate it there, not here. " +
                         "Press Ctrl+F (configurable) to enter/exit, or use the panel toggle. WASD move, " +
                         "Space/Ctrl up/down, Shift fast, mouse look. Exiting restores the normal camera " +
-                        "exactly. Default: OFF.",
+                        "exactly. Default: ON.",
                         order: 130));
             Reg(GroupGodTools, Config.FreeCamHotkey,
                 NewMeta("Free Cam Hotkey",
@@ -280,7 +280,7 @@ namespace DivineHands
             Reg(GroupGodTools, Config.FreeCamFloorClearance,
                 NewMeta("Free Cam Floor Clearance",
                         "Metres the floor sits above the surface. Small = ground-level skim shots; 0 rides " +
-                        "the surface (may clip the near plane). Default: 1.0 m.",
+                        "the surface (may clip the near plane). Default: 4.0 m.",
                         min: 0f, max: 20f, order: 136, indent: 20,
                         visibleWhen: () => Config.EnableFreeCam.Value && Config.FreeCamGroundFloor.Value));
 
@@ -288,19 +288,39 @@ namespace DivineHands
                 NewMeta("Instant Build",
                         "Makes Instant Build available in the in-game panel — you activate it there, not here. " +
                         "While active, every build site (newly placed and already pending) completes on the next " +
-                        "frame via the game's own completion path. Resets off on every map load. Default: OFF.",
+                        "frame via the game's own completion path. Resets off on every map load. Default: ON.",
                         order: 140));
             Reg(GroupGodTools, Config.InstantBuildUseMaterials,
                 NewMeta("Instant Build Uses Materials",
                         "Charge the required construction materials from town storage up-front when instantly " +
                         "completing a building (labor is always free). Sites the town can't afford are left to " +
-                        "construct normally. Off = material-free god building. Default: ON.",
+                        "construct normally. Off = material-free god building. Default: OFF.",
                         order: 141, indent: 20,
                         visibleWhen: () => Config.InstantBuildEnable.Value));
+            Reg(GroupGodTools, Config.EnableProgression,
+                NewMeta("Progression Tools",
+                        "Show the Progression tools in the panel's God Tools section: All Buildings, a tech " +
+                        "point grant, and Unlock All Tech. Showing them changes nothing until you use one. " +
+                        "Default: ON.",
+                        order: 140));
+            Reg(GroupGodTools, Config.UnlockAllBuildings,
+                NewMeta("All Buildings",
+                        "While on, every building is available to build: tech, tier, and other-building " +
+                        "prerequisites all count as met. Writes nothing to your save. Turning it off re-locks " +
+                        "buildings the next time you load; buildings you already placed stay. Default: OFF.",
+                        order: 141, indent: 20,
+                        visibleWhen: () => Config.EnableProgression.Value));
+            Reg(GroupGodTools, Config.TechPointGrant,
+                NewMeta("Tech Points per Grant",
+                        "How many tech points the panel's grant button adds per click. The game never grants " +
+                        "more than the tree has left to buy. Default: 5.",
+                        min: 1, max: 50, order: 142, indent: 20,
+                        visibleWhen: () => Config.EnableProgression.Value));
 
             // Hidden persist prefs — registered with a false predicate so they stay OUT of KC's
             // "Other Settings" catch-all (and off every visible page). They mirror the live power state
             // for save/reload persistence; not meant to be edited by hand.
+            Reg(GroupGeneral, Config.DefaultsVersion, NewMeta("Defaults version (internal)", visibleWhen: () => false));
             Reg(GroupGodTools, Config.PersistRevealActive,        NewMeta("Reveal Map (persisted state)",     visibleWhen: () => false));
             Reg(GroupGodTools, Config.PersistBuildAnywhereActive, NewMeta("Build Anywhere (persisted state)", visibleWhen: () => false));
             Reg(GroupGodTools, Config.PersistGodViewActive,       NewMeta("God View (persisted state)",        visibleWhen: () => false));
@@ -309,7 +329,7 @@ namespace DivineHands
             Reg(GroupTerrain, Config.TerrainEnable,
                 NewMeta("Terrain Sculpting",
                         "Enable the terrain-elevation god-power. With it on, pick Terrain in the panel and " +
-                        "apply the brush over the world with the apply key. Default: OFF.",
+                        "apply the brush over the world with the apply key. Default: ON.",
                         order: 200));
             Reg(GroupTerrain, Config.TerrainMode,
                 NewMeta("Brush Mode",
@@ -321,19 +341,19 @@ namespace DivineHands
             Reg(GroupTerrain, Config.TerrainStrength,
                 NewMeta("Brush Strength",
                         "Raise/Lower height change in world metres per application (also the Smooth and " +
-                        "Average step). Flatten ignores this. Default: 1.0.",
+                        "Average step). Flatten ignores this. Default: 0.74.",
                         min: 0.05f, max: 25f, order: 202, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridWidth,
                 NewMeta("Brush Grid Width",
                         "Footprint width (X) in heightmap cells (1–20). Live: Left/Right arrows while armed. " +
-                        "Each cell ≈ Resolution metres (~5 m). Default: 3.",
+                        "Each cell ≈ Resolution metres (~5 m). Default: 5.",
                         min: 1, max: 20, order: 203, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridHeight,
                 NewMeta("Brush Grid Depth",
                         "Footprint depth (Z) in heightmap cells (1–20). Live: Up/Down arrows while armed; " +
-                        "Tab swaps width/depth. Use e.g. 1×20 to carve a path. Default: 3.",
+                        "Tab swaps width/depth. Use e.g. 1×20 to carve a path. Default: 5.",
                         min: 1, max: 20, order: 204, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainGridFineSnap,
@@ -342,7 +362,7 @@ namespace DivineHands
                         "and holds still between steps, giving the un-snapped building ghost play to be placed " +
                         "anywhere in the half-cell window without the grid sliding beneath it. Placement guide — " +
                         "the sculpt still resolves to whole cells on apply, so leave off for crisp flat pads. " +
-                        "Default: off.",
+                        "Default: on.",
                         order: 205, indent: 20,
                         visibleWhen: () => Config.TerrainEnable.Value));
             Reg(GroupTerrain, Config.TerrainApplyKey,
@@ -367,7 +387,7 @@ namespace DivineHands
             Reg(GroupSpawning, Config.SpawnEnable,
                 NewMeta("Cursor Spawners",
                         "Enable the cursor-spawner god-power. Pick a family, arm the spawner in the panel, " +
-                        "and press the apply key over the world to place things at the cursor. Default: OFF.",
+                        "and press the apply key over the world to place things at the cursor. Default: ON.",
                         order: 300));
             Reg(GroupSpawning, Config.SpawnFamily,
                 NewMeta("Spawn Family",
@@ -403,7 +423,7 @@ namespace DivineHands
                 NewMeta("Deep Deposit",
                         "Minerals only. When on, spawned deposits (all six kinds) are deep/infinite — " +
                         "usable ONLY by the Deep Mine / Deep Pit buildings. When off they're finite " +
-                        "surface deposits for the regular mine/pit buildings. Default: OFF.",
+                        "surface deposits for the regular mine/pit buildings. Default: ON.",
                         order: 304, indent: 20,
                         visibleWhen: () => Config.SpawnEnable.Value && Config.SpawnFamily.Value == 1));
             Reg(GroupSpawning, Config.SpawnAnnounceVillagers,
@@ -446,7 +466,7 @@ namespace DivineHands
             Reg(GroupLake, Config.LakeEnable,
                 NewMeta("Lake / Pond Stamp",
                         "Adds the Lake tab to the in-game panel. Stamps a carved, water-filled lake at the " +
-                        "cursor (mirrors Pangu) — persists natively. Default: OFF.",
+                        "cursor (mirrors Pangu) — persists natively. Default: ON.",
                         order: 500));
             Reg(GroupLake, Config.LakeShape,
                 NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
@@ -458,16 +478,16 @@ namespace DivineHands
                 NewMeta("Depth (cells)", "Core footprint half-depth in cells (1–10). Arrow keys resize while armed.",
                         min: 1, max: 10, order: 503, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeCarveDepth,
-                NewMeta("Carve Depth", "Lake bed depth below the water plane, metres (0.45–12). Default: 4.6.",
+                NewMeta("Carve Depth", "Lake bed depth below the water plane, metres (0.45–12). Default: 4.0.",
                         min: 0.45f, max: 12f, order: 504, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeFillRatio,
-                NewMeta("Fill Ratio", "Grows the lake — multiplies Width/Depth (1.0–2.0). Default: 1.0 (no growth).",
+                NewMeta("Fill Ratio", "Grows the lake — multiplies Width/Depth (1.0–2.0). Default: 1.63.",
                         min: 1f, max: 2f, order: 505, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeShoreWidth,
-                NewMeta("Shore Blend", "Bank ring width that ramps back up to land (2–40). Default: 16.",
+                NewMeta("Shore Blend", "Bank ring width that ramps back up to land (2–40). Default: 12.",
                         min: 2f, max: 40f, order: 506, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeNoGoWidth,
-                NewMeta("Extra Size", "Extra cells added to the lake footprint on every side (0–24). Default: 0.",
+                NewMeta("Extra Size", "Extra cells added to the lake footprint on every side (0–24). Default: 7.",
                         min: 0f, max: 24f, order: 507, indent: 20, visibleWhen: () => Config.LakeEnable.Value));
             Reg(GroupLake, Config.LakeArmHotkey,
                 NewMeta("Lake Arm Hotkey", "Key/chord that arms (re-press disarms) the Lake stamp. Default: Insert.",
@@ -490,7 +510,7 @@ namespace DivineHands
             Reg(GroupFertility, Config.FertilityEnable,
                 NewMeta("Fertility Painter",
                         "Adds the Fertility tab to the in-game panel. Paints soil fertility over an adjustable " +
-                        "area (persists with the save). Default: OFF.",
+                        "area (persists with the save). Default: ON.",
                         order: 520));
             Reg(GroupFertility, Config.FertilityShape,
                 NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
@@ -502,7 +522,7 @@ namespace DivineHands
                 NewMeta("Depth (cells)", "Brush half-depth in cells (1–10). Arrow keys resize while armed.",
                         min: 1, max: 10, order: 523, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityAmount,
-                NewMeta("Fertility %", "Target soil fertility the brush paints (0–100%). Default: 80.",
+                NewMeta("Fertility %", "Target soil fertility the brush paints (0–100%). Default: 100.",
                         min: 0f, max: 100f, order: 524, indent: 20, visibleWhen: () => Config.FertilityEnable.Value));
             Reg(GroupFertility, Config.FertilityMult,
                 NewMeta("Fertilizer Effectiveness %", "Per-cell fertilizer/compost effectiveness the brush sets (0–100%). Default: 100.",
@@ -526,7 +546,7 @@ namespace DivineHands
                 NewMeta("Forest Brush",
                         "Adds the Forest tab to the in-game panel. Plants the map's own trees over an adjustable " +
                         "area at a target coverage (existing trees count, so re-applying tops up), optionally " +
-                        "setting soil fertility too. Trees + fertility persist with the save. Default: OFF.",
+                        "setting soil fertility too. Trees + fertility persist with the save. Default: ON.",
                         order: 530));
             Reg(GroupForest, Config.ForestShape,
                 NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
@@ -538,7 +558,7 @@ namespace DivineHands
                 NewMeta("Depth (cells)", "Brush half-depth in cells (1–10). Arrow keys resize while armed.",
                         min: 1, max: 10, order: 533, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
             Reg(GroupForest, Config.ForestCoverage,
-                NewMeta("Coverage %", "Target tree coverage of the footprint (0–100%). Existing trees count toward it. Default: 26.",
+                NewMeta("Coverage %", "Target tree coverage of the footprint (0–100%). Existing trees count toward it. Default: 100.",
                         min: 0f, max: 100f, order: 534, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
             Reg(GroupForest, Config.ForestVariance,
                 NewMeta("Variance", "Random xz jitter (metres) per planted tree so they don't grid-align. Default: 1.1.",
@@ -547,10 +567,10 @@ namespace DivineHands
                 NewMeta("Also Set Fertility",
                         "Write CROP/soil fertility under the brush (like Pangu). Does NOT speed up the planted trees " +
                         "(their growth is the biome/tech system, not soil) — only conditions the ground for crops/" +
-                        "orchards farmed there later. Off = plant trees only. Default: off.",
+                        "orchards farmed there later. Off = plant trees only. Default: on.",
                         order: 536, indent: 20, visibleWhen: () => Config.ForestEnable.Value));
             Reg(GroupForest, Config.ForestFertility,
-                NewMeta("Fertility %", "Soil fertility set when 'Also Set Fertility' is on (0–100%). Default: 50.",
+                NewMeta("Fertility %", "Soil fertility set when 'Also Set Fertility' is on (0–100%). Default: 100.",
                         min: 0f, max: 100f, order: 537, indent: 40,
                         visibleWhen: () => Config.ForestEnable.Value && Config.ForestSetFertility.Value));
             Reg(GroupForest, Config.ForestFertilityMult,
@@ -570,7 +590,7 @@ namespace DivineHands
                         "Adds the Mountain tab to the in-game panel. Raises rocky terrain (dome + ridged noise), " +
                         "repaints the ground to rock, sets the mountain biome, and — when the amount sliders are " +
                         "above 0 — scatters stone/ore deposits and mountain wildlife. Terrain edits are permanent " +
-                        "(no undo). Default: OFF.",
+                        "(no undo). Default: ON.",
                         order: 545));
             Reg(GroupMountain, Config.MountainShape,
                 NewMeta("Shape", "0 = Rectangle, 1 = Circle.",
@@ -594,7 +614,7 @@ namespace DivineHands
                 NewMeta("Ruggedness", "Jaggedness of the peaks (0 = smooth dome, 100 = craggy). Default: 55.",
                         min: 0f, max: 100f, order: 552, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
             Reg(GroupMountain, Config.MountainTexture,
-                NewMeta("Rocky Texture %", "How strongly the ground is repainted to rock (0–100%). Default: 90.",
+                NewMeta("Rocky Texture %", "How strongly the ground is repainted to rock (0–100%). Default: 100.",
                         min: 0f, max: 100f, order: 553, indent: 20, visibleWhen: () => Config.MountainEnable.Value));
             Reg(GroupMountain, Config.MountainRockOre,
                 NewMeta("Rock/Ore Amount %", "Density of scattered stone + mineral deposits (0–100%). Default: 0.",
@@ -616,7 +636,7 @@ namespace DivineHands
                         "Select a mine / quarry / clay-sand pit / deep mine / any building — or a resource node " +
                         "(ore, clay/sand/stone pit, tree, rock, forageable) — and delete it instantly. Everything " +
                         "else (villagers, animals, fields) is a safe no-op. Ore-node deletion is a PERMANENT " +
-                        "world edit. Default: OFF.",
+                        "world edit. Default: ON.",
                         order: 540));
             Reg(GroupDelete, Config.DeleteHotkey,
                 NewMeta("Delete Hotkey",
@@ -626,7 +646,7 @@ namespace DivineHands
             Reg(GroupDelete, Config.DeleteRefund,
                 NewMeta("Refund on Delete",
                         "Refund the building's construction materials when deleting (also drops stored items on " +
-                        "the ground). Off = clean vaporize, no refund pile. Default: OFF.",
+                        "the ground). Off = clean vaporize, no refund pile. Default: ON.",
                         order: 542, indent: 20, visibleWhen: () => Config.DeleteEnable.Value));
 
             // ===== Kill Selected =====
@@ -636,7 +656,7 @@ namespace DivineHands
                         "villager, raider, or any animal (wild / livestock / pet) — one or a group — and kill it " +
                         "instantly via the game's own death path (proper removal + died-events). Buildings/nodes " +
                         "are never touched (use Delete Selected). Mainly a testing aid, but this is a god mod. " +
-                        "Default: OFF.",
+                        "Default: ON.",
                         order: 560));
             Reg(GroupKill, Config.KillHotkey,
                 NewMeta("Kill Hotkey",
@@ -651,7 +671,7 @@ namespace DivineHands
                         "then use the panel's Selected Building section to add items, add livestock, " +
                         "or toggle infinite storage. Infinite storage is SESSION-ONLY — it is auto-" +
                         "stripped before every save (manual, autosave, and exit) so it never bakes " +
-                        "into your .sav. Default: OFF.",
+                        "into your .sav. Default: ON.",
                         order: 400));
             Reg(GroupInject, Config.InjectItemIndex,
                 NewMeta("Item to Add",
@@ -665,7 +685,7 @@ namespace DivineHands
                         "selected building with storage. Off = the default filter: storage buildings " +
                         "take their allow-list, producers their recipe inputs, gatherers their trade " +
                         "goods, shelters firewood+food, and every building tops up what it already holds. " +
-                        "Default: OFF.",
+                        "Default: ON.",
                         indent: 20,
                         visibleWhen: () => Config.InjectEnable.Value));
             Reg(GroupInject, Config.InjectItemCount,
