@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using MelonLoader;
@@ -36,11 +36,18 @@ namespace DivineHands.Modules
     {
         private static bool _scareDumpDone;
         private static bool _diseaseDumpDone;
+        private static bool _factorDumpDone;
+
+        /// <summary>Villagers sampled by the factor dump. The town-wide factors read the same for
+        /// everyone, so a handful separates shared inputs from personal ones without spamming.</summary>
+        private const int SampleVillagers = 3;
+        /// <summary>Diseases listed per villager, highest live per-day chance first.</summary>
+        private const int TopDiseases = 6;
 
         /// <summary>New map: allow the dumps to run again.</summary>
-        public static void OnMapLoaded() { _scareDumpDone = false; _diseaseDumpDone = false; }
+        public static void OnMapLoaded() { _scareDumpDone = false; _diseaseDumpDone = false; _factorDumpDone = false; }
 
-        public static void OnSceneExit() { _scareDumpDone = false; _diseaseDumpDone = false; }
+        public static void OnSceneExit() { _scareDumpDone = false; _diseaseDumpDone = false; _factorDumpDone = false; }
 
         public static void OnUpdate()
         {
@@ -51,6 +58,12 @@ namespace DivineHands.Modules
                 if (!_diseaseDumpDone) { _diseaseDumpDone = true; DumpDiseaseRates(); }
             }
             else _diseaseDumpDone = false;
+
+            if (Config.DiagDiseaseFactors.Value)
+            {
+                if (!_factorDumpDone) { _factorDumpDone = true; DumpDiseaseFactors(); }
+            }
+            else _factorDumpDone = false;
 
             if (!Config.DiagBuildingScare.Value) { _scareDumpDone = false; return; }
             if (_scareDumpDone) return;
@@ -69,6 +82,126 @@ namespace DivineHands.Modules
         /// sitting at a flat 1.0, something has inflated it and the multiplier below will show a
         /// negative sign.
         /// </summary>
+        /// <summary>
+        /// Print the per-villager FACTOR BREAKDOWN behind every disease's contraction chance.
+        ///
+        /// DumpDiseaseRates prints chancePerYearMin/Max - the ENDPOINTS. Those can read perfectly
+        /// normal while the town is being flattened, because the live chance is lerped BETWEEN the
+        /// endpoints by a score, then scaled by a second score:
+        ///
+        ///     perDay = GetChancePerYearByScore(score) * GetFlavorMultiplierByScore(flavorScore) / 360
+        ///
+        /// DiseaseManager.OnDayPassed rolls EVERY active disease against EVERY villager once per day,
+        /// passing a 1-day CETimeSpan to RollDiseaseByDuration, which scales by totalDays / 360f.
+        ///
+        /// `score` is a WEIGHTED AVERAGE over Disease.factors. Each FactorInfo wraps a DiseaseFactor
+        /// ScriptableObject whose factorFunc reads live state - DF_Population and
+        /// DF_PopulationDensity (villagerCount / availableHousingCount) are town-wide and identical
+        /// for everyone, while DF_Diet, DF_Water, DF_RodentPopulation, DF_ResidenceStocked and the
+        /// rest are per villager. A shared factor pinned near the top of its curve raises every
+        /// villager's chance on the same day, which is what a "whole town sick at once" event looks
+        /// like from the inside - and the endpoint dump shows nothing wrong at all.
+        ///
+        /// isRequired matters: GetFactoredScore returns FALSE when any required factor is ~0, which
+        /// removes the disease's chance entirely. Those are marked REQ; a 0 there means that disease
+        /// cannot spawn for that villager regardless of everything else.
+        /// </summary>
+        private static void DumpDiseaseFactors()
+        {
+            try
+            {
+                var gm = GameManager.Instance;
+                var dm = gm != null ? gm.diseaseManager : null;
+                if (dm == null) { MelonLogger.Warning("[DivineHands] Factor dump: no DiseaseManager."); return; }
+                if (dm.immuneSystems == null || dm.immuneSystems.Count == 0)
+                { MelonLogger.Warning("[DivineHands] Factor dump: no immune systems yet."); return; }
+
+                var sb = new StringBuilder();
+                sb.AppendLine("[DivineHands] ───── DISEASE FACTORS (live, per villager) ─────");
+
+                // Print the density input explicitly: it is the one factor whose value you can
+                // reason about from the HUD, so it is the fastest thing to confirm or rule out.
+                try
+                {
+                    var rm = gm.resourceManager;
+                    if (rm != null)
+                    {
+                        int pop = (int)rm.villagerCount;
+                        int housing = (int)rm.availableHousingCount;
+                        float ratio = pop / (float)(housing > 0 ? housing : 1);
+                        sb.AppendLine($"  town: population {pop} / housing {housing}" +
+                                      $"   → DF_PopulationDensity curve input {ratio:0.###}");
+                    }
+                }
+                catch { /* HUD context only; never block the dump */ }
+
+                int sampled = 0;
+                foreach (var im in dm.immuneSystems)
+                {
+                    if (im == null) continue;
+                    if (sampled >= SampleVillagers) break;
+                    sampled++;
+
+                    string who = im.gameObject != null ? im.gameObject.name : "?";
+                    sb.AppendLine($"  ── villager {sampled}: {who}");
+
+                    var rows = new List<KeyValuePair<float, string>>();
+
+                    foreach (var list in new[] { dm.contagiousDiseases?.diseases, dm.personalDiseases?.diseases })
+                    {
+                        if (list == null) continue;
+                        foreach (var d in list)
+                        {
+                            if (d == null) continue;
+
+                            float score, flavMult, perDay;
+                            try
+                            {
+                                score    = d.GetControllableScore(im);
+                                flavMult = d.GetFlavorMultiplierByScore(d.GetFlavorScore(im));
+                                perDay   = d.GetChancePerYearByScore(score) * flavMult / 360f;
+                            }
+                            catch { continue; }
+
+                            var fsb = new StringBuilder();
+                            if (d.factors != null)
+                            {
+                                foreach (var f in d.factors)
+                                {
+                                    if (f.diseaseFactor == null || f.diseaseFactor.factorFunc == null) continue;
+                                    float raw;
+                                    try { raw = f.diseaseFactor.factorFunc(im); } catch { continue; }
+
+                                    string name = f.diseaseFactor.GetType().Name;
+                                    if (name.StartsWith("DF_")) name = name.Substring(3);
+                                    // '*' = this factor is at the top of its curve. That is the whole
+                                    // point of the dump: it names the input doing the damage.
+                                    string pin = raw >= 0.9f ? "*" : " ";
+                                    fsb.Append($" {pin}{name}={raw:0.##}x{f.weight}{(f.isRequired ? "REQ" : "")}");
+                                }
+                            }
+
+                            rows.Add(new KeyValuePair<float, string>(perDay,
+                                $"      {d.name,-22} score {score:0.###}  ×flav {flavMult:0.##}" +
+                                $"  → {perDay * 100f:0.####}%/day{fsb}"));
+                        }
+                    }
+
+                    rows.Sort((a, b) => b.Key.CompareTo(a.Key));
+                    for (int i = 0; i < rows.Count && i < TopDiseases; i++) sb.AppendLine(rows[i].Value);
+                }
+
+                sb.AppendLine("  '*' = factor at/above 0.9 of its curve (the one raising the score).");
+                sb.AppendLine("  REQ = required factor; 0 there blocks that disease outright.");
+                sb.AppendLine("  %/day is PER VILLAGER - multiply by population for the town's daily case rate.");
+                MelonLogger.Msg(sb.ToString());
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Warning("[DivineHands] Factor dump failed: " + e);
+            }
+        }
+
         private static void DumpDiseaseRates()
         {
             try

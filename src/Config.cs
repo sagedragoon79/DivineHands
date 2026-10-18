@@ -1,4 +1,4 @@
-using MelonLoader;
+﻿using MelonLoader;
 
 namespace DivineHands
 {
@@ -325,6 +325,7 @@ namespace DivineHands
         /// Runs once when switched on; toggle off/on to re-run.</summary>
         public static MelonPreferences_Entry<bool>   DiagBuildingScare { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   DiagDiseaseRates  { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   DiagDiseaseFactors { get; private set; } = null!;
 
         /// <summary>Livestock kind for the Add-Livestock button: 0=Cow, 1=Chicken, 2=Goat, 3=Horse
         /// (<see cref="Modules.ItemInjection.LivestockKind"/>).</summary>
@@ -942,6 +943,18 @@ namespace DivineHands
                              "rate is pinned at 100% or a multiplier has gone negative, which inflates " +
                              "disease instead of reducing it. Read-only — changes nothing in game. Runs once " +
                              "when switched on; toggle off then on to run again. Default: off.");
+
+            DiagDiseaseFactors = _root.CreateEntry(
+                "DiagDiseaseFactors", false,
+                display_name: "Log: Disease Factors",
+                description: "Write the per-villager FACTOR BREAKDOWN behind each disease's contraction " +
+                             "chance. Disease Rates above prints the min/max endpoints; this prints what " +
+                             "the game actually rolls, because the live chance is lerped between those " +
+                             "endpoints by a weighted score over live town state (population, housing " +
+                             "ratio, season, water, rodents, diet, ...) and then multiplied by a second " +
+                             "score. A factor sitting at the top of its curve is marked with '*'. " +
+                             "Read-only. Runs once when switched on; toggle off then on to run again. " +
+                             "Default: off.");
 
             InjectUnrestricted = _root.CreateEntry(
                 "InjectUnrestricted", true,
