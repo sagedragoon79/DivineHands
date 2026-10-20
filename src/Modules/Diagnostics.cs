@@ -150,6 +150,69 @@ namespace DivineHands.Modules
         /// cannot spawn for that villager regardless of everything else.
         /// </summary>
         /// <summary>
+        /// Why a villager is below full health when nothing is wrong with them.
+        ///
+        /// Health here is not a disease readout - it is DIET, and the two are independent.
+        /// VillagerHealth.CalculateDietHealthRegen keys regen purely off meals eaten in the better
+        /// of this month and last:
+        ///
+        ///     0 meals -> -0.005   (losing health continuously)
+        ///     1 meal  ->  0.000   (never heals - stuck at whatever it fell to)
+        ///     2 meals -> +0.0025
+        ///     3 meals -> +0.005
+        ///
+        /// and CalculateMonthlyRegenAndEndurance moves `endurance` on food VARIETY, where three
+        /// types is merely break-even:
+        ///
+        ///     0 types -0.10   1 type -0.04   2 types -0.01
+        ///     3 types  0.00   4 types +0.02  5 types +0.04
+        ///
+        /// with a further `endurance *= 0.5` once exposureLevel reaches 100. So a town eating one
+        /// or two foods sits permanently damaged with a clean bill of health, which looks alarming
+        /// and is really a menu problem. Printing the inputs separates "my villagers are sick" from
+        /// "my villagers are bored of turnips".
+        ///
+        /// numFoodTypesThisAndLastMonth is protected, so it comes out by reflection; endurance,
+        /// exposureLevel and GetHungerLevel() are public.
+        /// </summary>
+        private static string VitalsLine(ImmuneSystemComponent im)
+        {
+            try
+            {
+                var vh = im.gameObject != null ? im.gameObject.GetComponent<VillagerHealth>() : null;
+                if (vh == null) return "";
+
+                int meals = vh.GetHungerLevel();
+                string regen = meals <= 0 ? "-0.005 LOSING" : meals == 1 ? "0.000 no heal"
+                             : meals == 2 ? "+0.0025" : "+0.005";
+
+                string types = "?";
+                string typeNote = "";
+                try
+                {
+                    var f = typeof(VillagerHealth).GetField("numFoodTypesThisAndLastMonth",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    if (f != null)
+                    {
+                        uint n = Convert.ToUInt32(f.GetValue(vh));
+                        types = n.ToString();
+                        typeNote = n == 0 ? " (-0.10)" : n == 1 ? " (-0.04)" : n == 2 ? " (-0.01)"
+                                 : n == 3 ? " (break-even)" : n == 4 ? " (+0.02)" : " (+0.04)";
+                    }
+                }
+                catch { }
+
+                string exp = vh.exposureLevel >= 100f
+                    ? $"{vh.exposureLevel:0} HALVES ENDURANCE"
+                    : $"{vh.exposureLevel:0}";
+
+                return $"      vitals: endurance {vh.endurance:0.00} | meals {meals} (regen {regen})" +
+                       $" | food types {types}{typeNote} | exposure {exp}";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
         /// One line of water truth per villager. DF_Water and DF_Thirst are the two gates that
         /// opened in the collapse this dump was written for, and they fail for DIFFERENT reasons:
         ///
@@ -657,6 +720,8 @@ namespace DivineHands.Modules
 
             string water = WaterLine(im, gm);
             if (water.Length > 0) sb.AppendLine(water);
+            string vitals = VitalsLine(im);
+            if (vitals.Length > 0) sb.AppendLine(vitals);
 
             var rows = new List<KeyValuePair<float, string>>();
             foreach (var list in new[] { dm.contagiousDiseases?.diseases, dm.personalDiseases?.diseases })
