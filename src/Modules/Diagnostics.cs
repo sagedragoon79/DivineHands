@@ -41,6 +41,8 @@ namespace DivineHands.Modules
         private static int _lastDumpYM = -1;
         /// <summary>Gate picture at the last scan. Unchanged means monthly mode logs one line.</summary>
         private static string _lastGateSig;
+        /// <summary>The factor schema is static data; print it once per load, not per scan.</summary>
+        private static bool _schemaDumped;
 
         /// <summary>Per-day chance (as a PERCENT) marking a villager as genuinely at risk rather
         /// than carrying ordinary background noise. Calibrated against two real saves of one town:
@@ -64,7 +66,7 @@ namespace DivineHands.Modules
         private static void ResetDumps()
         {
             _scareDumpDone = false; _diseaseDumpDone = false; _factorDumpDone = false;
-            _lastDumpYM = -1; _lastGateSig = null;
+            _lastDumpYM = -1; _lastGateSig = null; _schemaDumped = false;
         }
 
         public static void OnUpdate()
@@ -305,6 +307,12 @@ namespace DivineHands.Modules
                 var sb = new StringBuilder();
                 sb.AppendLine($"[DivineHands] ───── DISEASE GATES (live) {StampYM()} ─────");
 
+                if (!_schemaDumped)
+                {
+                    _schemaDumped = true;
+                    AppendSchema(sb, dm);
+                }
+
                 try
                 {
                     var rm = gm.resourceManager;
@@ -355,6 +363,57 @@ namespace DivineHands.Modules
                 MelonLogger.Warning("[DivineHands] Factor dump failed: " + e);
                 return true;   // a throwing dump will keep throwing; do not spin on it
             }
+        }
+
+        /// <summary>
+        /// Print every disease's factor schema once per load: which factors gate it, their weights,
+        /// which are REQUIRED, and - for DF_Inventory - the exact ITEM NAMES it counts.
+        ///
+        /// That last part is the one worth having. DF_Inventory holds a List&lt;string&gt; of item
+        /// names, resolves them with `new Item(name)`, and sums ItemStorage.GetItemCount over them,
+        /// so a factor named Inventory_HasShoes literally counts "ItemShoes" and nothing else. Any
+        /// mod that adds a BETTER replacement garment as a NEW item is invisible here unless it also
+        /// patches GetItemCount, and a villager who swapped to the replacement reads as having none
+        /// - which opens whatever gate that factor guards. Warmth and the disease gate are separate
+        /// paths: patching one does not cover the other. Printing the names makes that checkable
+        /// instead of guessable.
+        /// </summary>
+        private static void AppendSchema(StringBuilder sb, DiseaseManager dm)
+        {
+            try
+            {
+                sb.AppendLine("  ── factor schema (static; once per load) ─────────────────────────");
+                foreach (var list in new[] { dm.contagiousDiseases?.diseases, dm.personalDiseases?.diseases })
+                {
+                    if (list == null) continue;
+                    foreach (var d in list)
+                    {
+                        if (d == null || d.factors == null) continue;
+                        var fsb = new StringBuilder();
+                        foreach (var f in d.factors)
+                        {
+                            if (f.diseaseFactor == null) continue;
+                            fsb.Append($"  {FactorLabel(f.diseaseFactor)}(w{f.weight}{(f.isRequired ? ",REQ" : "")}");
+                            var inv = f.diseaseFactor as DF_Inventory;
+                            if (inv != null && inv.items != null && inv.items.Count > 0)
+                            {
+                                fsb.Append(")[");
+                                for (int i = 0; i < inv.items.Count; i++)
+                                {
+                                    if (i > 0) fsb.Append(',');
+                                    fsb.Append(inv.items[i]);
+                                }
+                                fsb.Append(']');
+                            }
+                            else fsb.Append(')');
+                        }
+                        sb.AppendLine($"    {d.name,-22} min {d.chancePerYearMin:0.#####} max {d.chancePerYearMax:0.#####}" +
+                                      $" flav {d.minFlavorMultiplier:0.##}-{d.maxFlavorMultiplier:0.##} |{fsb}");
+                    }
+                }
+                sb.AppendLine("  ──────────────────────────────────────────────────────────────────");
+            }
+            catch (Exception e) { sb.AppendLine("    schema failed: " + e.Message); }
         }
 
         /// <summary>year*12+month, or -1 when there is no clock yet. Monotonic, so it survives a
