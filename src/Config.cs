@@ -326,6 +326,7 @@ namespace DivineHands
         public static MelonPreferences_Entry<bool>   DiagBuildingScare { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   DiagDiseaseRates  { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   DiagDiseaseFactors { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   DiagDiseaseFactorsMonthly { get; private set; } = null!;
 
         /// <summary>Livestock kind for the Add-Livestock button: 0=Cow, 1=Chicken, 2=Goat, 3=Horse
         /// (<see cref="Modules.ItemInjection.LivestockKind"/>).</summary>
@@ -955,6 +956,15 @@ namespace DivineHands
                              "score. A factor sitting at the top of its curve is marked with '*'. " +
                              "Read-only. Runs once when switched on; toggle off then on to run again. " +
                              "Default: off.");
+
+            DiagDiseaseFactorsMonthly = _root.CreateEntry(
+                "DiagDiseaseFactorsMonthly", false,
+                display_name: "Log: Disease Gates Every Month",
+                description: "With Disease Factors on, re-run the scan every in-game month instead " +
+                             "of once per load, so you can watch a town degrade live. A month is " +
+                             "about 2.5 real minutes at normal speed. When the picture has not " +
+                             "changed it logs a single line, so the moment a gate actually opens " +
+                             "stands out instead of scrolling past. Default: off.");
 
             InjectUnrestricted = _root.CreateEntry(
                 "InjectUnrestricted", true,

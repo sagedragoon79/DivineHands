@@ -37,17 +37,35 @@ namespace DivineHands.Modules
         private static bool _scareDumpDone;
         private static bool _diseaseDumpDone;
         private static bool _factorDumpDone;
+        /// <summary>year*12+month of the last gate scan, so monthly mode fires once per month.</summary>
+        private static int _lastDumpYM = -1;
+        /// <summary>Gate picture at the last scan. Unchanged means monthly mode logs one line.</summary>
+        private static string _lastGateSig;
 
-        /// <summary>Villagers sampled by the factor dump. The town-wide factors read the same for
-        /// everyone, so a handful separates shared inputs from personal ones without spamming.</summary>
-        private const int SampleVillagers = 3;
-        /// <summary>Diseases listed per villager, highest live per-day chance first.</summary>
+        /// <summary>Per-day chance (as a PERCENT) marking a villager as genuinely at risk rather
+        /// than carrying ordinary background noise. Calibrated against two real saves of one town:
+        /// healthy at 451 pop the worst row per villager topped out at 0.0042%/day (a broken-leg
+        /// roll); in the collapsed save the affected villager ran 0.4167%/day on Dehydration. 0.01
+        /// sits an order of magnitude above the healthy ceiling and far below the real signal.</summary>
+        private const float RiskPerDayPct = 0.01f;
+        /// <summary>Flagged villagers printed in full. The rest are counted, not listed.</summary>
+        private const int DetailVillagers = 8;
+        /// <summary>Diseases listed per detailed villager, highest live per-day chance first.</summary>
         private const int TopDiseases = 6;
+        /// <summary>Bound on the scan. Each villager costs a factorFunc call per factor per disease
+        /// and some of those do a GetComponent, so a very large town is worth capping.</summary>
+        private const int MaxScan = 2000;
 
         /// <summary>New map: allow the dumps to run again.</summary>
-        public static void OnMapLoaded() { _scareDumpDone = false; _diseaseDumpDone = false; _factorDumpDone = false; }
+        public static void OnMapLoaded() { ResetDumps(); }
 
-        public static void OnSceneExit() { _scareDumpDone = false; _diseaseDumpDone = false; _factorDumpDone = false; }
+        public static void OnSceneExit() { ResetDumps(); }
+
+        private static void ResetDumps()
+        {
+            _scareDumpDone = false; _diseaseDumpDone = false; _factorDumpDone = false;
+            _lastDumpYM = -1; _lastGateSig = null;
+        }
 
         public static void OnUpdate()
         {
@@ -65,9 +83,28 @@ namespace DivineHands.Modules
                 // the dump fires by itself on every save load - but for the first frames after a
                 // load the DiseaseManager has no immune systems registered yet, and latching on
                 // that empty pass would silently skip the save just loaded. Retry until it lands.
-                if (!_factorDumpDone && DumpDiseaseFactors()) _factorDumpDone = true;
+                if (!_factorDumpDone)
+                {
+                    if (DumpDiseaseFactors(allowCompact: false))
+                    {
+                        _factorDumpDone = true;
+                        _lastDumpYM = CurrentYM();
+                    }
+                }
+                else if (Config.DiagDiseaseFactorsMonthly.Value)
+                {
+                    // Poll the calendar rather than listening for MonthPassedEvent: this module is
+                    // already on an update tick and comparing two ints is cheaper than owning an
+                    // event subscription that has to be torn down on every scene change.
+                    int ym = CurrentYM();
+                    if (ym >= 0 && ym != _lastDumpYM)
+                    {
+                        _lastDumpYM = ym;
+                        DumpDiseaseFactors(allowCompact: true);
+                    }
+                }
             }
-            else _factorDumpDone = false;
+            else { _factorDumpDone = false; _lastDumpYM = -1; _lastGateSig = null; }
 
             if (!Config.DiagBuildingScare.Value) { _scareDumpDone = false; return; }
             if (_scareDumpDone) return;
@@ -170,7 +207,22 @@ namespace DivineHands.Modules
             catch { return ""; }
         }
 
-        private static bool DumpDiseaseFactors()
+        /// <summary>
+        /// Print which villagers have an OPEN DISEASE GATE, and which gate it is.
+        ///
+        /// Scans every villager rather than sampling, because the failure this was built for was a
+        /// POCKET, not a town: in the collapsed save two of three sampled villagers were perfectly
+        /// clean and only the third had anything open. A sample answers "is the town sick"; a scan
+        /// answers "which houses, and why", which is the question worth asking.
+        ///
+        /// Why gates rather than rates: chancePerYearMin/Max are only the ENDPOINTS. The live
+        /// chance is GetChancePerYearByScore(score) * GetFlavorMultiplierByScore(flavor) / 360,
+        /// rolled against every villager every day. `score` is a weighted average over
+        /// Disease.factors, and GetFactoredScore returns FALSE outright if any factor marked
+        /// isRequired evaluates to ~0. So most diseases in a healthy town are not low - they are
+        /// OFF, and nothing happens until a required factor goes non-zero. Those are the gates.
+        /// </summary>
+        private static bool DumpDiseaseFactors(bool allowCompact)
         {
             try
             {
@@ -181,38 +233,20 @@ namespace DivineHands.Modules
                 if (dm == null) return false;
                 if (dm.immuneSystems == null || dm.immuneSystems.Count == 0) return false;
 
-                var sb = new StringBuilder();
-                sb.AppendLine("[DivineHands] ───── DISEASE FACTORS (live, per villager) ─────");
+                int scanned = 0;
+                var flagged = new List<KeyValuePair<float, ImmuneSystemComponent>>();
+                var gateCounts = new Dictionary<string, int>();
+                ImmuneSystemComponent reference = null;
 
-                // Print the density input explicitly: it is the one factor whose value you can
-                // reason about from the HUD, so it is the fastest thing to confirm or rule out.
-                try
-                {
-                    var rm = gm.resourceManager;
-                    if (rm != null)
-                    {
-                        int pop = (int)rm.villagerCount;
-                        int housing = (int)rm.availableHousingCount;
-                        float ratio = pop / (float)(housing > 0 ? housing : 1);
-                        sb.AppendLine($"  town: population {pop} / housing {housing}" +
-                                      $"   → DF_PopulationDensity curve input {ratio:0.###}");
-                    }
-                }
-                catch { /* HUD context only; never block the dump */ }
-
-                int sampled = 0;
                 foreach (var im in dm.immuneSystems)
                 {
                     if (im == null) continue;
-                    if (sampled >= SampleVillagers) break;
-                    sampled++;
+                    if (scanned >= MaxScan) break;
+                    scanned++;
+                    if (reference == null) reference = im;
 
-                    string who = im.gameObject != null ? im.gameObject.name : "?";
-                    sb.AppendLine($"  ── villager {sampled}: {who}");
-                    string water = WaterLine(im, gm);
-                    if (water.Length > 0) sb.AppendLine(water);
-
-                    var rows = new List<KeyValuePair<float, string>>();
+                    float worst = 0f;
+                    var gatesHere = new HashSet<string>();
 
                     foreach (var list in new[] { dm.contagiousDiseases?.diseases, dm.personalDiseases?.diseases })
                     {
@@ -220,57 +254,99 @@ namespace DivineHands.Modules
                         foreach (var d in list)
                         {
                             if (d == null) continue;
+                            float perDay;
+                            try { perDay = PerDayPct(d, im); } catch { continue; }
+                            if (perDay > worst) worst = perDay;
+                            if (perDay < RiskPerDayPct || d.factors == null) continue;
 
-                            float score, flavMult, perDay;
-                            try
+                            // Name the REQUIRED factors letting this one through - the gate itself.
+                            foreach (var f in d.factors)
                             {
-                                score    = d.GetControllableScore(im);
-                                flavMult = d.GetFlavorMultiplierByScore(d.GetFlavorScore(im));
-                                perDay   = d.GetChancePerYearByScore(score) * flavMult / 360f;
+                                if (!f.isRequired || f.diseaseFactor == null || f.diseaseFactor.factorFunc == null) continue;
+                                float raw;
+                                try { raw = f.diseaseFactor.factorFunc(im); } catch { continue; }
+                                if (raw > 0f) gatesHere.Add(FactorLabel(f.diseaseFactor));
                             }
-                            catch { continue; }
-
-                            var fsb = new StringBuilder();
-                            if (d.factors != null)
-                            {
-                                // A disease can list SEVERAL assets of the SAME factor type, tuned
-                                // differently - Typhoid carries two DF_ResidenceStocked entries at
-                                // different weights, one of them required. Printing the type name
-                                // for both made the gate unreadable, so prefer the ASSET name and
-                                // only fall back to the type, disambiguating any repeat with #n.
-                                var seen = new Dictionary<string, int>();
-                                foreach (var f in d.factors)
-                                {
-                                    if (f.diseaseFactor == null || f.diseaseFactor.factorFunc == null) continue;
-                                    float raw;
-                                    try { raw = f.diseaseFactor.factorFunc(im); } catch { continue; }
-
-                                    string name = f.diseaseFactor.name;
-                                    if (string.IsNullOrEmpty(name)) name = f.diseaseFactor.GetType().Name;
-                                    if (name.StartsWith("DF_")) name = name.Substring(3);
-                                    int n;
-                                    if (seen.TryGetValue(name, out n)) { seen[name] = ++n; name += "#" + n; }
-                                    else seen[name] = 1;
-                                    // '*' = this factor is at the top of its curve. That is the whole
-                                    // point of the dump: it names the input doing the damage.
-                                    string pin = raw >= 0.9f ? "*" : " ";
-                                    fsb.Append($" {pin}{name}={raw:0.##}x{f.weight}{(f.isRequired ? "REQ" : "")}");
-                                }
-                            }
-
-                            rows.Add(new KeyValuePair<float, string>(perDay,
-                                $"      {d.name,-22} score {score:0.###}  ×flav {flavMult:0.##}" +
-                                $"  → {perDay * 100f:0.####}%/day{fsb}"));
                         }
                     }
 
-                    rows.Sort((a, b) => b.Key.CompareTo(a.Key));
-                    for (int i = 0; i < rows.Count && i < TopDiseases; i++) sb.AppendLine(rows[i].Value);
+                    if (worst >= RiskPerDayPct)
+                    {
+                        flagged.Add(new KeyValuePair<float, ImmuneSystemComponent>(worst, im));
+                        foreach (var g in gatesHere)
+                        {
+                            int n; gateCounts.TryGetValue(g, out n); gateCounts[g] = n + 1;
+                        }
+                    }
                 }
 
-                sb.AppendLine("  '*' = factor at/above 0.9 of its curve (the one raising the score).");
-                sb.AppendLine("  REQ = required factor; 0 there blocks that disease outright.");
-                sb.AppendLine("  %/day is PER VILLAGER - multiply by population for the town's daily case rate.");
+                // Signature of the gate picture. In monthly mode an unchanged picture logs a single
+                // line instead of the whole block, so a long watch stays readable and the moment a
+                // gate actually opens stands out rather than scrolling past in a wall of identical
+                // dumps. Counts are included, so "same gates, more villagers" still reads as news.
+                var gateNames = new List<string>(gateCounts.Keys);
+                gateNames.Sort();
+                var sigSb = new StringBuilder();
+                sigSb.Append(flagged.Count);
+                foreach (var g in gateNames)
+                {
+                    int c; gateCounts.TryGetValue(g, out c);
+                    sigSb.Append('|').Append(g).Append(c);
+                }
+                string sig = sigSb.ToString();
+                if (allowCompact && sig == _lastGateSig)
+                {
+                    MelonLogger.Msg($"[DivineHands] gates {StampYM()}: scanned {scanned}, " +
+                                    $"{flagged.Count} open - unchanged");
+                    return true;
+                }
+                _lastGateSig = sig;
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"[DivineHands] ───── DISEASE GATES (live) {StampYM()} ─────");
+
+                try
+                {
+                    var rm = gm.resourceManager;
+                    if (rm != null)
+                    {
+                        int pop = (int)rm.villagerCount, housing = (int)rm.availableHousingCount;
+                        sb.AppendLine($"  town: population {pop} / housing {housing}" +
+                                      $"   -> DF_PopulationDensity curve input {pop / (float)(housing > 0 ? housing : 1):0.###}");
+                    }
+                }
+                catch { /* HUD context only; never block the dump */ }
+
+                float pct = scanned > 0 ? 100f * flagged.Count / scanned : 0f;
+                sb.AppendLine($"  scanned {scanned} villager(s) - {flagged.Count} with an open gate ({pct:0.#}%)" +
+                              $"   [threshold {RiskPerDayPct:0.###}%/day]");
+
+                // The single most useful line: which gates are open, and across how many villagers.
+                if (gateCounts.Count > 0)
+                {
+                    var gl = new List<KeyValuePair<string, int>>(gateCounts);
+                    gl.Sort((a, b) => b.Value.CompareTo(a.Value));
+                    var gsb = new StringBuilder();
+                    foreach (var g in gl) gsb.Append($"  {g.Key}x{g.Value}");
+                    sb.AppendLine("  OPEN GATES:" + gsb);
+                }
+
+                flagged.Sort((a, b) => b.Key.CompareTo(a.Key));
+
+                if (flagged.Count == 0)
+                {
+                    sb.AppendLine("  Nothing above the threshold - every gate is shut. One villager as reference:");
+                    if (reference != null) AppendVillager(sb, reference, gm, dm, 0f);
+                }
+                else
+                {
+                    for (int i = 0; i < flagged.Count && i < DetailVillagers; i++)
+                        AppendVillager(sb, flagged[i].Value, gm, dm, flagged[i].Key);
+                    if (flagged.Count > DetailVillagers)
+                        sb.AppendLine($"  ... {flagged.Count - DetailVillagers} more flagged, not listed.");
+                }
+
+                sb.AppendLine("  '*' = factor at/above 0.9 of its curve.  REQ = required; 0 there shuts the disease off.");
                 MelonLogger.Msg(sb.ToString());
                 return true;
             }
@@ -279,6 +355,104 @@ namespace DivineHands.Modules
                 MelonLogger.Warning("[DivineHands] Factor dump failed: " + e);
                 return true;   // a throwing dump will keep throwing; do not spin on it
             }
+        }
+
+        /// <summary>year*12+month, or -1 when there is no clock yet. Monotonic, so it survives a
+        /// year rollover that a bare month number would not.</summary>
+        private static int CurrentYM()
+        {
+            try
+            {
+                var tm = GameManager.Instance != null ? GameManager.Instance.timeManager : null;
+                if (tm == null) return -1;
+                var d = tm.currentDate;
+                return d.year * 12 + d.month;
+            }
+            catch { return -1; }
+        }
+
+        /// <summary>Calendar stamp for a dump header, e.g. "Y12 M7".</summary>
+        private static string StampYM()
+        {
+            try
+            {
+                var tm = GameManager.Instance != null ? GameManager.Instance.timeManager : null;
+                if (tm == null) return "Y? M?";
+                var d = tm.currentDate;
+                return $"Y{d.year} M{d.month}";
+            }
+            catch { return "Y? M?"; }
+        }
+
+        /// <summary>The live per-day contraction chance as a PERCENT, exactly as the game rolls it.</summary>
+        private static float PerDayPct(Disease d, ImmuneSystemComponent im)
+        {
+            float score = d.GetControllableScore(im);
+            float flav  = d.GetFlavorMultiplierByScore(d.GetFlavorScore(im));
+            return d.GetChancePerYearByScore(score) * flav / 360f * 100f;
+        }
+
+        /// <summary>A disease lists several assets of the SAME factor type tuned differently -
+        /// Typhoid carries two DF_ResidenceStocked entries at different weights, one required - so
+        /// always prefer the ASSET name, which is what distinguishes them.</summary>
+        private static string FactorLabel(DiseaseFactor f)
+        {
+            string name = f.name;
+            if (string.IsNullOrEmpty(name)) name = f.GetType().Name;
+            return name.StartsWith("DF_") ? name.Substring(3) : name;
+        }
+
+        /// <summary>One villager block: header, the water readout, and its worst diseases.</summary>
+        private static void AppendVillager(StringBuilder sb, ImmuneSystemComponent im,
+                                           GameManager gm, DiseaseManager dm, float worst)
+        {
+            string who = im.gameObject != null ? im.gameObject.name : "?";
+            sb.AppendLine(worst > 0f ? $"  -- {who}  [worst {worst:0.####}%/day]" : $"  -- {who}");
+
+            string water = WaterLine(im, gm);
+            if (water.Length > 0) sb.AppendLine(water);
+
+            var rows = new List<KeyValuePair<float, string>>();
+            foreach (var list in new[] { dm.contagiousDiseases?.diseases, dm.personalDiseases?.diseases })
+            {
+                if (list == null) continue;
+                foreach (var d in list)
+                {
+                    if (d == null) continue;
+                    float score, flav, perDay;
+                    try
+                    {
+                        score  = d.GetControllableScore(im);
+                        flav   = d.GetFlavorMultiplierByScore(d.GetFlavorScore(im));
+                        perDay = d.GetChancePerYearByScore(score) * flav / 360f * 100f;
+                    }
+                    catch { continue; }
+
+                    var fsb = new StringBuilder();
+                    if (d.factors != null)
+                    {
+                        var seen = new Dictionary<string, int>();
+                        foreach (var f in d.factors)
+                        {
+                            if (f.diseaseFactor == null || f.diseaseFactor.factorFunc == null) continue;
+                            float raw;
+                            try { raw = f.diseaseFactor.factorFunc(im); } catch { continue; }
+
+                            string name = FactorLabel(f.diseaseFactor);
+                            int n;
+                            if (seen.TryGetValue(name, out n)) { seen[name] = ++n; name += "#" + n; }
+                            else seen[name] = 1;
+
+                            fsb.Append($" {(raw >= 0.9f ? "*" : " ")}{name}={raw:0.##}x{f.weight}{(f.isRequired ? "REQ" : "")}");
+                        }
+                    }
+
+                    rows.Add(new KeyValuePair<float, string>(perDay,
+                        $"      {d.name,-22} score {score:0.###}  xflav {flav:0.##}  -> {perDay:0.####}%/day{fsb}"));
+                }
+            }
+            rows.Sort((a, b) => b.Key.CompareTo(a.Key));
+            for (int i = 0; i < rows.Count && i < TopDiseases; i++) sb.AppendLine(rows[i].Value);
         }
 
         private static void DumpDiseaseRates()
