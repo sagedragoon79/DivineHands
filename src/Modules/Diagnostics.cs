@@ -307,6 +307,18 @@ namespace DivineHands.Modules
                 var sb = new StringBuilder();
                 sb.AppendLine($"[DivineHands] ───── DISEASE GATES (live) {StampYM()} ─────");
 
+                // Baseline well coverage. Instant Build prints the same figure after a sweep, so
+                // the BEFORE/AFTER pair is what attributes a coverage hole to the sweep rather
+                // than to the save it was run on.
+                try
+                {
+                    int outsideWells, dryOutside;
+                    if (Modules.InstantBuild.CountResidencesOutsideWells(out outsideWells, out dryOutside))
+                        sb.AppendLine($"  wells: {outsideWells} residence(s) outside all well radii" +
+                                      $"  ({dryOutside} of them holding no water)");
+                }
+                catch { }
+
                 AppendRngHealth(sb);
                 AppendCensus(sb, dm);
 

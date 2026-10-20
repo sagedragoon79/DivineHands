@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using MelonLoader;
@@ -92,9 +92,87 @@ namespace DivineHands.Modules
                 }
             }
             if (done > 0 || skipped > 0)
+            {
                 Status = skipped > 0
                     ? $"Built {done}, skipped {skipped} (can't afford — building normally)"
                     : $"Built {done} instantly";
+                if (done > 0) Status += WellCoverageWarning();
+            }
+        }
+
+        /// <summary>
+        /// Warn about residences standing outside every well's coverage.
+        ///
+        /// This is the one real hazard of instant building, and it is silent. Normally a player
+        /// lays down a few houses, sees the water warning and drops a well — the pacing IS the
+        /// feedback. Completing a long-queued backlog in a single frame skips all of that: a whole
+        /// district arrives already occupied, and if it landed beyond well range the people living
+        /// there can never read as near clean water.
+        ///
+        /// That is geometry, not logistics, and full wells do not help:
+        /// ResourceManager.IsNearWaterSourceBuilding compares distance against each source's
+        /// strategicPlanningRadius and defaults mustHaveWaterInStorage to FALSE. VillagerHealth
+        /// .DetermineIfNearWater then clears isNearCleanWater, which is a REQUIRED factor on
+        /// Dysentery and a weight-4 input to Cholera; six dry days later DF_Thirst opens
+        /// Dehydration at ~0.4%/day per villager, roughly 200x anything else in a healthy town.
+        /// Observed in the field as a district sitting 109m from an 80m well, dry for 485 days.
+        ///
+        /// Checked against the RESIDENCE position, which is the actionable half: DetermineIfNearWater
+        /// also passes a villager standing near a well right now, so this can name a house whose
+        /// occupants are momentarily fine. A house out of range is still the thing to fix.
+        /// </summary>
+        private static string WellCoverageWarning()
+        {
+            try
+            {
+                var gm = GameManager.Instance;
+                var rm = gm != null ? gm.resourceManager : null;
+                if (rm == null || rm.allResidencesRO == null) return "";
+
+                int outside, dry;
+                if (!CountResidencesOutsideWells(out outside, out dry) || outside == 0) return "";
+
+                string msg = $" — {outside} residence(s) outside well coverage" +
+                             (dry > 0 ? $", {dry} with no water" : "");
+                MelonLogger.Warning($"[DivineHands] Instant build: {outside} residence(s) stand outside " +
+                                    $"every well's radius{(dry > 0 ? $" and {dry} of them hold no water" : "")}. " +
+                                    "Villagers housed there cannot register as near clean water, which opens " +
+                                    "Dehydration, Dysentery, Cholera and Typhoid. Place wells to cover them.");
+                return msg;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DivineHands] Well coverage check failed: {ex.Message}");
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Residences standing outside every well's coverage, and how many of those hold no water.
+        /// Public so the diagnostics dump can print the same figure on load: comparing the number
+        /// BEFORE a sweep against the number after is what separates "instant build put houses
+        /// beyond the wells" from "this town already had a coverage hole".
+        /// </summary>
+        public static bool CountResidencesOutsideWells(out int outside, out int dry)
+        {
+            outside = 0; dry = 0;
+            try
+            {
+                var gm = GameManager.Instance;
+                var rm = gm != null ? gm.resourceManager : null;
+                if (rm == null || rm.allResidencesRO == null) return false;
+
+                foreach (var r in rm.allResidencesRO)
+                {
+                    var res = r as Residence;
+                    if (res == null || res.gameObject == null) continue;
+                    if (rm.IsNearWaterSourceBuilding(res.gameObject.transform.position)) continue;
+                    outside++;
+                    if (res.GetWaterCount() == 0) dry++;
+                }
+                return true;
+            }
+            catch { return false; }
         }
 
         private static void SweepExisting()
