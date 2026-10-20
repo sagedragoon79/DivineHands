@@ -240,6 +240,8 @@ namespace DivineHands.Modules
                 var gateCounts = new Dictionary<string, int>();
                 ImmuneSystemComponent reference = null;
 
+                RefreshWaterFlags(dm);
+
                 foreach (var im in dm.immuneSystems)
                 {
                     if (im == null) continue;
@@ -377,6 +379,40 @@ namespace DivineHands.Modules
             {
                 MelonLogger.Warning("[DivineHands] Factor dump failed: " + e);
                 return true;   // a throwing dump will keep throwing; do not spin on it
+            }
+        }
+
+        /// <summary>
+        /// Recompute every villager's water proximity before scoring, because the cached flags go
+        /// stale and this dump was reading the stale ones.
+        ///
+        /// VillagerHealth.isNearCleanWater / isNearAnyWater are only refreshed by
+        /// DetermineIfNearWater(), which is called from ONE place: the periodic food-update tick.
+        /// Immediately after a save load the flags still hold whatever they held before, so a dump
+        /// that fires on load reported water gates that were not real - twice in one session a
+        /// first-after-load scan showed 21 villagers with no clean water, and the next scan a month
+        /// later showed zero, with nothing having changed but the tick.
+        ///
+        /// DF_Water reads isNearCleanWater directly and DF_Thirst reads isNearAnyWater, so stale
+        /// flags do not merely mislabel the water line - they corrupt the scores and the flagged
+        /// count. Recomputing costs a handful of distance checks per villager and the game does the
+        /// same work on its own schedule; this only moves it earlier. It writes two cached bools
+        /// that are derived state, nothing the simulation would not have written itself.
+        /// </summary>
+        private static void RefreshWaterFlags(DiseaseManager dm)
+        {
+            try
+            {
+                foreach (var im in dm.immuneSystems)
+                {
+                    if (im == null || im.gameObject == null) continue;
+                    var vh = im.gameObject.GetComponent<VillagerHealth>();
+                    if (vh != null) vh.DetermineIfNearWater();
+                }
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Warning("[DivineHands] Water flag refresh failed: " + e.Message);
             }
         }
 
