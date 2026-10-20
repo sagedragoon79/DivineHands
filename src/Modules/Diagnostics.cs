@@ -110,6 +110,66 @@ namespace DivineHands.Modules
         /// removes the disease's chance entirely. Those are marked REQ; a 0 there means that disease
         /// cannot spawn for that villager regardless of everything else.
         /// </summary>
+        /// <summary>
+        /// One line of water truth per villager. DF_Water and DF_Thirst are the two gates that
+        /// opened in the collapse this dump was written for, and they fail for DIFFERENT reasons:
+        ///
+        ///   DF_Water  → villagerHealth.isNearCleanWater, set by DetermineIfNearWater(). TRUE only
+        ///               when the villager's CURRENT position or their RESIDENCE sits inside some
+        ///               water-source building's strategicPlanningRadius. Pure geometry:
+        ///               IsNearWaterSourceBuilding defaults mustHaveWaterInStorage to FALSE, so a
+        ///               FULL well outside the radius does nothing and an EMPTY one inside still
+        ///               counts. Shoreline, and a residence's own drinkingWater, set isNearAnyWater
+        ///               only — they never count as CLEAN.
+        ///   DF_Thirst → needs ALL THREE: residence water count 0, daysWithoutWaterStocked past its
+        ///               threshold (ships at 5), and not near ANY water. That one IS a delivery
+        ///               failure: residences pull water through stockWaterRequest like any other
+        ///               logistics stocking request.
+        ///
+        /// Printing both, with the nearest well and its radius, separates "no well covers this
+        /// house" from "nobody is hauling to this house" at a glance — they need opposite fixes.
+        /// </summary>
+        private static string WaterLine(ImmuneSystemComponent im, GameManager gm)
+        {
+            try
+            {
+                var v = im.gameObject != null ? im.gameObject.GetComponent<Villager>() : null;
+                if (v == null) return "";
+
+                var vh = v.villagerHealth;
+                string clean = vh != null ? (vh.isNearCleanWater ? "yes" : "NO") : "?";
+                string any   = vh != null ? (vh.isNearAnyWater   ? "yes" : "NO") : "?";
+
+                string home = "no residence";
+                Vector3 probe = v.gameObject.transform.position;
+                var res = v.residence as Residence;
+                if (res != null)
+                {
+                    probe = res.gameObject.transform.position;
+                    home = $"H2O {res.GetWaterCount()} (dry {res.DaysWithoutWaterStocked()}d/thr " +
+                           $"{res.daysWithoutWaterStockedThreshold}) soap {res.GetSoapCount()}";
+                }
+
+                string well = "no wells";
+                var sources = gm != null && gm.resourceManager != null ? gm.resourceManager.waterSourcesRO : null;
+                if (sources != null && sources.Count > 0)
+                {
+                    float best = float.MaxValue, bestR = 0f;
+                    foreach (var w in sources)
+                    {
+                        if (w == null) continue;
+                        float dd = Vector3.Distance(probe, w.transform.position);
+                        if (dd < best) { best = dd; bestR = w.strategicPlanningRadius; }
+                    }
+                    if (best < float.MaxValue)
+                        well = $"nearest well {best:0}m (radius {bestR:0}) {(best <= bestR ? "inside" : "OUTSIDE")}";
+                }
+
+                return $"      water: clean={clean} any={any} | {home} | {well}";
+            }
+            catch { return ""; }
+        }
+
         private static bool DumpDiseaseFactors()
         {
             try
@@ -149,6 +209,8 @@ namespace DivineHands.Modules
 
                     string who = im.gameObject != null ? im.gameObject.name : "?";
                     sb.AppendLine($"  ── villager {sampled}: {who}");
+                    string water = WaterLine(im, gm);
+                    if (water.Length > 0) sb.AppendLine(water);
 
                     var rows = new List<KeyValuePair<float, string>>();
 
