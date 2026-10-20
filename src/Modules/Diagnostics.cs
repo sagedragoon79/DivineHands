@@ -307,6 +307,8 @@ namespace DivineHands.Modules
                 var sb = new StringBuilder();
                 sb.AppendLine($"[DivineHands] ───── DISEASE GATES (live) {StampYM()} ─────");
 
+                AppendRngHealth(sb);
+
                 if (!_schemaDumped)
                 {
                     _schemaDumped = true;
@@ -363,6 +365,48 @@ namespace DivineHands.Modules
                 MelonLogger.Warning("[DivineHands] Factor dump failed: " + e);
                 return true;   // a throwing dump will keep throwing; do not spin on it
             }
+        }
+
+        /// <summary>
+        /// Report whether the GAMEPLAY random generator actually exists.
+        ///
+        /// This is cheap and worth printing every scan because of how CERandom degrades:
+        ///
+        ///     public static float Range(Type type, float min, float max)
+        ///         => GetGenerator(type)?.Range(min, max) ?? min;
+        ///
+        /// A MISSING generator does not throw and does not log - it silently returns MIN. Every
+        /// probability check in the game is written as `chance >= CERandom.Range(.., 0f, 1f)` or
+        /// `CERandom.Range(.., 0, 100) &lt;= pct`, so min means **every roll succeeds**: every
+        /// villager contracts every disease whose required factors are open, a fire starts every
+        /// month, and every fire spreads. One null field would look exactly like a town that broke
+        /// for no reason, with nothing in the log.
+        ///
+        /// GAMEPLAY is initialized ONLY by CERandom.BeginGeneration, called from the map
+        /// generator's GenerateInternal - which does run on load as well as on new maps, so this
+        /// should normally read OK. CERandom is a persistent lazy singleton whose Awake seeds only
+        /// Type.GLOBAL, so an instance torn down and recreated mid-session would come back with
+        /// GAMEPLAY null and stay that way. The game exposes GeneratorExists for exactly this
+        /// question; asking it once per scan turns a whole class of "impossible" reports into a
+        /// single line of evidence.
+        /// </summary>
+        private static void AppendRngHealth(StringBuilder sb)
+        {
+            try
+            {
+                bool gameplay = CERandom.GeneratorExists(CERandom.Type.GAMEPLAY);
+                bool global   = CERandom.GeneratorExists(CERandom.Type.GLOBAL);
+                if (gameplay)
+                {
+                    sb.AppendLine($"  rng: GAMEPLAY ok, GLOBAL {(global ? "ok" : "MISSING")}");
+                }
+                else
+                {
+                    sb.AppendLine("  rng: *** GAMEPLAY GENERATOR MISSING - every probability check in " +
+                                  "the game is returning its MINIMUM, i.e. every roll succeeds. ***");
+                }
+            }
+            catch (Exception e) { sb.AppendLine("  rng: check failed: " + e.Message); }
         }
 
         /// <summary>
