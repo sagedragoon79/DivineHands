@@ -299,7 +299,7 @@ namespace DivineHands.Modules
                 if (allowCompact && sig == _lastGateSig)
                 {
                     MelonLogger.Msg($"[DivineHands] gates {StampYM()}: scanned {scanned}, " +
-                                    $"{flagged.Count} open - unchanged");
+                                    $"{flagged.Count} open - unchanged | {CensusBrief(dm)}");
                     return true;
                 }
                 _lastGateSig = sig;
@@ -308,6 +308,7 @@ namespace DivineHands.Modules
                 sb.AppendLine($"[DivineHands] ───── DISEASE GATES (live) {StampYM()} ─────");
 
                 AppendRngHealth(sb);
+                AppendCensus(sb, dm);
 
                 if (!_schemaDumped)
                 {
@@ -365,6 +366,75 @@ namespace DivineHands.Modules
                 MelonLogger.Warning("[DivineHands] Factor dump failed: " + e);
                 return true;   // a throwing dump will keep throwing; do not spin on it
             }
+        }
+
+        /// <summary>
+        /// The live sickness census - who is sick RIGHT NOW, exactly as the in-game panel counts it.
+        ///
+        /// This is the number that matters and the one the gate scan cannot see. The scan reports
+        /// CONTRACTION RISK, but influenza has an empty factor list and chancePerYearMin 0, so its
+        /// environmental chance is exactly zero and it never appears in a risk listing - yet a save
+        /// was observed with 488 of 488 villagers infected simultaneously. Flu only spreads; it
+        /// cannot spawn. So risk and prevalence are different questions, and only the census
+        /// answers the second one.
+        ///
+        /// DiseaseStats.sickCount counts ImmuneSystemComponent.IsSick(), and diseaseInfoMap holds a
+        /// per-disease villagerCount - the same figures the health panel shows, so what is logged
+        /// here can be compared directly against a screenshot.
+        /// </summary>
+        private static void AppendCensus(StringBuilder sb, DiseaseManager dm)
+        {
+            try
+            {
+                var st = dm.stats;
+                if (st == null) return;
+                int total = dm.immuneSystems != null ? dm.immuneSystems.Count : 0;
+                sb.AppendLine($"  census: {st.sickCount} sick of {total}  ({st.bedriddenCount} bedridden)");
+
+                if (st.diseaseInfoMap == null) return;
+                var rows = new List<KeyValuePair<int, string>>();
+                foreach (var kv in st.diseaseInfoMap)
+                {
+                    if (kv.Value == null || kv.Value.villagerCount <= 0) continue;
+                    string nm = kv.Key != null ? kv.Key.name : "?";
+                    rows.Add(new KeyValuePair<int, string>(kv.Value.villagerCount,
+                        $"{nm} {kv.Value.villagerCount}"));
+                }
+                if (rows.Count == 0) { sb.AppendLine("    (nobody is sick)"); return; }
+                rows.Sort((a, b) => b.Key.CompareTo(a.Key));
+                var line = new StringBuilder("   ");
+                foreach (var r in rows) line.Append("  ").Append(r.Value);
+                sb.AppendLine(line.ToString());
+            }
+            catch (Exception e) { sb.AppendLine("  census failed: " + e.Message); }
+        }
+
+        /// <summary>One-line census for the unchanged-month line, so a quiet watch still tracks
+        /// prevalence even when no contraction gate has moved.</summary>
+        private static string CensusBrief(DiseaseManager dm)
+        {
+            try
+            {
+                var st = dm.stats;
+                if (st == null) return "census n/a";
+                int total = dm.immuneSystems != null ? dm.immuneSystems.Count : 0;
+                var rows = new List<KeyValuePair<int, string>>();
+                if (st.diseaseInfoMap != null)
+                {
+                    foreach (var kv in st.diseaseInfoMap)
+                    {
+                        if (kv.Value == null || kv.Value.villagerCount <= 0) continue;
+                        rows.Add(new KeyValuePair<int, string>(kv.Value.villagerCount,
+                            $"{(kv.Key != null ? kv.Key.name : "?")} {kv.Value.villagerCount}"));
+                    }
+                }
+                rows.Sort((a, b) => b.Key.CompareTo(a.Key));
+                var top = new StringBuilder();
+                for (int i = 0; i < rows.Count && i < 4; i++) top.Append(i == 0 ? " " : ", ").Append(rows[i].Value);
+                return $"sick {st.sickCount}/{total} (bed {st.bedriddenCount})" +
+                       (top.Length > 0 ? " |" + top : "");
+            }
+            catch { return "census n/a"; }
         }
 
         /// <summary>
