@@ -443,12 +443,37 @@ namespace DivineHands.Modules
             catch { return "Y? M?"; }
         }
 
-        /// <summary>The live per-day contraction chance as a PERCENT, exactly as the game rolls it.</summary>
+        /// <summary>
+        /// The live per-day contraction chance as a PERCENT, exactly as the game rolls it - and 0
+        /// when the disease cannot roll at all.
+        ///
+        /// That second half matters. RollDiseaseByDuration only rolls when GetFactoredScore returns
+        /// TRUE, and it returns FALSE the moment any required factor is ~0. But GetControllableScore
+        /// reports 0 in that same case, and GetChancePerYearByScore(0) is the MINIMUM endpoint, not
+        /// zero - so a disease that is switched off entirely was printing a small non-zero rate and
+        /// could trip the risk threshold on its own. Check the gates directly instead.
+        /// </summary>
         private static float PerDayPct(Disease d, ImmuneSystemComponent im)
         {
+            if (IsGated(d, im)) return 0f;
             float score = d.GetControllableScore(im);
             float flav  = d.GetFlavorMultiplierByScore(d.GetFlavorScore(im));
             return d.GetChancePerYearByScore(score) * flav / 360f * 100f;
+        }
+
+        /// <summary>True when some REQUIRED factor sits at ~0, which switches the disease off
+        /// outright no matter what every other factor says.</summary>
+        private static bool IsGated(Disease d, ImmuneSystemComponent im)
+        {
+            if (d.factors == null) return false;
+            foreach (var f in d.factors)
+            {
+                if (!f.isRequired || f.diseaseFactor == null || f.diseaseFactor.factorFunc == null) continue;
+                float raw;
+                try { raw = f.diseaseFactor.factorFunc(im); } catch { continue; }
+                if (Mathf.Approximately(raw, 0f)) return true;
+            }
+            return false;
         }
 
         /// <summary>A disease lists several assets of the SAME factor type tuned differently -
@@ -478,12 +503,13 @@ namespace DivineHands.Modules
                 foreach (var d in list)
                 {
                     if (d == null) continue;
-                    float score, flav, perDay;
+                    float score, flav, perDay; bool gated;
                     try
                     {
+                        gated  = IsGated(d, im);
                         score  = d.GetControllableScore(im);
                         flav   = d.GetFlavorMultiplierByScore(d.GetFlavorScore(im));
-                        perDay = d.GetChancePerYearByScore(score) * flav / 360f * 100f;
+                        perDay = gated ? 0f : d.GetChancePerYearByScore(score) * flav / 360f * 100f;
                     }
                     catch { continue; }
 
@@ -507,7 +533,8 @@ namespace DivineHands.Modules
                     }
 
                     rows.Add(new KeyValuePair<float, string>(perDay,
-                        $"      {d.name,-22} score {score:0.###}  xflav {flav:0.##}  -> {perDay:0.####}%/day{fsb}"));
+                        $"      {d.name,-22} score {score:0.###}  xflav {flav:0.##}  -> " +
+                        $"{(gated ? "GATED OFF" : $"{perDay:0.####}%/day")}{fsb}"));
                 }
             }
             rows.Sort((a, b) => b.Key.CompareTo(a.Key));
