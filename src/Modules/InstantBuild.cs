@@ -76,6 +76,9 @@ namespace DivineHands.Modules
             // spawn follow-up sites (relocations etc.) whose Initialize postfix re-queues into _pending.
             var batch = _pending.ToArray();
             _pending.Clear();
+            // Snapshot before completing: the DELTA is what this sweep caused, as opposed to what
+            // the town was already short of.
+            Shortfall before = CountShortfalls();
             int done = 0, skipped = 0;
             foreach (var site in batch)
             {
@@ -96,63 +99,105 @@ namespace DivineHands.Modules
                 Status = skipped > 0
                     ? $"Built {done}, skipped {skipped} (can't afford — building normally)"
                     : $"Built {done} instantly";
-                if (done > 0) Status += WellCoverageWarning();
+                if (done > 0) Status += StockingShockWarning(before);
             }
         }
 
-        /// <summary>
-        /// Warn about residences standing outside every well's coverage.
-        ///
-        /// This is the one real hazard of instant building, and it is silent. Normally a player
-        /// lays down a few houses, sees the water warning and drops a well — the pacing IS the
-        /// feedback. Completing a long-queued backlog in a single frame skips all of that: a whole
-        /// district arrives already occupied, and if it landed beyond well range the people living
-        /// there can never read as near clean water.
-        ///
-        /// That is geometry, not logistics, and full wells do not help:
-        /// ResourceManager.IsNearWaterSourceBuilding compares distance against each source's
-        /// strategicPlanningRadius and defaults mustHaveWaterInStorage to FALSE. VillagerHealth
-        /// .DetermineIfNearWater then clears isNearCleanWater, which is a REQUIRED factor on
-        /// Dysentery and a weight-4 input to Cholera; six dry days later DF_Thirst opens
-        /// Dehydration at ~0.4%/day per villager, roughly 200x anything else in a healthy town.
-        /// Observed in the field as a district sitting 109m from an 80m well, dry for 485 days.
-        ///
-        /// Checked against the RESIDENCE position, which is the actionable half: DetermineIfNearWater
-        /// also passes a villager standing near a well right now, so this can name a house whose
-        /// occupants are momentarily fine. A house out of range is still the thing to fix.
-        /// </summary>
-        private static string WellCoverageWarning()
+        /// <summary>Occupied homes missing each of the resources that gate a disease.</summary>
+        private struct Shortfall
         {
+            public int homes, firewood, soap, water, food;
+        }
+
+        /// <summary>
+        /// Count occupied residences holding NONE of each gated resource.
+        ///
+        /// These four are not arbitrary - each is a REQUIRED factor on a real disease, so a zero
+        /// here is a switch, not a slider:
+        ///   firewood -> PD_FoodPoisoning (no fuel means meat is eaten raw)
+        ///   soap     -> CD_Typhoid, CD_Cholera, PD_Dysentery
+        ///   water    -> PD_Dehydration, once daysWithoutWaterStocked passes its threshold
+        ///   food     -> the diet factors behind PD_Scurvy and PD_BowelObstruction
+        /// Empty houses are skipped: an unoccupied building still competes for haulers, but nobody
+        /// gets sick in it, and the number worth showing the player is the one with people in it.
+        /// </summary>
+        private static Shortfall CountShortfalls()
+        {
+            var result = default(Shortfall);
             try
             {
                 var gm = GameManager.Instance;
                 var rm = gm != null ? gm.resourceManager : null;
-                if (rm == null || rm.allResidencesRO == null) return "";
+                if (rm == null || rm.allResidencesRO == null) return result;
 
-                int outside, dry;
-                if (!CountResidencesOutsideWells(out outside, out dry) || outside == 0) return "";
+                foreach (var r in rm.allResidencesRO)
+                {
+                    var res = r as Residence;
+                    if (res == null || res.numResidents <= 0) continue;
+                    result.homes++;
+                    if (res.GetHeatingFuelCount() == 0) result.firewood++;
+                    if (res.GetSoapCount() == 0)        result.soap++;
+                    if (res.GetWaterCount() == 0)       result.water++;
+                    if (res.GetFoodCount() == 0)        result.food++;
+                }
+            }
+            catch { }
+            return result;
+        }
 
-                string msg = $" — {outside} residence(s) outside well coverage" +
-                             (dry > 0 ? $", {dry} with no water" : "");
-                MelonLogger.Warning($"[DivineHands] Instant build: {outside} residence(s) stand outside " +
-                                    $"every well's radius{(dry > 0 ? $" and {dry} of them hold no water" : "")}. " +
-                                    "Villagers housed there cannot register as near clean water, which opens " +
-                                    "Dehydration, Dysentery, Cholera and Typhoid. Place wells to cover them.");
-                return msg;
+        /// <summary>
+        /// Warn about the STOCKING SHOCK a sweep causes. This is the real hazard of instant
+        /// building, and it is silent.
+        ///
+        /// Completing a long backlog in one frame does not just place buildings - every one of them
+        /// immediately registers its stocking requests (food, heating fuel, water, soap) through
+        /// Residence.UpdateStockingItemRequest. Hundreds of brand-new empty buildings then compete
+        /// for the same haulers that keep OCCUPIED homes supplied, and the supply gets smeared
+        /// across all of them. Normally construction is paced and stocking keeps up; this removes
+        /// the pacing and nothing else changes to compensate.
+        ///
+        /// Measured in the field: toggling this on with 677 pending sites took homes short of
+        /// firewood from 1 to 13 inside one in-game month. No firewood means meat is eaten raw,
+        /// which is both required factors on PD_FoodPoisoning - a town that vomits in unison.
+        ///
+        /// Reported as a DELTA against the pre-sweep snapshot, because a town already short of
+        /// firewood should not have that blamed on the sweep.
+        /// </summary>
+        private static string StockingShockWarning(Shortfall before)
+        {
+            try
+            {
+                Shortfall after = CountShortfalls();
+                int dFire = after.firewood - before.firewood;
+                int dSoap = after.soap     - before.soap;
+                int dWater = after.water   - before.water;
+                int dFood = after.food     - before.food;
+                int worst = Math.Max(Math.Max(dFire, dSoap), Math.Max(dWater, dFood));
+                if (worst <= 0) return "";
+
+                var parts = new List<string>();
+                if (dFire  > 0) parts.Add($"{dFire} firewood");
+                if (dFood  > 0) parts.Add($"{dFood} food");
+                if (dWater > 0) parts.Add($"{dWater} water");
+                if (dSoap  > 0) parts.Add($"{dSoap} soap");
+                string list = string.Join(", ", parts.ToArray());
+
+                MelonLogger.Warning(
+                    $"[DivineHands] Instant build: {after.homes} occupied home(s), and the sweep left " +
+                    $"more of them with nothing in stock - {list}. Every new building queues its own " +
+                    "stocking requests, so hundreds at once pull haulers away from homes people live " +
+                    "in. An empty firewood store means raw meat and food poisoning; empty soap means " +
+                    "typhoid, cholera and dysentery. Build in smaller batches, or let haulers catch up.");
+
+                return $" — stocking shock: +{list} short";
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DivineHands] Well coverage check failed: {ex.Message}");
+                MelonLogger.Warning($"[DivineHands] Stocking check failed: {ex.Message}");
                 return "";
             }
         }
 
-        /// <summary>
-        /// Residences standing outside every well's coverage, and how many of those hold no water.
-        /// Public so the diagnostics dump can print the same figure on load: comparing the number
-        /// BEFORE a sweep against the number after is what separates "instant build put houses
-        /// beyond the wells" from "this town already had a coverage hole".
-        /// </summary>
         public static bool CountResidencesOutsideWells(out int outside, out int dry)
         {
             outside = 0; dry = 0;
