@@ -61,7 +61,11 @@ namespace DivineHands.Modules
 
             if (Config.DiagDiseaseFactors.Value)
             {
-                if (!_factorDumpDone) { _factorDumpDone = true; DumpDiseaseFactors(); }
+                // Latch only on a dump that actually produced output. OnMapLoaded re-arms this so
+                // the dump fires by itself on every save load - but for the first frames after a
+                // load the DiseaseManager has no immune systems registered yet, and latching on
+                // that empty pass would silently skip the save just loaded. Retry until it lands.
+                if (!_factorDumpDone && DumpDiseaseFactors()) _factorDumpDone = true;
             }
             else _factorDumpDone = false;
 
@@ -106,15 +110,16 @@ namespace DivineHands.Modules
         /// removes the disease's chance entirely. Those are marked REQ; a 0 there means that disease
         /// cannot spawn for that villager regardless of everything else.
         /// </summary>
-        private static void DumpDiseaseFactors()
+        private static bool DumpDiseaseFactors()
         {
             try
             {
                 var gm = GameManager.Instance;
                 var dm = gm != null ? gm.diseaseManager : null;
-                if (dm == null) { MelonLogger.Warning("[DivineHands] Factor dump: no DiseaseManager."); return; }
-                if (dm.immuneSystems == null || dm.immuneSystems.Count == 0)
-                { MelonLogger.Warning("[DivineHands] Factor dump: no immune systems yet."); return; }
+                // Not-ready is transient (menu, or the first frames of a load), so return quietly
+                // and let the caller retry rather than logging a warning every frame.
+                if (dm == null) return false;
+                if (dm.immuneSystems == null || dm.immuneSystems.Count == 0) return false;
 
                 var sb = new StringBuilder();
                 sb.AppendLine("[DivineHands] ───── DISEASE FACTORS (live, per villager) ─────");
@@ -166,14 +171,24 @@ namespace DivineHands.Modules
                             var fsb = new StringBuilder();
                             if (d.factors != null)
                             {
+                                // A disease can list SEVERAL assets of the SAME factor type, tuned
+                                // differently - Typhoid carries two DF_ResidenceStocked entries at
+                                // different weights, one of them required. Printing the type name
+                                // for both made the gate unreadable, so prefer the ASSET name and
+                                // only fall back to the type, disambiguating any repeat with #n.
+                                var seen = new Dictionary<string, int>();
                                 foreach (var f in d.factors)
                                 {
                                     if (f.diseaseFactor == null || f.diseaseFactor.factorFunc == null) continue;
                                     float raw;
                                     try { raw = f.diseaseFactor.factorFunc(im); } catch { continue; }
 
-                                    string name = f.diseaseFactor.GetType().Name;
+                                    string name = f.diseaseFactor.name;
+                                    if (string.IsNullOrEmpty(name)) name = f.diseaseFactor.GetType().Name;
                                     if (name.StartsWith("DF_")) name = name.Substring(3);
+                                    int n;
+                                    if (seen.TryGetValue(name, out n)) { seen[name] = ++n; name += "#" + n; }
+                                    else seen[name] = 1;
                                     // '*' = this factor is at the top of its curve. That is the whole
                                     // point of the dump: it names the input doing the damage.
                                     string pin = raw >= 0.9f ? "*" : " ";
@@ -195,10 +210,12 @@ namespace DivineHands.Modules
                 sb.AppendLine("  REQ = required factor; 0 there blocks that disease outright.");
                 sb.AppendLine("  %/day is PER VILLAGER - multiply by population for the town's daily case rate.");
                 MelonLogger.Msg(sb.ToString());
+                return true;
             }
             catch (Exception e)
             {
                 MelonLogger.Warning("[DivineHands] Factor dump failed: " + e);
+                return true;   // a throwing dump will keep throwing; do not spin on it
             }
         }
 
