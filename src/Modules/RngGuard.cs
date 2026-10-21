@@ -66,6 +66,8 @@ namespace DivineHands.Modules
         public static void OnUpdate()
         {
             if (!Config.MasterEnable.Value || !Config.RngGuardEnable.Value) return;
+            // Primary fix is the setter patch; this stays on as a fallback for the case where
+            // Harmony could not resolve the property (a game update renaming it, say).
 
             try
             {
@@ -80,6 +82,18 @@ namespace DivineHands.Modules
                 g.Seed = fresh;
                 Repairs++;
                 LastSeedInstalled = fresh;
+
+                // With Patches.RngSeedGuardPatch applied, an invalid seed can never be STORED, so
+                // reaching here at all means that patch did not cover the write. Worth saying
+                // loudly and every time - it is a different, unknown path, not the known one.
+                if (Patches.RngSeedGuardPatch.Applied)
+                {
+                    MelonLogger.Warning(
+                        $"[DivineHands] rng seed reached {s} DESPITE the setter patch being applied " +
+                        $"— repaired to {fresh}. Something is writing the backing field directly, or " +
+                        "through a path the patch does not cover. Please report this.");
+                    return;
+                }
 
                 bool verbose = Repairs <= LogFirst;
                 bool periodic = Repairs % LogEvery == 0;
