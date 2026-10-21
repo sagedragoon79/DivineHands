@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using MelonLoader;
 
 namespace DivineHands.Modules
@@ -45,6 +45,13 @@ namespace DivineHands.Modules
         /// <summary>Times the seed has been found dead and repaired this session.</summary>
         public static int Repairs { get; private set; }
 
+        /// <summary>Full explanation for the first few, then one line per this many. Observed in
+        /// the field at roughly one death every 2.7 seconds - about twice per in-game day - so an
+        /// unthrottled warning would put ~1300 lines an hour in the log and bury everything else.
+        /// The condition is permanent while it lasts, so repetition carries no new information.</summary>
+        private const int LogFirst = 3;
+        private const int LogEvery = 100;
+
         /// <summary>Last value installed, for the panel status line.</summary>
         public static uint LastSeedInstalled { get; private set; }
 
@@ -73,6 +80,19 @@ namespace DivineHands.Modules
                 g.Seed = fresh;
                 Repairs++;
                 LastSeedInstalled = fresh;
+
+                bool verbose = Repairs <= LogFirst;
+                bool periodic = Repairs % LogEvery == 0;
+                if (!verbose && !periodic) return;   // repaired silently; nothing new to say
+
+                if (!verbose)
+                {
+                    MelonLogger.Warning(
+                        $"[DivineHands] GAMEPLAY rng seed has now been repaired {Repairs} times this " +
+                        "session - something is zeroing it continuously. Still a vanilla bug; the " +
+                        "guard is holding.");
+                    return;
+                }
 
                 if (s == 0u)
                 {

@@ -119,9 +119,36 @@ exception appeared in the MelonLoader log during the captured event, so the thro
 chain is not proven. It is offered as the most likely candidate because it is the only code found
 that assigns this seed a caller-controlled value that can be zero.
 
+## Frequency — this is continuous, not a one-off
+
+After adding a runtime guard that detects `seed == 0` and re-seeds, the guard fired **twelve times
+in thirty-three seconds**, at a near-perfectly regular interval:
+
+```
+20:18:41  repair #1     gaps: +3s +2s +3s +3s +2s +3s +3s +2s +3s +3s +3s
+20:19:11  repair #12
+```
+
+Roughly one death every 2.7 real seconds — about **twice per in-game day** at normal speed. So the
+seed is not reaching zero through some rare race; something writes it on a short, regular cycle.
+
+The reason a player experiences this as a single catastrophic event rather than a recurring one is
+that **nothing in vanilla ever re-seeds it.** The first zero is permanent for the session. Every
+subsequent write is writing zero over zero.
+
+The same save with the guard active: **1 sick of 547**, across twelve seed deaths. Unguarded:
+**519 of 526**. The guard changes nothing else about the simulation — it only replaces an invalid
+state with a valid one.
+
 ## Reproduction
 
-Not yet reduced to deterministic steps. Observed twice in one session, in both cases within
+Not yet reduced to deterministic steps, but two facts should make it tractable:
+
+- **The GAMEPLAY seed is deterministic per save.** Two separate loads of the same save both began
+  at seed `1410498401`, as expected from `BeginGeneration` deriving it from the map seed. The roll
+  sequence from load is therefore reproducible.
+- **The zeroing is periodic**, roughly every 2.7 s of real time, in a mature town (526 pop) with
+  work camps active. Observed twice in one session, in both cases within
 seconds of closing the tech tree screen after spending points. A town large enough to have work
 camps and tree-planting activity near the map origin appears relevant.
 
