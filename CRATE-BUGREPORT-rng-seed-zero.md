@@ -1,5 +1,17 @@
 # Bug report: GAMEPLAY RNG can reach seed 0, after which every probability roll in the game succeeds
 
+## RESOLVED — fix applied by Crate, 2026-10-20
+
+Reported to the Crate forum ("0 seed Bug", Farthest Frontier / Bug Reporting). Westfaliah
+(Crate Employee - Programmer) replied within ~9 hours: *"The edgiest-of-all-edge conditions. Fix
+applied."* — consistent with the inferred cause, grid cell (0,0) in
+`TerrainManager.SpawnTreePlantingSites`.
+
+The Divine Hands setter patch stays in place: it protects anyone still on the current build, and
+once the official fix ships it becomes inert, since it only blocks states that can no longer
+occur.
+
+
 **Game:** Farthest Frontier v1.1.0 (Mono build)
 **Severity:** Save-breaking. Silent — nothing is logged, no exception is thrown, and no in-game
 indicator reveals it.
