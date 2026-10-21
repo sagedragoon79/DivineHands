@@ -157,8 +157,12 @@ Any one of these closes it; the first two are the cheapest.
 
 ## Notes
 
-- Reproduced with mods loaded (MelonLoader 0.7.0), but **no mod writes this seed** — all mod usage
-  audited and is read-only via `CERandom.Range`. The writes quoted above are vanilla.
+- Reproduced with mods loaded (MelonLoader 0.7.0), but **no mod writes this seed.** Verified two
+  ways: source audit of the eleven mods built locally, and a metadata scan of **every DLL in the
+  Mods folder**, including third-party mods with no source available. Across all fourteen
+  assemblies there is exactly one `set_Seed` reference, and it belongs to the Divine Hands repair
+  guard described below, added after this bug was captured. Mod usage of `CERandom` is otherwise
+  read-only via `Range`. The writes quoted above are vanilla.
 - A diagnostic and a runtime repair for this exist in the Divine Hands mod
   (`RngGuard`), which detects `seed == 0` and re-seeds from the clock. That is a workaround for
   players, not a substitute for the engine fix.
