@@ -150,6 +150,58 @@ namespace DivineHands.Modules
         /// cannot spawn for that villager regardless of everything else.
         /// </summary>
         /// <summary>
+        /// List the actual uncovered houses - map position, distance to the nearest well against
+        /// that well's radius, residents, and whether the place is dry.
+        ///
+        /// A bare count ("29 outside all well radii") is not checkable; a coordinate is. The game
+        /// surfaces nothing about this, so without the list there is no way to confirm the claim or
+        /// act on it. Sorted worst-first by how far past the radius the house sits, because that is
+        /// the order to place wells in.
+        ///
+        /// Coordinates are world x,z rounded to int, matching the @x,y form the delivery logs use,
+        /// so a house named here can be found against those too.
+        /// </summary>
+        private static void AppendUncoveredHouses(StringBuilder sb, GameManager gm)
+        {
+            try
+            {
+                var rm = gm != null ? gm.resourceManager : null;
+                if (rm == null || rm.allResidencesRO == null || rm.waterSourcesRO == null) return;
+
+                var rows = new List<KeyValuePair<float, string>>();
+                foreach (var r in rm.allResidencesRO)
+                {
+                    var res = r as Residence;
+                    if (res == null || res.gameObject == null) continue;
+                    Vector3 p = res.gameObject.transform.position;
+                    if (rm.IsNearWaterSourceBuilding(p)) continue;
+
+                    float best = float.MaxValue, bestR = 0f;
+                    foreach (var w in rm.waterSourcesRO)
+                    {
+                        if (w == null) continue;
+                        float dd = Vector3.Distance(p, w.transform.position);
+                        if (dd < best) { best = dd; bestR = w.strategicPlanningRadius; }
+                    }
+
+                    // How far PAST the nearest well's radius - the size of the hole, not the distance.
+                    float over = best < float.MaxValue ? best - bestR : 9999f;
+                    string dry = res.GetWaterCount() == 0 ? " DRY" : "";
+                    rows.Add(new KeyValuePair<float, string>(over,
+                        $"({p.x:0},{p.z:0}) {best:0}m/{bestR:0} {res.numResidents}res{dry}"));
+                }
+                if (rows.Count == 0) return;
+
+                rows.Sort((a, b) => b.Key.CompareTo(a.Key));
+                var line = new StringBuilder("    worst:");
+                for (int i = 0; i < rows.Count && i < 12; i++) line.Append("  ").Append(rows[i].Value);
+                sb.AppendLine(line.ToString());
+                if (rows.Count > 12) sb.AppendLine($"    ... and {rows.Count - 12} more");
+            }
+            catch (Exception e) { sb.AppendLine("    uncovered-house list failed: " + e.Message); }
+        }
+
+        /// <summary>
         /// Why a villager is below full health when nothing is wrong with them.
         ///
         /// Health here is not a disease readout - it is DIET, and the two are independent.
@@ -379,8 +431,11 @@ namespace DivineHands.Modules
                 {
                     int outsideWells, dryOutside;
                     if (Modules.InstantBuild.CountResidencesOutsideWells(out outsideWells, out dryOutside))
+                    {
                         sb.AppendLine($"  wells: {outsideWells} residence(s) outside all well radii" +
                                       $"  ({dryOutside} of them holding no water)");
+                        AppendUncoveredHouses(sb, gm);
+                    }
                 }
                 catch { }
 
@@ -579,7 +634,32 @@ namespace DivineHands.Modules
                 bool global   = CERandom.GeneratorExists(CERandom.Type.GLOBAL);
                 if (gameplay)
                 {
-                    sb.AppendLine($"  rng: GAMEPLAY ok, GLOBAL {(global ? "ok" : "MISSING")}");
+                    // Existence is NOT health. RNG is a Lehmer generator, x = 16807x mod 2147483647,
+                    // and ZERO IS AN ABSORBING STATE: 16807*0 mod m == 0, so once the seed reaches 0
+                    // Generate() returns 0 forever, GenerateFloat() returns 0f, and Range(0f,1f)
+                    // returns exactly its min. Every probability test in the game reads
+                    // `chance >= Range(..,0f,1f)` or `Range(..,0,100) <= pct`, so a zero seed makes
+                    // EVERY ROLL SUCCEED - every villager contracts every disease whose required
+                    // factors are open, in one tick. That is precisely the observed signature:
+                    // 569/576 influenza (no required factors, so nothing blocks it) alongside each
+                    // other ailment hitting exactly its gate's subpopulation.
+                    //
+                    // Seeds are written directly in at least one place - the work-camp placement
+                    // loop does `generator.Seed = (uint)num7` with num7 a grid index, zero at the
+                    // corner cell - so this is reachable without any natural sequence hitting 0.
+                    uint seed = 0; bool got = false;
+                    try { var g = CERandom.GetGenerator(CERandom.Type.GAMEPLAY); if (g != null) { seed = g.Seed; got = true; } }
+                    catch { }
+
+                    if (got && seed == 0u)
+                        sb.AppendLine("  rng: *** GAMEPLAY SEED IS ZERO - Lehmer absorbing state. " +
+                                      "Every probability roll in the game now SUCCEEDS. ***");
+                    else if (got && seed > 2147483646u)
+                        sb.AppendLine($"  rng: *** GAMEPLAY seed {seed} is OUT OF RANGE for the " +
+                                      "modulus (casts negative) - output is undefined. ***");
+                    else
+                        sb.AppendLine($"  rng: GAMEPLAY ok (seed {(got ? seed.ToString() : "?")}), " +
+                                      $"GLOBAL {(global ? "ok" : "MISSING")}");
                 }
                 else
                 {

@@ -326,6 +326,7 @@ namespace DivineHands
         public static MelonPreferences_Entry<bool>   DiagBuildingScare { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   DiagDiseaseRates  { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   DiagDiseaseFactors { get; private set; } = null!;
+        public static MelonPreferences_Entry<bool>   RngGuardEnable { get; private set; } = null!;
         public static MelonPreferences_Entry<bool>   DiagDiseaseFactorsMonthly { get; private set; } = null!;
 
         /// <summary>Livestock kind for the Add-Livestock button: 0=Cow, 1=Chicken, 2=Goat, 3=Horse
@@ -965,6 +966,18 @@ namespace DivineHands
                              "about 2.5 real minutes at normal speed. When the picture has not " +
                              "changed it logs a single line, so the moment a gate actually opens " +
                              "stands out instead of scrolling past. Default: off.");
+
+            RngGuardEnable = _root.CreateEntry(
+                "RngGuardEnable", true,
+                display_name: "Fix: Dead RNG Seed",
+                description: "Repair the game's GAMEPLAY random generator if its seed reaches zero. " +
+                             "It is a Lehmer generator, so zero is an absorbing state - once there it " +
+                             "stays there, and every probability roll in the game succeeds forever: " +
+                             "the whole town catches every contagious disease within seconds, a fire " +
+                             "starts every month and every fire spreads. Nothing is logged and the " +
+                             "generator still exists, so nothing in game reveals it. Zero is never a " +
+                             "valid seed, so repairing it cannot change behaviour that was working. " +
+                             "This is a vanilla bug. Default: ON.");
 
             InjectUnrestricted = _root.CreateEntry(
                 "InjectUnrestricted", true,

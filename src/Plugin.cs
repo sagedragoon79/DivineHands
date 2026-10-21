@@ -1,4 +1,4 @@
-using MelonLoader;
+﻿using MelonLoader;
 using UnityEngine;
 using DivineHands.Core;
 using DivineHands.Modules;
@@ -78,6 +78,7 @@ namespace DivineHands
                 CursorSpawners.OnSceneExit();
                 DeleteSelected.OnSceneExit();
                 Diagnostics.OnSceneExit();
+                RngGuard.OnSceneExit();
                 Progression.OnSceneExit();
                 ItemInjection.OnSceneExit(); // reverts session-infinite storage BEFORE any save
                 return;
@@ -101,6 +102,7 @@ namespace DivineHands
             RaiderSpawners.OnMapLoaded();
             DeleteSelected.OnMapLoaded();
             Diagnostics.OnMapLoaded();
+            RngGuard.OnMapLoaded();
             Progression.OnMapLoaded();
             ItemInjection.OnMapLoaded();
 
@@ -209,6 +211,9 @@ namespace DivineHands
                         KillSelected.KillCurrent();
                 }
 
+                // First in the in-game tick: a dead seed must be repaired BEFORE anything
+                // else this frame consumes a roll from it.
+                RngGuard.OnUpdate();
                 GodTools.OnUpdate();
                 CameraTools.OnUpdate();
                 InstantBuild.OnUpdate();
