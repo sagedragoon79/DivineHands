@@ -262,19 +262,29 @@ namespace DivineHands.Core
             GodChip(grid, "Instant Build", () => Config.InstantBuildEnable.Value,
                 () => Modules.InstantBuild.Active, v => Modules.InstantBuild.Active = v);
 
+            // All Tech is a one-time action, not a toggle: two clicks unlock the whole tech tree. The chip
+            // lights up once every tech is researched, and reads "Confirm?" while waiting for the second click.
+            var allTech = UiKit.NewChip(grid, "All Tech", Modules.Progression.UnlockAllTechClicked, fontSize: 10, flexible: false);
+            UiKit.Bind(() =>
+            {
+                bool show = Config.EnableProgression.Value;
+                if (allTech.Go.activeSelf != show) allTech.Go.SetActive(show);
+                if (!show) return;
+                allTech.SetVisual(Modules.Progression.TreeFullyUnlocked);
+                allTech.Label.text = Modules.Progression.AwaitingConfirm ? "Confirm?" : "All Tech";
+            });
+
             UiKit.NewToggleRow(section, "Use materials (charge town storage)",
                 () => Config.InstantBuildUseMaterials.Value, v => Config.InstantBuildUseMaterials.Value = v,
                 visibleWhen: () => Config.InstantBuildEnable.Value && Modules.InstantBuild.Active, indent: 10);
 
-            // ── Progression: All Buildings (live toggle), tech point grant, Unlock All Tech ──
+            // ── Progression: All Buildings (live toggle) + tech point grant. All Tech lives in the chip grid. ──
             var progRow = UiKit.NewRow(section, 20f, spacing: 3);
             var allBuildings = UiKit.NewChip(progRow, "All Buildings",
                 () => Config.UnlockAllBuildings.Value = !Config.UnlockAllBuildings.Value, fontSize: 10);
             UiKit.Bind(() => allBuildings.SetVisual(Config.UnlockAllBuildings.Value));
             UiKit.NewButton(progRow, "Tech Points", Modules.Progression.GrantTechPoints, height: 19f, fontSize: 10f,
                 liveLabel: () => $"+{Config.TechPointGrant.Value} Tech Pts");
-            UiKit.NewButton(progRow, "Unlock All Tech", Modules.Progression.UnlockAllTechClicked, height: 19f, fontSize: 10f,
-                liveLabel: () => Modules.Progression.AwaitingConfirm ? "Click to confirm" : "Unlock All Tech");
             UiKit.Bind(() => SetActive(progRow, Config.EnableProgression.Value));
             UiKit.NewSliderRow(section, "Tech pts", 1f, 50f, whole: true,
                 () => Config.TechPointGrant.Value, v => Config.TechPointGrant.Value = Mathf.RoundToInt(v),

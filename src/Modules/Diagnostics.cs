@@ -40,7 +40,7 @@ namespace DivineHands.Modules
         /// <summary>year*12+month of the last gate scan, so monthly mode fires once per month.</summary>
         private static int _lastDumpYM = -1;
         /// <summary>Gate picture at the last scan. Unchanged means monthly mode logs one line.</summary>
-        private static string _lastGateSig;
+        private static string? _lastGateSig;
         /// <summary>The factor schema is static data; print it once per load, not per scan.</summary>
         private static bool _schemaDumped;
 
@@ -344,7 +344,8 @@ namespace DivineHands.Modules
             try
             {
                 var gm = GameManager.Instance;
-                var dm = gm != null ? gm.diseaseManager : null;
+                if (gm == null) return false;
+                var dm = gm.diseaseManager;
                 // Not-ready is transient (menu, or the first frames of a load), so return quietly
                 // and let the caller retry rather than logging a warning every frame.
                 if (dm == null) return false;
@@ -353,7 +354,7 @@ namespace DivineHands.Modules
                 int scanned = 0;
                 var flagged = new List<KeyValuePair<float, ImmuneSystemComponent>>();
                 var gateCounts = new Dictionary<string, int>();
-                ImmuneSystemComponent reference = null;
+                ImmuneSystemComponent? reference = null;
 
                 RefreshWaterFlags(dm);
 

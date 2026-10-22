@@ -64,6 +64,7 @@ namespace DivineHands.Modules
             _nextReapply = 0f;
             _wasAllBuildings = false;
             _confirmUntil = -1f;
+            _treeDoneCheckAt = 0f;
             Status = "";
         }
 
@@ -163,6 +164,26 @@ namespace DivineHands.Modules
         /// <summary>True while the button is waiting for its confirming second click.</summary>
         public static bool AwaitingConfirm => Time.unscaledTime < _confirmUntil;
 
+        // Cached "whole tree researched?" for the panel chip — IsEntireTreeFullyUnlocked walks every node,
+        // so re-check at most once a second rather than every frame the panel is open.
+        private static bool _treeDone;
+        private static float _treeDoneCheckAt;
+
+        /// <summary>True once every tech is researched at every rank. Lights the panel's All Tech chip.</summary>
+        public static bool TreeFullyUnlocked
+        {
+            get
+            {
+                if (Time.unscaledTime >= _treeDoneCheckAt)
+                {
+                    _treeDoneCheckAt = Time.unscaledTime + 1f;
+                    try { _treeDone = GameManager.Instance?.techTreeManager?.IsEntireTreeFullyUnlocked() ?? false; }
+                    catch { _treeDone = false; }
+                }
+                return _treeDone;
+            }
+        }
+
         public static void UnlockAllTechClicked()
         {
             if (!AwaitingConfirm)
@@ -218,6 +239,7 @@ namespace DivineHands.Modules
                 }
 
                 ResetTechTreeWindowCache(tm, em);
+                _treeDoneCheckAt = 0f;
                 Status = nodes > 0 ? $"Unlocked {nodes} tech(s), {ranks} rank(s)." : "Nothing left to unlock.";
                 MelonLogger.Msg($"[DivineHands] Unlock All Tech: {nodes} node(s), {ranks} rank(s)");
             }

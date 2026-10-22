@@ -252,7 +252,7 @@ namespace DivineHands.Core
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button($"+{Config.TechPointGrant.Value} Tech Points"))
                     DivineHands.Modules.Progression.GrantTechPoints();
-                if (GUILayout.Button(DivineHands.Modules.Progression.AwaitingConfirm ? "Click to confirm" : "Unlock All Tech"))
+                if (GUILayout.Button(DivineHands.Modules.Progression.AwaitingConfirm ? "Confirm?" : "All Tech"))
                     DivineHands.Modules.Progression.UnlockAllTechClicked();
                 GUILayout.EndHorizontal();
                 if (!string.IsNullOrEmpty(DivineHands.Modules.Progression.Status))
